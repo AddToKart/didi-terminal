@@ -40,6 +40,14 @@ delegate Builder "build a calculator"
 
 Never use an internal "Task" tool for delegation when running in this environment. Always use the `delegate` shell command.
 
+## Delegation Loop Prevention
+
+- Delegate only real work that requires action.
+- Completion callbacks are terminal status updates, not new tasks.
+- If a message starts with `Task complete:`, `Done:`, `Completed:`, `Finished:`, `Status:`, `FYI:`, `Ack:`, or `Acknowledged:`, do not acknowledge it or report back unless it explicitly assigns new work.
+- After completing a delegated task, report back exactly once with `delegate <SenderName> "Task complete: <summary>"`, then stop.
+- Orchestrators should track task state and only delegate the next step after a real completion callback, not after acknowledgements.
+
 ## Working Conventions
 
 - Treat `src-tauri/target/` and `node_modules/` as generated artifacts; do not edit them.

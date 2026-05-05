@@ -209,12 +209,22 @@ fn initialize_project(cwd: String) -> Result<(), String> {
 $sender = $env:AGENT_NAME
 if ([string]::IsNullOrEmpty($sender)) { $sender = "Main" }
 
-# Append autonomous callback instructions so the receiving agent knows who to report back to
-$enrichedTask = "[$sender DELEGATED A TASK]: $Task`n[SYSTEM RULE: When you finish this task, you MUST report back to $sender by running: .didi\delegate $sender `"Task complete: <summary>`"]"
+$isCompletion = $Task -match '^\s*(Task complete|Done|Completed|Finished|Status|FYI|Ack|Acknowledged)\b'
+$isCompletion = $isCompletion -or ($Task -match 'completion callback')
+
+if ($isCompletion) {
+    $kind = "completion"
+    $payload = "[$sender COMPLETED TASK]: $Task`n[SYSTEM RULE: This is a terminal status update. Do not acknowledge it, do not report back, and do not delegate a response unless this message explicitly assigns a new task.]"
+} else {
+    $kind = "task"
+    $payload = "[$sender DELEGATED A TASK]: $Task`n[SYSTEM RULE: Do this task exactly once. When finished, report back exactly once by running: .didi\delegate $sender `"Task complete: <summary>`". After sending that completion callback, stop; do not send acknowledgements or confirmations.]"
+}
 
 $msgObj = @{
     target = $Target
-    payload = $enrichedTask
+    payload = $payload
+    kind = $kind
+    sender = $sender
 }
 $msg = $msgObj | ConvertTo-Json -Compress
 
@@ -237,20 +247,38 @@ powershell -ExecutionPolicy Bypass -File "%~dp0delegate.ps1" %*
 
     let agents_md = r#"# DidiTerminal - Autonomous Collaboration Protocol
 
-You are an AI Agent running inside the DidiTerminal Orchestrator. 
-You are part of a multi-agent team. You must communicate and collaborate autonomously without waiting for the human to intervene.
+You are an AI Agent running inside the DidiTerminal Orchestrator.
+You are part of a multi-agent team. Communicate through the local `.didi\delegate` command and keep task handoffs strict.
 
-## Rule 1: The `delegate` Command
-If you need another agent to do something (e.g., "Builder" to write code, "Documentation" to write docs), you MUST use the terminal to delegate it.
+## Rule 1: Delegate Real Work Only
+Use delegation only when assigning a new task that requires action.
 **Usage:** `.didi\delegate <AgentName> "<Task Description>"`
 
-## Rule 2: Autonomous Callbacks (Reporting Back)
-When you receive a delegated task, it will say `[<SenderName> DELEGATED A TASK]`.
-You MUST do the work, and when you are finished, you MUST use the delegate command to tell the sender you are done!
-**Usage:** `.didi\delegate <SenderName> "I have finished the task. The results are..."`
+Do not delegate acknowledgements, thanks, status chatter, or confirmations.
 
-## Rule 3: Do Not Ask The Human
-Do not stop and ask the human to pass messages for you. If you need to talk to Builder, use `.didi\delegate Builder "..."`. If you need to tell Main you are done, use `.didi\delegate Main "Done."`.
+## Rule 2: Complete Each Delegated Task Once
+When you receive `[<SenderName> DELEGATED A TASK]`, do the assigned work exactly once.
+When finished, send one completion callback:
+**Usage:** `.didi\delegate <SenderName> "Task complete: <summary>"`
+
+After sending the completion callback, stop. Do not send follow-up acknowledgements unless the sender explicitly assigns a new task.
+
+## Rule 3: Completion Messages Are Terminal
+Messages marked `[<SenderName> COMPLETED TASK]` or messages beginning with `Task complete:`, `Done:`, `Completed:`, `Finished:`, `Status:`, `FYI:`, `Ack:`, or `Acknowledged:` are terminal status updates.
+
+When you receive a terminal status update:
+- Do not acknowledge it.
+- Do not report back to the sender.
+- Do not delegate a response.
+- Only continue if the message explicitly assigns a new task.
+
+## Rule 4: Orchestrator Discipline
+If you are acting as Orchestrator, keep a simple task state mentally: pending, in progress, complete.
+Delegate the next task only after receiving a completion callback for the current task.
+Do not re-delegate completed work unless the human asks for revisions.
+
+## Rule 5: Do Not Ask The Human To Relay Messages
+Do not stop and ask the human to pass messages for you. If you need to talk to Builder, use `.didi\delegate Builder "..."`. If you need to tell Orchestrator a task is done, use one completion callback.
 
 ## The `context` command
 If you lose track of what the team is doing, run `.didi\context` to see the global history of all tasks passed between agents.
