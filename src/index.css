@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-[#0a0a0c] text-slate-200 font-mono overflow-hidden;
+    margin: 0;
+  }
+}
+
+.xterm-viewport::-webkit-scrollbar {
+  width: 8px;
+}
+
+.xterm-viewport::-webkit-scrollbar-track {
+  background: #0a0a0c;
+}
+
+.xterm-viewport::-webkit-scrollbar-thumb {
+  background: #1e293b;
+}
+
+.xterm-viewport::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
