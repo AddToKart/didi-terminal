@@ -4,11 +4,40 @@ import { useEffect, useState, useRef, FormEvent, Fragment } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { Terminal, FolderOpen, ShieldAlert, Cpu, Columns, Rows, Plus, X, Activity, Grid2X2, PanelLeftClose, PanelLeft } from "lucide-react";
+import { Terminal, FolderOpen, ShieldAlert, Cpu, Columns, Rows, Plus, X, Activity, Grid2X2, PanelLeftClose, PanelLeft, Network, Settings, Server } from "lucide-react";
+import { ReactFlow, Background, Controls, Node as FlowNode, Edge as FlowEdge, MarkerType } from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
+import { SettingsModal } from "./components/SettingsModal";
 
 const EXISTING_AGENT_FALLBACK_MS = 1000;
 const NEW_AGENT_FALLBACK_MS = 6000;
-const HANDOFF_SUBMIT_DELAY_MS = 120;
+const HANDOFF_SUBMIT_DELAY_MS = 400;
+
+const getPtyKey = (agentName: string) => agentName.trim().toLowerCase();
+
+const getAgentId = (agentName: string) =>
+  getPtyKey(agentName).replace(/[^a-z0-9]/g, "");
+
+const getUniqueAgents = (agentNames: string[]) => {
+  const seen = new Set<string>();
+
+  return agentNames.filter(agentName => {
+    const id = getAgentId(agentName);
+    if (!id || seen.has(id)) return false;
+
+    seen.add(id);
+    return true;
+  });
+};
+
+const findMatchingAgent = (agentNames: string[], targetName: string) => {
+  const targetPtyKey = getPtyKey(targetName);
+  const targetId = getAgentId(targetName);
+
+  return agentNames.find(agentName =>
+    getPtyKey(agentName) === targetPtyKey || getAgentId(agentName) === targetId
+  );
+};
 
 interface ActivityLog {
   id: number;
@@ -18,11 +47,30 @@ interface ActivityLog {
 }
 
 function App() {
-  const [agents, setAgents] = useState<string[]>(["Main Terminal"]);
+  const params = new URLSearchParams(window.location.search);
+  const standaloneAgent = params.get('agent');
+
+  if (standaloneAgent) {
+    return (
+      <div className="h-screen w-screen bg-app-bg">
+        <TerminalInstance agentName={standaloneAgent} />
+      </div>
+    );
+  }
+
+  const [agents, setAgents] = useState<string[]>(() => {
+    const saved = localStorage.getItem("didi_agents");
+    return saved ? getUniqueAgents(JSON.parse(saved)) : ["Main Terminal"];
+  });
   const [newAgentName, setNewAgentName] = useState("");
-  const [currentProject, setCurrentProject] = useState<string | null>(null);
-  const [layoutOrientation, setLayoutOrientation] = useState<"horizontal" | "vertical" | "grid">("horizontal");
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [currentProject, setCurrentProject] = useState<string | null>(() => localStorage.getItem("didi_project"));
+  const [layoutOrientation, setLayoutOrientation] = useState<"horizontal" | "vertical" | "grid">(() => {
+    return (localStorage.getItem("didi_layout") as any) || "horizontal";
+  });
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => localStorage.getItem("didi_sidebar") !== "false");
+  const [showNetworkGraph, setShowNetworkGraph] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [sidecarStatus, setSidecarStatus] = useState("Checking...");
   const [activity, setActivity] = useState<ActivityLog[]>([{ id: 0, time: new Date().toLocaleTimeString(), message: "System initialized", type: 'system' }]);
 
   const pendingHandoffs = useRef<Map<string, string>>(new Map());
@@ -39,12 +87,51 @@ function App() {
   };
 
   useEffect(() => {
-    agentsRef.current = agents;
+    const uniqueAgents = getUniqueAgents(agents);
+    if (uniqueAgents.length !== agents.length) {
+      setAgents(uniqueAgents);
+      return;
+    }
+
+    agentsRef.current = uniqueAgents;
+    localStorage.setItem("didi_agents", JSON.stringify(uniqueAgents));
   }, [agents]);
+
+
+
+  useEffect(() => {
+    localStorage.setItem("didi_layout", layoutOrientation);
+  }, [layoutOrientation]);
+
+  useEffect(() => {
+    localStorage.setItem("didi_sidebar", String(isSidebarOpen));
+  }, [isSidebarOpen]);
+
+  useEffect(() => {
+    if (currentProject) {
+      localStorage.setItem("didi_project", currentProject);
+    } else {
+      localStorage.removeItem("didi_project");
+    }
+  }, [currentProject]);
+
+  useEffect(() => {
+    // Initial config load for theme
+    invoke<any>("get_config").then(config => {
+      document.documentElement.style.setProperty('--tw-colors-brand-cyan', config.theme_cyan);
+      document.documentElement.style.setProperty('--tw-colors-brand-amber', config.theme_amber);
+    }).catch(console.error);
+
+    const interval = setInterval(() => {
+      invoke<string>("get_sidecar_status").then(setSidecarStatus).catch(() => setSidecarStatus("Error"));
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const writeHandoff = (agentKey: string, payload: string) => {
       console.log(`[JS] Injecting handoff into ${agentKey}`);
+      readyAgents.current.delete(agentKey);
       invoke("write_pty", { agent: agentKey, data: payload }).catch(console.error);
       setTimeout(() => {
         invoke("write_pty", { agent: agentKey, data: "\r" }).catch(console.error);
@@ -83,15 +170,22 @@ function App() {
     const unlistenHandoff = listen<{ target: string, payload: string }>("agent-handoff", (event) => {
       const { target, payload } = event.payload;
       const targetName = target.trim();
-      const agentKey = targetName.toLowerCase();
-      
-      addLog(`Handoff to ${targetName}`, 'handoff');
+      const matchingAgent = findMatchingAgent(agentsRef.current, targetName);
+      const resolvedAgentName = matchingAgent ?? targetName;
+      const agentKey = getPtyKey(resolvedAgentName);
 
-      const agentExists = agentsRef.current.some(a => a.toLowerCase() === agentKey);
+      addLog(
+        matchingAgent && matchingAgent !== targetName
+          ? `Handoff to ${matchingAgent} (${targetName})`
+          : `Handoff to ${targetName}`,
+        'handoff'
+      );
+
+      const agentExists = Boolean(matchingAgent);
       if (!agentExists) {
         setAgents(prev => {
-          if (prev.some(a => a.toLowerCase() === agentKey)) return prev;
-          const nextAgents = [...prev, targetName];
+          if (findMatchingAgent(prev, targetName)) return prev;
+          const nextAgents = getUniqueAgents([...prev, targetName]);
           agentsRef.current = nextAgents;
           return nextAgents;
         });
@@ -126,7 +220,7 @@ function App() {
   const spawnAgent = (e: FormEvent) => {
     e.preventDefault();
     const name = newAgentName.trim();
-    if (name && !agents.some(a => a.toLowerCase() === name.toLowerCase())) {
+    if (name && !findMatchingAgent(agents, name)) {
       setAgents([...agents, name]);
       setNewAgentName("");
       addLog(`Spawned agent: ${name}`, 'system');
@@ -157,23 +251,92 @@ function App() {
     }
   };
 
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    e.dataTransfer.setData('agentIndex', index.toString());
+  };
+
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    const dragIndex = parseInt(e.dataTransfer.getData('agentIndex'));
+    if (isNaN(dragIndex) || dragIndex === dropIndex) return;
+
+    const newAgents = [...agents];
+    const [draggedAgent] = newAgents.splice(dragIndex, 1);
+    newAgents.splice(dropIndex, 0, draggedAgent);
+    setAgents(newAgents);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault(); // necessary to allow drop
+  };
+
+  // Generate nodes and edges for React Flow
+  const graphNodes: FlowNode[] = agents.map((agent, index) => ({
+    id: agent,
+    position: { x: (index % 3) * 200, y: Math.floor(index / 3) * 150 },
+    data: { label: agent },
+    style: { background: '#0a0a0c', color: '#00f0ff', border: '1px solid #00f0ff', borderRadius: '4px', width: 150, padding: 10, fontFamily: 'monospace' }
+  }));
+
+  const graphEdges: FlowEdge[] = activity
+    .filter(log => log.type === 'handoff')
+    .map((log, i) => {
+      // Very basic parsing: "Handoff to X"
+      const targetMatch = log.message.match(/to (.+)$/);
+      const target = targetMatch ? targetMatch[1] : 'Unknown';
+      return {
+        id: `edge-${i}`,
+        source: agents[0], // Simplified: Assume main terminal is always source for now unless parsed differently
+        target: target,
+        animated: true,
+        style: { stroke: '#ffb000' },
+        markerEnd: { type: MarkerType.ArrowClosed, color: '#ffb000' }
+      };
+    });
+
   return (
-    <main className="h-screen w-screen bg-app-bg text-slate-300 font-plex overflow-hidden flex selection:bg-brand-cyan/20">
+    <main className="h-screen w-screen bg-app-bg text-slate-300 font-plex overflow-hidden flex selection:bg-brand-cyan/20 relative">
       
+      {showNetworkGraph && (
+        <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col p-8">
+          <div className="flex justify-between items-center mb-4">
+             <h2 className="text-xl text-brand-cyan font-bold uppercase tracking-widest flex items-center gap-2"><Network /> Collaboration Graph</h2>
+             <button onClick={() => setShowNetworkGraph(false)} className="text-slate-400 hover:text-brand-amber p-2 border border-app-border rounded bg-app-bg"><X/></button>
+          </div>
+          <div className="flex-1 border border-brand-cyan/30 rounded bg-[#020202]">
+            <ReactFlow nodes={graphNodes} edges={graphEdges} fitView>
+              <Background color="#18181b" gap={16} />
+              <Controls className="bg-app-bg text-brand-cyan border border-brand-cyan/30" />
+            </ReactFlow>
+          </div>
+        </div>
+      )}
+
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+
       {/* Sidebar */}
       {isSidebarOpen && (
       <aside className="w-72 border-r border-app-border bg-app-panel flex flex-col shadow-[4px_0_24px_rgba(0,0,0,0.5)] z-10 shrink-0">
-        <div className="p-4 border-b border-app-border">
-          <div className="flex items-center gap-2 text-brand-cyan mb-1">
-            <Terminal size={20} className="stroke-[2.5]" />
-            <h1 className="text-lg font-bold tracking-widest uppercase">DidiTerminal</h1>
+        <div className="p-4 border-b border-app-border flex justify-between items-start">
+          <div>
+            <div className="flex items-center gap-2 text-brand-cyan mb-1">
+              <Terminal size={20} className="stroke-[2.5]" />
+              <h1 className="text-lg font-bold tracking-widest uppercase">DidiTerminal</h1>
+            </div>
+            <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Orchestrator Node v2.0</p>
           </div>
-          <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Orchestrator Node v2.0</p>
+          <button onClick={() => setShowSettings(true)} className="text-slate-500 hover:text-brand-cyan transition-colors mt-1" title="Settings">
+            <Settings size={16} />
+          </button>
         </div>
 
         {/* Project Setup */}
         <div className="p-4 border-b border-app-border space-y-3">
-          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+          <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+             <div className="flex items-center gap-2"><Server size={12} /> LLM Sidecar</div>
+             <span className={`${sidecarStatus === 'Running' ? 'text-emerald-400' : 'text-brand-amber'}`}>{sidecarStatus}</span>
+          </div>
+
+          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2 mt-4">
             <FolderOpen size={12} /> Workspace
           </div>
           <button 
@@ -312,7 +475,14 @@ function App() {
                             <Fragment key={agent}>
                               {colIndex > 0 && <Separator className="bg-app-border transition-colors hover:bg-brand-cyan focus:bg-brand-cyan w-1 mx-0.5" />}
                               <Panel defaultSize={100 / rowAgents.length} minSize={10}>
-                                <TerminalInstance agentName={agent} cwd={currentProject} onRemove={() => removeAgent(agent)} />
+                                <TerminalInstance 
+                                  agentName={agent}
+                                  cwd={currentProject} 
+                                  onRemove={() => removeAgent(agent)} 
+                                  onDragStart={(e) => handleDragStart(e, agents.indexOf(agent))}
+                                  onDrop={(e) => handleDrop(e, agents.indexOf(agent))}
+                                  onDragOver={handleDragOver}
+                                />
                               </Panel>
                             </Fragment>
                           ))}
@@ -328,7 +498,14 @@ function App() {
                   <Fragment key={agent}>
                     {index > 0 && <Separator className={`bg-app-border transition-colors hover:bg-brand-cyan focus:bg-brand-cyan ${layoutOrientation === 'horizontal' ? 'w-1 mx-0.5' : 'h-1 my-0.5'}`} />}
                     <Panel defaultSize={100 / agents.length} minSize={10}>
-                      <TerminalInstance agentName={agent} cwd={currentProject} onRemove={() => removeAgent(agent)} />
+                      <TerminalInstance 
+                        agentName={agent} 
+                        cwd={currentProject} 
+                        onRemove={() => removeAgent(agent)} 
+                        onDragStart={(e: React.DragEvent) => handleDragStart(e, index)}
+                        onDrop={(e: React.DragEvent) => handleDrop(e, index)}
+                        onDragOver={handleDragOver}
+                      />
                     </Panel>
                   </Fragment>
                 ))}

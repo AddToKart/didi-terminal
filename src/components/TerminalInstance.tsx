@@ -1,10 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, FormEvent } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
+import { WebglAddon } from "@xterm/addon-webgl";
+import { SearchAddon } from "@xterm/addon-search";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, emit } from "@tauri-apps/api/event";
 import { readText } from "@tauri-apps/plugin-clipboard-manager";
-import { Terminal as TerminalIcon, X, Zap } from "lucide-react";
+import { Terminal as TerminalIcon, X, Zap, Search, ChevronUp, ChevronDown, Eraser, Play, ExternalLink } from "lucide-react";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import "@xterm/xterm/css/xterm.css";
 
 const stripTerminalControls = (value: string) =>
@@ -17,26 +20,78 @@ const READY_PATTERNS = [
   "Ask anything",
   "Type your message",
   "Type your message or @path/to/file",
+  "GitHub Copilot",
+  "ctrl+p commands",
+  "commands ? help",
   "PS ",
   "$ ",
   ">>> ",
 ];
 
+const isPromptReady = (value: string) =>
+  READY_PATTERNS.some(pattern => value.includes(pattern)) || /(^|\s)>($|\s)/.test(value);
+
+const getAgentId = (agentName: string) =>
+  agentName.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+
 interface Props {
   agentName: string;
   cwd?: string | null;
   onRemove?: () => void;
+  onDragStart?: (e: React.DragEvent) => void;
+  onDrop?: (e: React.DragEvent) => void;
+  onDragOver?: (e: React.DragEvent) => void;
 }
 
-export function TerminalInstance({ agentName, cwd, onRemove }: Props) {
+export function TerminalInstance({ agentName, cwd, onRemove, onDragStart, onDrop, onDragOver }: Props) {
   const terminalRef = useRef<HTMLDivElement>(null);
   const term = useRef<Terminal | null>(null);
+  const searchAddon = useRef<SearchAddon | null>(null);
+  
   const [isPulsing, setIsPulsing] = useState(false);
   const [isReady, setIsReady] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [stats, setStats] = useState({ cpu: 0, mem: 0 });
+
+  const executeMacro = (command: string) => {
+    invoke("write_pty", { agent: agentName.toLowerCase(), data: command + "\r" }).catch(console.error);
+  };
+
+  const handlePopOut = async () => {
+    // Generate a unique label for the window
+    const label = `agent-${agentName.replace(/[^a-zA-Z0-9_-]/g, '')}-${Date.now()}`;
+    const popoutWindow = new WebviewWindow(label, {
+      url: `/?agent=${encodeURIComponent(agentName)}`,
+      title: `${agentName} - DidiTerminal`,
+      width: 800,
+      height: 600,
+    });
+    
+    popoutWindow.once('tauri://created', function () {
+      if (onRemove) onRemove(); // Remove from main window
+    });
+    popoutWindow.once('tauri://error', function (e) {
+      console.error('Failed to create popout window:', e);
+    });
+  };
+
+  useEffect(() => {
+    const statInterval = setInterval(async () => {
+      try {
+        const result: [number, number] = await invoke("get_process_stats", { agent: agentName.toLowerCase() });
+        setStats({ cpu: result[0], mem: result[1] });
+      } catch (e) {
+        // Ignore errors
+      }
+    }, 2000);
+    return () => clearInterval(statInterval);
+  }, [agentName]);
 
   useEffect(() => {
     const unlistenHandoff = listen<{ target: string, payload: string }>("agent-handoff", (event) => {
-      if (event.payload.target.trim().toLowerCase() === agentName.toLowerCase()) {
+      if (getAgentId(event.payload.target) === getAgentId(agentName)) {
+        setIsReady(false);
         setIsPulsing(true);
         setTimeout(() => setIsPulsing(false), 3000);
       }
@@ -61,12 +116,23 @@ export function TerminalInstance({ agentName, cwd, onRemove }: Props) {
       cursorBlink: true,
       fontSize: 13,
       allowTransparency: true,
-      customGlyphs: true,
     });
     
     const fitAddon = new FitAddon();
     term.current.loadAddon(fitAddon);
+
+    searchAddon.current = new SearchAddon();
+    term.current.loadAddon(searchAddon.current);
+
     term.current.open(terminalRef.current);
+    
+    try {
+      const webglAddon = new WebglAddon();
+      term.current.loadAddon(webglAddon);
+    } catch (e) {
+      console.warn("WebGL addon failed to load", e);
+    }
+
     fitAddon.fit();
 
     let resizeFrame: number | null = null;
@@ -93,6 +159,15 @@ export function TerminalInstance({ agentName, cwd, onRemove }: Props) {
     });
 
     term.current.attachCustomKeyEventHandler((e) => {
+      if (e.ctrlKey && e.key === "f" && e.type === "keydown") {
+        e.preventDefault();
+        setShowSearch(true);
+        return false;
+      }
+      if (e.key === "Escape" && e.type === "keydown") {
+        setShowSearch(false);
+        searchAddon.current?.clearDecorations();
+      }
       if (e.ctrlKey && e.key === "v" && e.type === "keydown") {
         readText().then((text) => {
           if (text) {
@@ -115,19 +190,22 @@ export function TerminalInstance({ agentName, cwd, onRemove }: Props) {
     const container = terminalRef.current;
     container?.addEventListener("paste", handlePaste);
 
-    const promptReadySent = { current: false };
     const outputBuffer = { current: "" };
+    const lastReadyEmitAt = { current: 0 };
 
     const unlistenPty = listen<{ agent: string, data: string }>("pty-output", (event) => {
       if (event.payload.agent === agentName.toLowerCase()) {
         term.current?.write(event.payload.data);
 
-        if (!promptReadySent.current) {
-          const text = stripTerminalControls(event.payload.data).replace(/\s+/g, " ");
-          outputBuffer.current = `${outputBuffer.current}${text}`.slice(-4000);
-          if (READY_PATTERNS.some(p => outputBuffer.current.includes(p))) {
-            promptReadySent.current = true;
-            setIsReady(true);
+        const text = stripTerminalControls(event.payload.data).replace(/\s+/g, " ");
+        outputBuffer.current = `${outputBuffer.current}${text}`.slice(-4000);
+
+        if (isPromptReady(outputBuffer.current)) {
+          const now = Date.now();
+          setIsReady(true);
+
+          if (now - lastReadyEmitAt.current > 1000) {
+            lastReadyEmitAt.current = now;
             emit("agent-prompt-ready", { agent: agentName.toLowerCase() });
           }
         }
@@ -145,10 +223,29 @@ export function TerminalInstance({ agentName, cwd, onRemove }: Props) {
     };
   }, [agentName, cwd]);
 
+  const handleSearch = (e: FormEvent, direction: 'next' | 'prev' = 'next') => {
+    e.preventDefault();
+    if (!searchAddon.current || !searchQuery) return;
+    
+    // searchAddon decorations are an object not boolean in newer versions
+    if (direction === 'next') {
+      searchAddon.current.findNext(searchQuery, { decorations: { matchBackground: '#ffb000', matchBorder: '#ffb000', activeMatchBackground: '#00f0ff', activeMatchBorder: '#00f0ff', matchOverviewRuler: '#ffb000', activeMatchColorOverviewRuler: '#00f0ff' } });
+    } else {
+      searchAddon.current.findPrevious(searchQuery, { decorations: { matchBackground: '#ffb000', matchBorder: '#ffb000', activeMatchBackground: '#00f0ff', activeMatchBorder: '#00f0ff', matchOverviewRuler: '#ffb000', activeMatchColorOverviewRuler: '#00f0ff' } });
+    }
+  };
+
   return (
     <div className={`flex flex-col h-full w-full bg-[#020202] border transition-colors duration-300 ${isPulsing ? 'border-brand-cyan animate-pulse-border shadow-[0_0_15px_rgba(0,240,255,0.2)] z-10 relative' : 'border-app-border z-0'}`}>
-      {/* Terminal Header */}
-      <div className={`flex items-center justify-between px-3 py-1.5 border-b transition-colors duration-300 ${isPulsing ? 'bg-brand-cyan/10 border-brand-cyan/50' : 'bg-[#080809] border-app-border'}`}>
+      
+      {/* Terminal Header & Macros */}
+      <div 
+        className={`flex items-center justify-between px-3 py-1.5 border-b transition-colors duration-300 cursor-grab active:cursor-grabbing ${isPulsing ? 'bg-brand-cyan/10 border-brand-cyan/50' : 'bg-[#080809] border-app-border'}`}
+        draggable
+        onDragStart={onDragStart}
+        onDrop={onDrop}
+        onDragOver={onDragOver}
+      >
         <div className="flex items-center gap-2">
           <TerminalIcon size={12} className={isPulsing ? 'text-brand-cyan' : 'text-slate-500'} />
           <span className={`text-[11px] font-bold tracking-widest uppercase ${isPulsing ? 'text-brand-cyan' : 'text-slate-300'}`}>
@@ -157,7 +254,21 @@ export function TerminalInstance({ agentName, cwd, onRemove }: Props) {
           {isPulsing && <Zap size={12} className="text-brand-amber animate-pulse" />}
         </div>
         
+        {/* Macro Bar */}
+        <div className="flex flex-1 mx-4 justify-end gap-1 opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity">
+           <button onClick={() => executeMacro("clear")} className="px-1.5 py-0.5 text-[9px] bg-[#111] hover:bg-[#1a1a1a] text-slate-400 hover:text-brand-cyan border border-app-border rounded flex items-center gap-1">
+             <Eraser size={9} /> CLEAR
+           </button>
+           <button onClick={() => executeMacro("npm run dev")} className="px-1.5 py-0.5 text-[9px] bg-[#111] hover:bg-[#1a1a1a] text-slate-400 hover:text-brand-cyan border border-app-border rounded flex items-center gap-1">
+             <Play size={9} /> DEV
+           </button>
+        </div>
+
         <div className="flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-2 text-[9px] font-mono text-slate-600 mr-2">
+             <span title="CPU Usage">{stats.cpu.toFixed(1)}% CPU</span>
+             <span title="Memory Usage">{(stats.mem / 1024 / 1024).toFixed(0)} MB</span>
+          </div>
           <div className="flex items-center gap-1.5">
             <div className={`w-1.5 h-1.5 rounded-full ${isReady ? 'bg-emerald-400' : 'bg-brand-amber animate-pulse'}`}></div>
             <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
@@ -165,21 +276,52 @@ export function TerminalInstance({ agentName, cwd, onRemove }: Props) {
             </span>
           </div>
           {onRemove && (
-            <button 
-              onClick={onRemove}
-              className="text-slate-500 hover:text-red-400 transition-colors bg-app-bg hover:bg-red-400/10 p-1 rounded-sm border border-app-border hover:border-red-400/30"
-              title="Terminate Agent"
-            >
-              <X size={10} strokeWidth={3} />
-            </button>
+            <div className="flex items-center gap-1 ml-2">
+              <button 
+                onClick={handlePopOut}
+                className="text-slate-500 hover:text-brand-cyan transition-colors bg-app-bg hover:bg-brand-cyan/10 p-1 rounded-sm border border-app-border hover:border-brand-cyan/30"
+                title="Pop-out Terminal"
+              >
+                <ExternalLink size={10} strokeWidth={2} />
+              </button>
+              <button 
+                onClick={onRemove}
+                className="text-slate-500 hover:text-red-400 transition-colors bg-app-bg hover:bg-red-400/10 p-1 rounded-sm border border-app-border hover:border-red-400/30"
+                title="Terminate Agent"
+              >
+                <X size={10} strokeWidth={3} />
+              </button>
+            </div>
           )}
         </div>
       </div>
       
       {/* Terminal Content */}
-      <div className={`flex-1 overflow-hidden p-1.5 ${isPulsing ? 'animate-flash-bg' : ''}`}>
+      <div className={`flex-1 overflow-hidden p-1.5 relative group ${isPulsing ? 'animate-flash-bg' : ''}`}>
+
+        {/* Search Overlay */}
+        {showSearch && (
+          <div className="absolute top-2 right-4 z-20 bg-app-panel border border-app-border shadow-lg p-1.5 flex items-center gap-2 rounded text-xs animate-in fade-in slide-in-from-top-2">
+            <Search size={12} className="text-slate-500" />
+            <form onSubmit={(e) => handleSearch(e, 'next')} className="flex items-center gap-1">
+              <input 
+                autoFocus
+                type="text" 
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search..." 
+                className="bg-black border border-app-border text-slate-200 px-2 py-0.5 outline-none focus:border-brand-cyan w-32"
+              />
+              <button type="button" onClick={(e) => handleSearch(e, 'prev')} className="p-1 text-slate-500 hover:text-slate-200 bg-black border border-app-border hover:border-slate-500"><ChevronUp size={12}/></button>
+              <button type="submit" className="p-1 text-slate-500 hover:text-slate-200 bg-black border border-app-border hover:border-slate-500"><ChevronDown size={12}/></button>
+            </form>
+            <button onClick={() => { setShowSearch(false); searchAddon.current?.clearDecorations(); }} className="p-1 text-slate-500 hover:text-red-400 ml-1"><X size={12}/></button>
+          </div>
+        )}
+
         <div className="h-full w-full terminal-surface" ref={terminalRef}></div>
       </div>
+
     </div>
   );
 }

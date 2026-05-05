@@ -4,9 +4,30 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use std::io::{Read, Write};
 
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub struct AppConfig {
+    pub shell: String,
+    pub llm_endpoint: String,
+    pub theme_cyan: String,
+    pub theme_amber: String,
+}
+
+impl Default for AppConfig {
+    fn default() -> Self {
+        Self {
+            shell: "pwsh.exe".to_string(),
+            llm_endpoint: "http://localhost:8080/v1".to_string(),
+            theme_cyan: "#00f0ff".to_string(),
+            theme_amber: "#ffb000".to_string(),
+        }
+    }
+}
+
 struct AppState {
     pty_writers: Mutex<HashMap<String, Box<dyn Write + Send>>>,
     pty_resizers: Mutex<HashMap<String, Box<dyn portable_pty::MasterPty + Send>>>,
+    sys: Mutex<sysinfo::System>,
+    config: Mutex<AppConfig>,
 }
 
 #[tauri::command]
@@ -58,13 +79,55 @@ fn spawn_pty(agent: String, cwd: Option<String>, app_handle: AppHandle, state: S
 #[tauri::command]
 fn write_pty(agent: String, data: String, state: State<'_, AppState>) -> Result<(), String> {
     if let Some(writer) = state.pty_writers.lock().unwrap().get_mut(&agent) {
-        println!("[RUST] Writing to PTY {}: {} bytes", agent, data.len());
         writer.write_all(data.as_bytes()).map_err(|e| e.to_string())?;
         writer.flush().map_err(|e| e.to_string())?;
-    } else {
-        println!("[RUST] Target PTY '{}' not found in writers map!", agent);
     }
     Ok(())
+}
+
+#[tauri::command]
+fn get_process_stats(agent: String, state: State<'_, AppState>) -> Result<(f32, u64), String> {
+    let mut sys = state.sys.lock().unwrap();
+    sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+    for (_pid, process) in sys.processes() {
+        let name = process.name().to_string_lossy().to_lowercase();
+        if name == "pwsh.exe" || name == "pwsh" {
+            for env in process.environ() {
+                let env_str = env.to_string_lossy();
+                if env_str.starts_with("AGENT_NAME=") {
+                    let parts: Vec<&str> = env_str.splitn(2, '=').collect();
+                    if parts.len() == 2 && parts[1] == agent {
+                        return Ok((process.cpu_usage(), process.memory()));
+                    }
+                }
+            }
+        }
+    }
+    Ok((0.0, 0))
+}
+
+#[tauri::command]
+fn get_config(state: State<'_, AppState>) -> Result<AppConfig, String> {
+    Ok(state.config.lock().unwrap().clone())
+}
+
+#[tauri::command]
+fn set_config(new_config: AppConfig, state: State<'_, AppState>) -> Result<(), String> {
+    *state.config.lock().unwrap() = new_config;
+    Ok(())
+}
+
+#[tauri::command]
+fn get_sidecar_status(state: State<'_, AppState>) -> Result<String, String> {
+    let mut sys = state.sys.lock().unwrap();
+    sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+    for (_pid, process) in sys.processes() {
+        let name = process.name().to_string_lossy().to_lowercase();
+        if name.contains("llama-server") {
+            return Ok("Running".to_string());
+        }
+    }
+    Ok("Stopped".to_string())
 }
 
 #[tauri::command]
@@ -73,6 +136,59 @@ fn resize_pty(agent: String, cols: u16, rows: u16, state: State<'_, AppState>) -
         let _ = master.resize(PtySize { cols, rows, pixel_width: 0, pixel_height: 0 });
     }
     Ok(())
+}
+
+#[tauri::command]
+fn get_project_context(cwd: Option<String>) -> Result<String, String> {
+    if let Some(path) = cwd {
+        let walker = ignore::WalkBuilder::new(&path)
+            .hidden(true)
+            .git_ignore(true)
+            .build();
+            
+        let mut files = Vec::new();
+        // Take at most 150 files to prevent blowing up the LLM context window
+        for result in walker.filter_map(|e| e.ok()).take(150) {
+            if let Some(file_type) = result.file_type() {
+                if file_type.is_file() {
+                    if let Ok(rel_path) = result.path().strip_prefix(&path) {
+                        files.push(rel_path.to_string_lossy().to_string());
+                    }
+                }
+            }
+        }
+        Ok(format!("WORKSPACE_FILES:\n{}", files.join("\n")))
+    } else {
+        Ok("NO_WORKSPACE".to_string())
+    }
+}
+
+#[tauri::command]
+async fn ask_llm(prompt: String, system: String, state: State<'_, AppState>) -> Result<String, String> {
+    let endpoint = state.config.lock().unwrap().llm_endpoint.clone();
+    
+    let client = reqwest::Client::new();
+    let payload = serde_json::json!({
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0.2
+    });
+
+    let res = client.post(format!("{}/chat/completions", endpoint))
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|e| format!("Reqwest error: {}", e))?;
+
+    let json: serde_json::Value = res.json().await.map_err(|e| format!("JSON error: {}", e))?;
+    
+    if let Some(content) = json["choices"][0]["message"]["content"].as_str() {
+        Ok(content.to_string())
+    } else {
+        Err("Failed to parse response".to_string())
+    }
 }
 
 #[tauri::command]
@@ -114,8 +230,6 @@ try {
     Write-Error "Failed to delegate task to $Target. Error: $_"
 }
 "#;
-
-
 
     let delegate_cmd = r#"@echo off
 powershell -ExecutionPolicy Bypass -File "%~dp0delegate.ps1" %*
@@ -224,7 +338,6 @@ fn start_agent_bus(app_handle: AppHandle) {
                                         }
                                     }
 
-                                    println!("[RUST] Handoff received for target: {}", target);
                                     let _ = app_handle.emit("agent-handoff", HandoffPayload {
                                         target: target.to_string(),
                                         payload: payload.to_string(),
@@ -252,8 +365,13 @@ pub fn run() {
         .manage(AppState {
             pty_writers: Mutex::new(HashMap::new()),
             pty_resizers: Mutex::new(HashMap::new()),
+            sys: Mutex::new(sysinfo::System::new_all()),
+            config: Mutex::new(AppConfig::default()),
         })
-        .invoke_handler(tauri::generate_handler![spawn_pty, write_pty, resize_pty, initialize_project])
+        .invoke_handler(tauri::generate_handler![
+            spawn_pty, write_pty, resize_pty, initialize_project, get_process_stats,
+            get_config, set_config, get_sidecar_status, ask_llm
+        ])
         .setup(|app| {
             start_agent_bus(app.handle().clone());
             
