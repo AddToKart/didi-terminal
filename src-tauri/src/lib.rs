@@ -60,6 +60,7 @@ fn write_pty(agent: String, data: String, state: State<'_, AppState>) -> Result<
     if let Some(writer) = state.pty_writers.lock().unwrap().get_mut(&agent) {
         println!("[RUST] Writing to PTY {}: {} bytes", agent, data.len());
         writer.write_all(data.as_bytes()).map_err(|e| e.to_string())?;
+        writer.flush().map_err(|e| e.to_string())?;
     } else {
         println!("[RUST] Target PTY '{}' not found in writers map!", agent);
     }

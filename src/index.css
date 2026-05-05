@@ -4,13 +4,33 @@
 
 @layer base {
   body {
-    @apply bg-[#0a0a0c] text-slate-200 font-mono overflow-hidden;
+    @apply bg-app-bg text-slate-300 font-plex overflow-hidden;
     margin: 0;
   }
 }
 
+/* Global Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #050505;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 0;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46;
+}
+
+/* XTerm Scrollbar specificity */
 .xterm-viewport::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 .xterm-viewport::-webkit-scrollbar-track {
@@ -23,4 +43,31 @@
 
 .xterm-viewport::-webkit-scrollbar-thumb:hover {
   background: #334155;
+}
+
+.terminal-surface {
+  /* Padding removed: xterm FitAddon requires exact dimensions. */
+}
+
+.terminal-surface .xterm-screen,
+.terminal-surface .xterm-rows {
+  transform: translateZ(0);
+}
+
+/* Hide resizable panel handles slightly until hovered */
+[data-panel-group-direction="horizontal"] > [data-panel-resize-handle-state] {
+  width: 2px !important;
+  background-color: theme('colors.app.border');
+  transition: background-color 0.2s ease;
+}
+
+[data-panel-group-direction="vertical"] > [data-panel-resize-handle-state] {
+  height: 2px !important;
+  background-color: theme('colors.app.border');
+  transition: background-color 0.2s ease;
+}
+
+[data-panel-resize-handle-state]:hover,
+[data-panel-resize-handle-state][data-resize-handle-state="drag"] {
+  background-color: theme('colors.brand.cyan');
 }
