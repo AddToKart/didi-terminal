@@ -1,5 +1,5 @@
 use tauri::{AppHandle, Emitter, Manager, State};
-use portable_pty::{CommandBuilder, NativePtySystem, PtySize, PtySystem};
+use portable_pty::{Child, CommandBuilder, NativePtySystem, PtySize, PtySystem};
 use std::collections::HashMap;
 use std::sync::Mutex;
 use std::io::{Read, Write};
@@ -26,12 +26,54 @@ impl Default for AppConfig {
 struct AppState {
     pty_writers: Mutex<HashMap<String, Box<dyn Write + Send>>>,
     pty_resizers: Mutex<HashMap<String, Box<dyn portable_pty::MasterPty + Send>>>,
+    pty_processes: Mutex<HashMap<String, PtyProcess>>,
     sys: Mutex<sysinfo::System>,
     config: Mutex<AppConfig>,
 }
 
+struct PtyProcess {
+    child: Box<dyn Child + Send + Sync>,
+    pid: Option<u32>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct HandoffMessage {
+    target: String,
+    payload: String,
+    #[serde(default = "default_handoff_kind")]
+    kind: String,
+    #[serde(default)]
+    sender: String,
+    #[serde(default)]
+    task_id: String,
+    #[serde(default)]
+    parent_task_id: String,
+}
+
+fn default_handoff_kind() -> String {
+    "task".to_string()
+}
+
+fn normalize_agent(agent: &str) -> String {
+    agent.trim().to_lowercase()
+}
+
+fn cleanup_pty(agent: &str, state: &State<'_, AppState>) {
+    let agent_key = normalize_agent(agent);
+    state.pty_writers.lock().unwrap().remove(&agent_key);
+    state.pty_resizers.lock().unwrap().remove(&agent_key);
+
+    if let Some(mut process) = state.pty_processes.lock().unwrap().remove(&agent_key) {
+        let _ = process.child.kill();
+    }
+}
+
 #[tauri::command]
 fn spawn_pty(agent: String, cwd: Option<String>, app_handle: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+    let agent = normalize_agent(&agent);
+    cleanup_pty(&agent, &state);
+
     let pty_system = NativePtySystem::default();
     
     let pair = pty_system.openpty(PtySize {
@@ -41,12 +83,14 @@ fn spawn_pty(agent: String, cwd: Option<String>, app_handle: AppHandle, state: S
         pixel_height: 0,
     }).map_err(|e| format!("{:?}", e))?;
 
-    let mut cmd = CommandBuilder::new("pwsh.exe");
+    let shell = state.config.lock().unwrap().shell.clone();
+    let mut cmd = CommandBuilder::new(shell);
     if let Some(path) = cwd {
         cmd.cwd(path);
     }
     cmd.env("AGENT_NAME", agent.clone());
-    let _child = pair.slave.spawn_command(cmd).map_err(|e| format!("{:?}", e))?;
+    let child = pair.slave.spawn_command(cmd).map_err(|e| format!("{:?}", e))?;
+    let pid = child.process_id();
 
     let master = pair.master;
     let writer = master.take_writer().map_err(|e| format!("{:?}", e))?;
@@ -54,6 +98,7 @@ fn spawn_pty(agent: String, cwd: Option<String>, app_handle: AppHandle, state: S
     
     state.pty_writers.lock().unwrap().insert(agent.clone(), writer);
     state.pty_resizers.lock().unwrap().insert(agent.clone(), master);
+    state.pty_processes.lock().unwrap().insert(agent.clone(), PtyProcess { child, pid });
 
     let agent_clone = agent.clone();
     std::thread::spawn(move || {
@@ -71,6 +116,12 @@ fn spawn_pty(agent: String, cwd: Option<String>, app_handle: AppHandle, state: S
                 data,
             });
         }
+
+        #[derive(serde::Serialize, Clone)]
+        struct PtyExitPayload {
+            agent: String,
+        }
+        let _ = app_handle.emit("pty-exit", PtyExitPayload { agent: agent_clone });
     });
 
     Ok(())
@@ -78,6 +129,7 @@ fn spawn_pty(agent: String, cwd: Option<String>, app_handle: AppHandle, state: S
 
 #[tauri::command]
 fn write_pty(agent: String, data: String, state: State<'_, AppState>) -> Result<(), String> {
+    let agent = normalize_agent(&agent);
     if let Some(writer) = state.pty_writers.lock().unwrap().get_mut(&agent) {
         writer.write_all(data.as_bytes()).map_err(|e| e.to_string())?;
         writer.flush().map_err(|e| e.to_string())?;
@@ -86,23 +138,39 @@ fn write_pty(agent: String, data: String, state: State<'_, AppState>) -> Result<
 }
 
 #[tauri::command]
+fn close_pty(agent: String, state: State<'_, AppState>) -> Result<(), String> {
+    cleanup_pty(&agent, &state);
+    Ok(())
+}
+
+#[tauri::command]
 fn get_process_stats(agent: String, state: State<'_, AppState>) -> Result<(f32, u64), String> {
-    let mut sys = state.sys.lock().unwrap();
-    sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
-    for (_pid, process) in sys.processes() {
-        let name = process.name().to_string_lossy().to_lowercase();
-        if name == "pwsh.exe" || name == "pwsh" {
-            for env in process.environ() {
-                let env_str = env.to_string_lossy();
-                if env_str.starts_with("AGENT_NAME=") {
-                    let parts: Vec<&str> = env_str.splitn(2, '=').collect();
-                    if parts.len() == 2 && parts[1] == agent {
-                        return Ok((process.cpu_usage(), process.memory()));
-                    }
-                }
-            }
+    let agent = normalize_agent(&agent);
+    let pid = {
+        let mut processes = state.pty_processes.lock().unwrap();
+        let Some(process) = processes.get_mut(&agent) else {
+            return Ok((0.0, 0));
+        };
+
+        if let Ok(Some(_)) = process.child.try_wait() {
+            processes.remove(&agent);
+            return Ok((0.0, 0));
         }
+
+        process.pid
+    };
+
+    let Some(pid) = pid else {
+        return Ok((0.0, 0));
+    };
+
+    let mut sys = state.sys.lock().unwrap();
+    let pid = sysinfo::Pid::from_u32(pid);
+    sys.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[pid]), true);
+    if let Some(process) = sys.process(pid) {
+        return Ok((process.cpu_usage(), process.memory()));
     }
+
     Ok((0.0, 0))
 }
 
@@ -132,6 +200,7 @@ fn get_sidecar_status(state: State<'_, AppState>) -> Result<String, String> {
 
 #[tauri::command]
 fn resize_pty(agent: String, cols: u16, rows: u16, state: State<'_, AppState>) -> Result<(), String> {
+    let agent = normalize_agent(&agent);
     if let Some(master) = state.pty_resizers.lock().unwrap().get_mut(&agent) {
         let _ = master.resize(PtySize { cols, rows, pixel_width: 0, pixel_height: 0 });
     }
@@ -211,6 +280,7 @@ if ([string]::IsNullOrEmpty($sender)) { $sender = "Main" }
 
 $isCompletion = $Task -match '^\s*(Task complete|Done|Completed|Finished|Status|FYI|Ack|Acknowledged)\b'
 $isCompletion = $isCompletion -or ($Task -match 'completion callback')
+$taskId = [guid]::NewGuid().ToString("N")
 
 if ($isCompletion) {
     $kind = "completion"
@@ -225,6 +295,8 @@ $msgObj = @{
     payload = $payload
     kind = $kind
     sender = $sender
+    taskId = $taskId
+    parentTaskId = ""
 }
 $msg = $msgObj | ConvertTo-Json -Compress
 
@@ -235,7 +307,11 @@ try {
     $writer.Write($msg)
     $writer.Dispose()
     $pipe.Dispose()
-    Write-Host "Delegated task to '$Target' successfully. Now waiting for them to report back." -ForegroundColor Green
+    if ($kind -eq "completion") {
+        Write-Host "Sent completion update to '$Target'. No response is expected." -ForegroundColor Green
+    } else {
+        Write-Host "Delegated task to '$Target' successfully. Waiting for one completion callback." -ForegroundColor Green
+    }
 } catch {
     Write-Error "Failed to delegate task to $Target. Error: $_"
 }
@@ -339,12 +415,7 @@ fn start_agent_bus(app_handle: AppHandle) {
                         let msg = String::from_utf8_lossy(&buf[..n]).to_string();
                         match serde_json::from_str::<serde_json::Value>(&msg) {
                             Ok(json) => {
-                                #[derive(serde::Serialize, Clone)]
-                                struct HandoffPayload {
-                                    target: String,
-                                    payload: String,
-                                }
-                                if let (Some(target), Some(payload)) = (json["target"].as_str(), json["payload"].as_str()) {
+                                if let Ok(message) = serde_json::from_value::<HandoffMessage>(json) {
                                     if let Ok(app_data_dir) = app_handle.path().app_data_dir() {
                                         let context_dir = app_data_dir.join("context");
                                         let _ = std::fs::create_dir_all(&context_dir);
@@ -356,8 +427,12 @@ fn start_agent_bus(app_handle: AppHandle) {
                                             .unwrap_or_else(Vec::new);
 
                                         session_data.push(serde_json::json!({
-                                            "target": target,
-                                            "task": payload,
+                                            "target": message.target,
+                                            "task": message.payload,
+                                            "kind": message.kind,
+                                            "sender": message.sender,
+                                            "taskId": message.task_id,
+                                            "parentTaskId": message.parent_task_id,
                                             "timestamp": std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs()
                                         }));
 
@@ -366,10 +441,7 @@ fn start_agent_bus(app_handle: AppHandle) {
                                         }
                                     }
 
-                                    let _ = app_handle.emit("agent-handoff", HandoffPayload {
-                                        target: target.to_string(),
-                                        payload: payload.to_string(),
-                                    });
+                                    let _ = app_handle.emit("agent-handoff", message);
                                 }
                             }
                             Err(e) => {
@@ -393,12 +465,13 @@ pub fn run() {
         .manage(AppState {
             pty_writers: Mutex::new(HashMap::new()),
             pty_resizers: Mutex::new(HashMap::new()),
+            pty_processes: Mutex::new(HashMap::new()),
             sys: Mutex::new(sysinfo::System::new_all()),
             config: Mutex::new(AppConfig::default()),
         })
         .invoke_handler(tauri::generate_handler![
-            spawn_pty, write_pty, resize_pty, initialize_project, get_process_stats,
-            get_config, set_config, get_sidecar_status, ask_llm
+            spawn_pty, write_pty, close_pty, resize_pty, initialize_project, get_process_stats,
+            get_project_context, get_config, set_config, get_sidecar_status, ask_llm
         ])
         .setup(|app| {
             start_agent_bus(app.handle().clone());

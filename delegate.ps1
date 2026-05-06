@@ -9,6 +9,10 @@ param (
 $msgObj = @{
     target = $Target
     payload = $Task
+    kind = if ($Task -match '^\s*(Task complete|Done|Completed|Finished|Status|FYI|Ack|Acknowledged)\b') { "completion" } else { "task" }
+    sender = if ([string]::IsNullOrEmpty($env:AGENT_NAME)) { "Main" } else { $env:AGENT_NAME }
+    taskId = [guid]::NewGuid().ToString("N")
+    parentTaskId = ""
 }
 $msg = $msgObj | ConvertTo-Json -Compress
 

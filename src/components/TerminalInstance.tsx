@@ -16,20 +16,28 @@ const stripTerminalControls = (value: string) =>
     .replace(/\x1B\[[0-?]*[ -/]*[@-~]/g, "")
     .replace(/\x1B[@-_][0-?]*[ -/]*[@-~]/g, "");
 
-const READY_PATTERNS = [
-  "Ask anything",
-  "Type your message",
-  "Type your message or @path/to/file",
-  "GitHub Copilot",
-  "ctrl+p commands",
-  "commands ? help",
-  "PS ",
-  "$ ",
-  ">>> ",
+const CLI_PROFILES = [
+  {
+    name: "opencode",
+    patterns: ["Ask anything", "Build ·", "commands"],
+  },
+  {
+    name: "copilot",
+    patterns: ["GitHub Copilot", "ctrl+p commands", "commands ? help"],
+  },
+  {
+    name: "gemini",
+    patterns: ["Type your message", "Type your message or @path/to/file", "Gemini CLI"],
+  },
+  {
+    name: "shell",
+    patterns: ["PS ", "$ ", ">>> "],
+  },
 ];
 
 const isPromptReady = (value: string) =>
-  READY_PATTERNS.some(pattern => value.includes(pattern)) || /(^|\s)>($|\s)/.test(value);
+  CLI_PROFILES.some(profile => profile.patterns.some(pattern => value.includes(pattern))) ||
+  /(^|\s)>($|\s)/.test(value);
 
 const getAgentId = (agentName: string) =>
   agentName.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -38,12 +46,13 @@ interface Props {
   agentName: string;
   cwd?: string | null;
   onRemove?: () => void;
+  onDetach?: () => void;
   onDragStart?: (e: React.DragEvent) => void;
   onDrop?: (e: React.DragEvent) => void;
   onDragOver?: (e: React.DragEvent) => void;
 }
 
-export function TerminalInstance({ agentName, cwd, onRemove, onDragStart, onDrop, onDragOver }: Props) {
+export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onDragStart, onDrop, onDragOver }: Props) {
   const terminalRef = useRef<HTMLDivElement>(null);
   const term = useRef<Terminal | null>(null);
   const searchAddon = useRef<SearchAddon | null>(null);
@@ -69,7 +78,7 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDragStart, onDrop
     });
     
     popoutWindow.once('tauri://created', function () {
-      if (onRemove) onRemove(); // Remove from main window
+      if (onDetach) onDetach();
     });
     popoutWindow.once('tauri://error', function (e) {
       console.error('Failed to create popout window:', e);
@@ -84,7 +93,7 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDragStart, onDrop
       } catch (e) {
         // Ignore errors
       }
-    }, 2000);
+    }, 4000);
     return () => clearInterval(statInterval);
   }, [agentName]);
 
@@ -99,6 +108,18 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDragStart, onDrop
 
     return () => {
       unlistenHandoff.then(f => f());
+    };
+  }, [agentName]);
+
+  useEffect(() => {
+    const unlistenExit = listen<{ agent: string }>("pty-exit", (event) => {
+      if (event.payload.agent !== agentName.toLowerCase()) return;
+      setIsReady(false);
+      setStats({ cpu: 0, mem: 0 });
+    });
+
+    return () => {
+      unlistenExit.then(f => f());
     };
   }, [agentName]);
 

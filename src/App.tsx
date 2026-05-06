@@ -1,13 +1,13 @@
 import { Panel, Group, Separator } from "react-resizable-panels";
 import { TerminalInstance } from "./components/TerminalInstance";
-import { useEffect, useState, useRef, FormEvent, Fragment } from "react";
+import { useEffect, useState, useRef, FormEvent, Fragment, lazy, Suspense } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { Terminal, FolderOpen, ShieldAlert, Cpu, Columns, Rows, Plus, X, Activity, Grid2X2, PanelLeftClose, PanelLeft, Network, Settings, Server } from "lucide-react";
-import { ReactFlow, Background, Controls, Node as FlowNode, Edge as FlowEdge, MarkerType } from '@xyflow/react';
-import '@xyflow/react/dist/style.css';
-import { SettingsModal } from "./components/SettingsModal";
+
+const NetworkGraph = lazy(() => import("./components/NetworkGraph").then(module => ({ default: module.NetworkGraph })));
+const SettingsModal = lazy(() => import("./components/SettingsModal").then(module => ({ default: module.SettingsModal })));
 
 const EXISTING_AGENT_FALLBACK_MS = 1000;
 const NEW_AGENT_FALLBACK_MS = 6000;
@@ -39,11 +39,57 @@ const findMatchingAgent = (agentNames: string[], targetName: string) => {
   );
 };
 
+const isCompletionMessage = (payload: string) =>
+  /^\s*(Task complete|Done|Completed|Finished|Status|FYI|Ack|Acknowledged)\b/i.test(payload) ||
+  /\bCOMPLETED TASK\b/i.test(payload) ||
+  /completion callback/i.test(payload);
+
+const getHandoffKind = (handoff: HandoffPayload): HandoffKind => {
+  if (handoff.kind) return handoff.kind;
+  return isCompletionMessage(handoff.payload) ? "completion" : "task";
+};
+
+const getTaskSummary = (payload: string) =>
+  payload
+    .replace(/\[[^\]]+\]\s*:\s*/g, "")
+    .replace(/\[SYSTEM RULE:[\s\S]*$/i, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 140);
+
 interface ActivityLog {
   id: number;
   time: string;
   message: string;
-  type: 'system' | 'handoff';
+  type: "system" | "handoff";
+}
+
+type HandoffKind = "task" | "completion" | "status";
+type TaskStatus = "pending" | "in_progress" | "complete";
+
+interface HandoffPayload {
+  target: string;
+  payload: string;
+  kind?: HandoffKind;
+  sender?: string;
+  taskId?: string;
+  parentTaskId?: string;
+}
+
+interface TaskRecord {
+  id: string;
+  sender: string;
+  target: string;
+  summary: string;
+  status: TaskStatus;
+  updatedAt: string;
+}
+
+interface GraphHandoff {
+  id: string;
+  source: string;
+  target: string;
+  kind: string;
 }
 
 function App() {
@@ -72,12 +118,16 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [sidecarStatus, setSidecarStatus] = useState("Checking...");
   const [activity, setActivity] = useState<ActivityLog[]>([{ id: 0, time: new Date().toLocaleTimeString(), message: "System initialized", type: 'system' }]);
+  const [tasks, setTasks] = useState<TaskRecord[]>([]);
+  const [graphHandoffs, setGraphHandoffs] = useState<GraphHandoff[]>([]);
 
   const pendingHandoffs = useRef<Map<string, string>>(new Map());
   const readyAgents = useRef<Set<string>>(new Set());
   const agentsRef = useRef(agents);
+  const currentProjectRef = useRef(currentProject);
   const fallbackTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const logIdCounter = useRef(1);
+  const tasksRef = useRef<TaskRecord[]>([]);
 
   const addLog = (message: string, type: 'system' | 'handoff' = 'system') => {
     setActivity(prev => {
@@ -97,6 +147,10 @@ function App() {
     localStorage.setItem("didi_agents", JSON.stringify(uniqueAgents));
   }, [agents]);
 
+  useEffect(() => {
+    tasksRef.current = tasks;
+  }, [tasks]);
+
 
 
   useEffect(() => {
@@ -113,6 +167,7 @@ function App() {
     } else {
       localStorage.removeItem("didi_project");
     }
+    currentProjectRef.current = currentProject;
   }, [currentProject]);
 
   useEffect(() => {
@@ -167,19 +222,66 @@ function App() {
       fallbackTimers.current.set(agentKey, timer);
     };
 
-    const unlistenHandoff = listen<{ target: string, payload: string }>("agent-handoff", (event) => {
-      const { target, payload } = event.payload;
+    const registerTask = (handoff: HandoffPayload, targetName: string, kind: HandoffKind) => {
+      const sender = handoff.sender?.trim() || "Main";
+      const id = handoff.taskId || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      const updatedAt = new Date().toLocaleTimeString();
+
+      setGraphHandoffs(prev => [
+        { id, source: sender, target: targetName, kind },
+        ...prev,
+      ].slice(0, 80));
+
+      if (kind === "task") {
+        const record: TaskRecord = {
+          id,
+          sender,
+          target: targetName,
+          summary: getTaskSummary(handoff.payload),
+          status: "in_progress",
+          updatedAt,
+        };
+        setTasks(prev => [record, ...prev.filter(task => task.id !== id)].slice(0, 30));
+        return;
+      }
+
+      if (kind === "completion") {
+        const completedAgentId = getAgentId(sender);
+        setTasks(prev => prev.map(task => {
+          if (task.status !== "in_progress" || getAgentId(task.target) !== completedAgentId) return task;
+          return { ...task, status: "complete", updatedAt };
+        }));
+      }
+    };
+
+    const enrichPayload = async (handoff: HandoffPayload, kind: HandoffKind) => {
+      const safePayload = handoff.payload.replace(/\r?\n/g, " ").trim();
+      if (kind !== "task" || !currentProjectRef.current) return safePayload;
+
+      try {
+        const context = await invoke<string>("get_project_context", { cwd: currentProjectRef.current });
+        return `${safePayload} WORKSPACE CONTEXT: ${context.replace(/\r?\n/g, " ").trim()}`;
+      } catch (err) {
+        console.warn("Failed to add workspace context", err);
+        return safePayload;
+      }
+    };
+
+    const handleHandoff = async (handoff: HandoffPayload) => {
+      const { target } = handoff;
       const targetName = target.trim();
       const matchingAgent = findMatchingAgent(agentsRef.current, targetName);
       const resolvedAgentName = matchingAgent ?? targetName;
       const agentKey = getPtyKey(resolvedAgentName);
+      const kind = getHandoffKind(handoff);
 
       addLog(
         matchingAgent && matchingAgent !== targetName
-          ? `Handoff to ${matchingAgent} (${targetName})`
-          : `Handoff to ${targetName}`,
-        'handoff'
+          ? `${kind} to ${matchingAgent} (${targetName})`
+          : `${kind} to ${targetName}`,
+        "handoff"
       );
+      registerTask(handoff, resolvedAgentName, kind);
 
       const agentExists = Boolean(matchingAgent);
       if (!agentExists) {
@@ -191,13 +293,17 @@ function App() {
         });
       }
 
-      const safePayload = payload.replace(/\r?\n/g, ' ').trim();
+      const safePayload = await enrichPayload(handoff, kind);
 
       if (agentExists && readyAgents.current.has(agentKey)) {
         writeHandoff(agentKey, safePayload);
       } else {
         queueHandoff(agentKey, safePayload, agentExists ? EXISTING_AGENT_FALLBACK_MS : NEW_AGENT_FALLBACK_MS);
       }
+    };
+
+    const unlistenHandoff = listen<HandoffPayload>("agent-handoff", (event) => {
+      handleHandoff(event.payload).catch(console.error);
     });
 
     const unlistenReady = listen<{ agent: string }>("agent-prompt-ready", (event) => {
@@ -228,8 +334,16 @@ function App() {
   };
 
   const removeAgent = (agentToRemove: string) => {
+    invoke("close_pty", { agent: getPtyKey(agentToRemove) }).catch(console.error);
+    pendingHandoffs.current.delete(getPtyKey(agentToRemove));
+    readyAgents.current.delete(getPtyKey(agentToRemove));
     setAgents(agents.filter(a => a !== agentToRemove));
     addLog(`Terminated agent: ${agentToRemove}`, 'system');
+  };
+
+  const detachAgent = (agentToDetach: string) => {
+    setAgents(agents.filter(a => a !== agentToDetach));
+    addLog(`Detached agent: ${agentToDetach}`, "system");
   };
 
   const handleOpenProject = async () => {
@@ -269,49 +383,20 @@ function App() {
     e.preventDefault(); // necessary to allow drop
   };
 
-  // Generate nodes and edges for React Flow
-  const graphNodes: FlowNode[] = agents.map((agent, index) => ({
-    id: agent,
-    position: { x: (index % 3) * 200, y: Math.floor(index / 3) * 150 },
-    data: { label: agent },
-    style: { background: '#0a0a0c', color: '#00f0ff', border: '1px solid #00f0ff', borderRadius: '4px', width: 150, padding: 10, fontFamily: 'monospace' }
-  }));
-
-  const graphEdges: FlowEdge[] = activity
-    .filter(log => log.type === 'handoff')
-    .map((log, i) => {
-      // Very basic parsing: "Handoff to X"
-      const targetMatch = log.message.match(/to (.+)$/);
-      const target = targetMatch ? targetMatch[1] : 'Unknown';
-      return {
-        id: `edge-${i}`,
-        source: agents[0], // Simplified: Assume main terminal is always source for now unless parsed differently
-        target: target,
-        animated: true,
-        style: { stroke: '#ffb000' },
-        markerEnd: { type: MarkerType.ArrowClosed, color: '#ffb000' }
-      };
-    });
-
   return (
     <main className="h-screen w-screen bg-app-bg text-slate-300 font-plex overflow-hidden flex selection:bg-brand-cyan/20 relative">
       
       {showNetworkGraph && (
-        <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col p-8">
-          <div className="flex justify-between items-center mb-4">
-             <h2 className="text-xl text-brand-cyan font-bold uppercase tracking-widest flex items-center gap-2"><Network /> Collaboration Graph</h2>
-             <button onClick={() => setShowNetworkGraph(false)} className="text-slate-400 hover:text-brand-amber p-2 border border-app-border rounded bg-app-bg"><X/></button>
-          </div>
-          <div className="flex-1 border border-brand-cyan/30 rounded bg-[#020202]">
-            <ReactFlow nodes={graphNodes} edges={graphEdges} fitView>
-              <Background color="#18181b" gap={16} />
-              <Controls className="bg-app-bg text-brand-cyan border border-brand-cyan/30" />
-            </ReactFlow>
-          </div>
-        </div>
+        <Suspense fallback={<div className="absolute inset-0 z-50 bg-black/80" />}>
+          <NetworkGraph agents={agents} handoffs={graphHandoffs} onClose={() => setShowNetworkGraph(false)} />
+        </Suspense>
       )}
 
-      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+      {showSettings && (
+        <Suspense fallback={null}>
+          <SettingsModal onClose={() => setShowSettings(false)} />
+        </Suspense>
+      )}
 
       {/* Sidebar */}
       {isSidebarOpen && (
@@ -381,6 +466,30 @@ function App() {
           </div>
         </div>
 
+        <div className="h-44 flex flex-col min-h-0 border-b border-app-border bg-[#050506]">
+          <div className="p-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center justify-between border-b border-app-border">
+            <span>Task State</span>
+            <span className="text-slate-600">{tasks.filter(task => task.status !== "complete").length} active</span>
+          </div>
+          <div className="flex-1 overflow-y-auto p-2 space-y-1">
+            {tasks.length === 0 ? (
+              <div className="text-[11px] text-slate-600 px-2 py-2">No tracked tasks</div>
+            ) : (
+              tasks.slice(0, 8).map(task => (
+                <div key={task.id} className="border border-app-border bg-black px-2 py-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] uppercase tracking-wider text-brand-cyan truncate">{task.target}</span>
+                    <span className={`text-[9px] uppercase ${task.status === "complete" ? "text-emerald-400" : "text-brand-amber"}`}>
+                      {task.status.replace("_", " ")}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-400 truncate mt-1">{task.summary || "Delegated task"}</div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
         {/* Activity Feed */}
         <div className="h-1/3 flex flex-col min-h-0 bg-[#030303]">
           <div className="p-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2 border-b border-app-border">
@@ -419,6 +528,13 @@ function App() {
           </form>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowNetworkGraph(true)}
+              className="p-1.5 rounded-sm transition-colors text-slate-500 hover:text-brand-cyan bg-[#0a0a0c] border border-app-border"
+              title="Collaboration Graph"
+            >
+              <Network size={16} />
+            </button>
             <div className="flex items-center gap-1 bg-[#0a0a0c] p-1 border border-app-border rounded-sm">
               <button 
                 onClick={() => setLayoutOrientation('horizontal')}
@@ -479,6 +595,7 @@ function App() {
                                   agentName={agent}
                                   cwd={currentProject} 
                                   onRemove={() => removeAgent(agent)} 
+                                  onDetach={() => detachAgent(agent)}
                                   onDragStart={(e) => handleDragStart(e, agents.indexOf(agent))}
                                   onDrop={(e) => handleDrop(e, agents.indexOf(agent))}
                                   onDragOver={handleDragOver}
@@ -502,6 +619,7 @@ function App() {
                         agentName={agent} 
                         cwd={currentProject} 
                         onRemove={() => removeAgent(agent)} 
+                        onDetach={() => detachAgent(agent)}
                         onDragStart={(e: React.DragEvent) => handleDragStart(e, index)}
                         onDrop={(e: React.DragEvent) => handleDrop(e, index)}
                         onDragOver={handleDragOver}
