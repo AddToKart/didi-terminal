@@ -73,8 +73,10 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onDragSta
   const handlePopOut = async () => {
     // Generate a unique label for the window
     const label = `agent-${agentName.replace(/[^a-zA-Z0-9_-]/g, '')}-${Date.now()}`;
+    const params = new URLSearchParams({ agent: agentName });
+    if (cwd) params.set("cwd", cwd);
     const popoutWindow = new WebviewWindow(label, {
-      url: `/?agent=${encodeURIComponent(agentName)}`,
+      url: `/?${params.toString()}`,
       title: `${agentName} - DidiTerminal`,
       width: 800,
       height: 600,

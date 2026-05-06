@@ -151,6 +151,44 @@ fn cleanup_pty(agent: &str, state: &State<'_, AppState>) {
     }
 }
 
+fn configure_workspace(cmd: &mut CommandBuilder, shell: &str, cwd: Option<String>) -> Result<(), String> {
+    let Some(raw_cwd) = cwd else {
+        return Ok(());
+    };
+
+    let workspace = PathBuf::from(raw_cwd);
+    if !workspace.is_dir() {
+        return Err(format!("Workspace does not exist or is not a directory: {}", workspace.display()));
+    }
+
+    let workspace = if workspace.is_absolute() {
+        workspace
+    } else {
+        std::env::current_dir().map_err(|e| e.to_string())?.join(workspace)
+    };
+    let workspace_string = workspace.to_string_lossy().to_string();
+    cmd.cwd(&workspace_string);
+    cmd.env("DIDI_WORKSPACE", &workspace_string);
+    cmd.env("DIDI_AGENT_ROOT", &workspace_string);
+    cmd.env("PROJECT_ROOT", &workspace_string);
+    cmd.env("INIT_CWD", &workspace_string);
+    cmd.env("PWD", &workspace_string);
+
+    let shell_name = Path::new(shell)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or(shell)
+        .to_lowercase();
+
+    if shell_name == "pwsh.exe" || shell_name == "pwsh" || shell_name == "powershell.exe" || shell_name == "powershell" {
+        cmd.args(["-NoExit", "-Command", "Set-Location -LiteralPath $env:DIDI_WORKSPACE"]);
+    } else if shell_name == "cmd.exe" || shell_name == "cmd" {
+        cmd.args(["/K", "cd /d \"%DIDI_WORKSPACE%\""]);
+    }
+
+    Ok(())
+}
+
 #[tauri::command]
 fn spawn_pty(agent: String, cwd: Option<String>, app_handle: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
     let agent = normalize_agent(&agent);
@@ -166,10 +204,8 @@ fn spawn_pty(agent: String, cwd: Option<String>, app_handle: AppHandle, state: S
     }).map_err(|e| format!("{:?}", e))?;
 
     let shell = state.config.lock().unwrap().shell.clone();
-    let mut cmd = CommandBuilder::new(shell);
-    if let Some(path) = cwd {
-        cmd.cwd(path);
-    }
+    let mut cmd = CommandBuilder::new(&shell);
+    configure_workspace(&mut cmd, &shell, cwd)?;
     cmd.env("AGENT_NAME", agent.clone());
     let child = pair.slave.spawn_command(cmd).map_err(|e| format!("{:?}", e))?;
     let pid = child.process_id();
@@ -462,6 +498,10 @@ fn initialize_project(cwd: String) -> Result<(), String> {
     [string]$Task
 )
 
+$workspace = Split-Path -Parent $PSScriptRoot
+$env:DIDI_WORKSPACE = $workspace
+Set-Location -LiteralPath $workspace
+
 $sender = $env:AGENT_NAME
 if ([string]::IsNullOrEmpty($sender)) { $sender = "Main" }
 
@@ -524,6 +564,7 @@ powershell -ExecutionPolicy Bypass -File "%~dp0delegate.ps1" %*
 You are an AI Agent running inside the DidiTerminal Orchestrator.
 You are part of a multi-agent team. Communicate through the local `.didi\delegate` command.
 CRITICAL: To conserve tokens and maintain context, YOU MUST NOT SEND CODE IN YOUR MESSAGES.
+The selected workspace root is exposed as `$env:DIDI_WORKSPACE`. Treat that path as the boundary for all file reads and writes.
 
 ## Rule 1: The Global Brain (MASTER_PLAN.md)
 This workspace contains a `MASTER_PLAN.md`. This is your shared state.
@@ -553,7 +594,12 @@ If the terminal warns that you are repeating the same failed command, stop the l
 "#;
 
     let context_ps1 = r#"
+$workspace = Split-Path -Parent $PSScriptRoot
+$env:DIDI_WORKSPACE = $workspace
+Set-Location -LiteralPath $workspace
+
 Write-Host "--- DIDI CONTEXT SNAPSHOT ---" -ForegroundColor Cyan
+Write-Host "`n[0] WORKSPACE ROOT: $workspace" -ForegroundColor Yellow
 
 Write-Host "`n[1] PROJECT STRUCTURE (Max depth 2):" -ForegroundColor Yellow
 if (Get-Command tree -ErrorAction SilentlyContinue) {

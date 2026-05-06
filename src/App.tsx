@@ -152,11 +152,12 @@ interface SentinelAgentState {
 function App() {
   const params = new URLSearchParams(window.location.search);
   const standaloneAgent = params.get('agent');
+  const standaloneCwd = params.get('cwd') || localStorage.getItem("didi_project");
 
   if (standaloneAgent) {
     return (
       <div className="h-screen w-screen bg-app-bg">
-        <TerminalInstance agentName={standaloneAgent} />
+        <TerminalInstance agentName={standaloneAgent} cwd={standaloneCwd} />
       </div>
     );
   }
@@ -602,11 +603,12 @@ function App() {
 
     const enrichPayload = async (handoff: HandoffPayload, kind: HandoffKind) => {
       const safePayload = handoff.payload.replace(/\r?\n/g, " ").trim();
-      if (kind !== "task" || !currentProjectRef.current) return safePayload;
+      const workspace = currentProjectRef.current;
+      if (kind !== "task" || !workspace) return safePayload;
 
       try {
-        const context = await invoke<string>("get_project_context", { cwd: currentProjectRef.current });
-        return `${safePayload} WORKSPACE CONTEXT: ${context.replace(/\r?\n/g, " ").trim()}`;
+        const context = await invoke<string>("get_project_context", { cwd: workspace });
+        return `${safePayload} WORKSPACE ROOT: ${workspace}. All file reads and writes must stay under this workspace root. Do not edit files in the DidiTerminal app directory unless it is the selected workspace. WORKSPACE CONTEXT: ${context.replace(/\r?\n/g, " ").trim()}`;
       } catch (err) {
         console.warn("Failed to add workspace context", err);
         return safePayload;
