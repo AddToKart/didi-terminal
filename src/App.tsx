@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, useRef, FormEvent, Fragment, lazy, Su
 import { emit, listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { Terminal, FolderOpen, ShieldAlert, Cpu, Columns, Rows, Plus, X, Activity, Grid2X2, PanelLeftClose, PanelLeft, Network, Settings, Server, Brain } from "lucide-react";
+import { Terminal, FolderOpen, ShieldAlert, Cpu, Columns, Rows, Plus, X, Activity, Grid2X2, PanelLeftClose, PanelLeft, Network, Settings, Server, Brain, ChevronDown, ChevronRight } from "lucide-react";
 import { SentinelIncident, SentinelPanel } from "./components/SentinelPanel";
 import { GitSnapshotRecord, SnapshotPanel } from "./components/SnapshotPanel";
 import { BrainstormModal, BrainstormSession } from "./components/BrainstormModal";
@@ -177,6 +177,8 @@ function App() {
   const [sidecarStatus, setSidecarStatus] = useState("Checking...");
   const [activity, setActivity] = useState<ActivityLog[]>([{ id: 0, time: new Date().toLocaleTimeString(), message: "System initialized", type: 'system' }]);
   const [tasks, setTasks] = useState<TaskRecord[]>([]);
+  const [isTasksCollapsed, setIsTasksCollapsed] = useState(false);
+  const [isActivityCollapsed, setIsActivityCollapsed] = useState(false);
   const [graphHandoffs, setGraphHandoffs] = useState<GraphHandoff[]>([]);
   const [sentinelEnabled, setSentinelEnabled] = useState(() => localStorage.getItem("didi_sentinel") !== "false");
   const [sentinelIncidents, setSentinelIncidents] = useState<SentinelIncident[]>([]);
@@ -257,8 +259,8 @@ function App() {
   useEffect(() => {
     // Initial config load for theme
     invoke<any>("get_config").then(config => {
-      document.documentElement.style.setProperty('--tw-colors-brand-cyan', config.theme_cyan);
-      document.documentElement.style.setProperty('--tw-colors-brand-amber', config.theme_amber);
+      document.documentElement.style.setProperty('--tw-colors-brand-accent', config.theme_cyan);
+      document.documentElement.style.setProperty('--tw-colors-brand-warn', config.theme_amber);
     }).catch(console.error);
 
     const interval = setInterval(() => {
@@ -621,7 +623,10 @@ function App() {
       const brainstormResponse = getBrainstormResponse(handoff.payload);
 
       if (brainstormResponse) {
-        await recordBrainstormResponse(getHandoffSender(handoff) || resolvedAgentName, brainstormResponse);
+        const senderAgent = getHandoffSender(handoff) || resolvedAgentName;
+        await recordBrainstormResponse(senderAgent, brainstormResponse);
+        // Treat brainstorm response as a task completion
+        registerTask(handoff, targetName, "completion");
         return;
       }
 
@@ -792,10 +797,10 @@ function App() {
   };
 
   return (
-    <main className="h-screen w-screen bg-app-bg text-slate-300 font-plex overflow-hidden flex selection:bg-brand-cyan/20 relative">
+    <main className="h-screen w-screen bg-app-bg text-slate-300 overflow-hidden flex selection:bg-brand-accent/20 relative">
       
       {showNetworkGraph && (
-        <Suspense fallback={<div className="absolute inset-0 z-50 bg-black/80" />}>
+        <Suspense fallback={<div className="absolute inset-0 z-50 bg-zinc-950/80" />}>
           <NetworkGraph agents={agents} handoffs={graphHandoffs} tasks={tasks} onClose={() => setShowNetworkGraph(false)} />
         </Suspense>
       )}
@@ -817,124 +822,141 @@ function App() {
 
       {/* Sidebar */}
       {isSidebarOpen && (
-      <aside className="w-72 border-r border-app-border bg-app-panel flex flex-col shadow-[4px_0_24px_rgba(0,0,0,0.5)] z-10 shrink-0">
+      <aside className="w-72 border-r border-app-border bg-app-panel flex flex-col shadow-md z-10 shrink-0">
         <div className="p-4 border-b border-app-border flex justify-between items-start">
           <div>
-            <div className="flex items-center gap-2 text-brand-cyan mb-1">
+            <div className="flex items-center gap-2 text-brand-primary mb-1">
               <Terminal size={20} className="stroke-[2.5]" />
               <h1 className="text-lg font-bold tracking-widest uppercase">DidiTerminal</h1>
             </div>
-            <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Orchestrator Node v2.0</p>
+            <p className="text-xs text-slate-500 font-medium tracking-tight font-semibold">Orchestrator Node v2.0</p>
           </div>
-          <button onClick={() => setShowSettings(true)} className="text-slate-500 hover:text-brand-cyan transition-colors mt-1" title="Settings">
+          <button onClick={() => setShowSettings(true)} className="text-slate-500 hover:text-brand-primary transition-colors mt-1" title="Settings">
             <Settings size={16} />
           </button>
         </div>
 
         {/* Project Setup */}
-        <div className="p-4 border-b border-app-border space-y-3">
-          <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-             <div className="flex items-center gap-2"><Server size={12} /> LLM Sidecar</div>
-             <span className={`${sidecarStatus === 'Running' ? 'text-emerald-400' : 'text-brand-amber'}`}>{sidecarStatus}</span>
-          </div>
+        <div className="flex-1 overflow-y-auto flex flex-col">
+          <div className="shrink-0 p-4 border-b border-app-border space-y-4">
+            <div className="flex justify-between items-center text-xs font-semibold text-zinc-400">
+               <div className="flex items-center gap-2"><Server size={14} /> LLM Sidecar</div>
+               <span className={`${sidecarStatus === 'Running' ? 'text-emerald-400' : 'text-amber-400'}`}>{sidecarStatus}</span>
+            </div>
 
-          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2 mt-4">
-            <FolderOpen size={12} /> Workspace
-          </div>
-          <button 
-            onClick={handleOpenProject} 
-            className="w-full bg-[#121214] hover:bg-[#1a1a1e] border border-app-border hover:border-slate-700 px-3 py-2 text-xs font-semibold flex items-center justify-between transition-colors group"
-          >
-            <span className="truncate">{currentProject ? currentProject.split('\\').pop() : "Select Directory..."}</span>
-            <FolderOpen size={14} className="text-slate-500 group-hover:text-brand-cyan transition-colors" />
-          </button>
-          
-          {currentProject && (
-            <button 
-              onClick={handleInitialize} 
-              className="w-full bg-brand-cyan/10 hover:bg-brand-cyan/20 text-brand-cyan border border-brand-cyan/30 hover:border-brand-cyan/50 px-3 py-2 text-xs font-bold uppercase transition-colors flex items-center justify-center gap-2"
-            >
-              <ShieldAlert size={14} /> Initialize Didi Protocol
-            </button>
-          )}
-        </div>
-
-        <SentinelPanel
-          enabled={sentinelEnabled}
-          incidents={sentinelIncidents}
-          onToggle={() => setSentinelEnabled(value => !value)}
-        />
-
-        {/* Agents List */}
-        <div className="flex-1 flex flex-col min-h-0 border-b border-app-border">
-          <div className="p-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2 bg-[#080809]">
-            <Cpu size={12} /> Active Agents ({agents.length})
-          </div>
-          <div className="flex-1 overflow-y-auto p-2 space-y-1">
-            {agents.map(agent => (
-              <div key={agent} className="group flex items-center justify-between px-3 py-2 bg-black border border-app-border hover:border-slate-700 transition-colors">
-                <div className="flex items-center gap-2 truncate">
-                  <div className="w-1.5 h-1.5 rounded-full bg-brand-cyan animate-pulse"></div>
-                  <span className="text-xs font-medium truncate">{agent}</span>
-                </div>
-                <button 
-                  onClick={() => removeAgent(agent)}
-                  className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 transition-all"
-                  title="Terminate Agent"
-                >
-                  <X size={14} />
-                </button>
+            <div>
+              <div className="text-xs font-semibold text-zinc-400 flex items-center gap-2 mb-2">
+                <FolderOpen size={14} /> Workspace
               </div>
-            ))}
-          </div>
-        </div>
-
-        <SnapshotPanel
-          currentProject={currentProject}
-          snapshots={snapshots}
-          isBusy={snapshotBusy}
-          onSnapshot={handleManualSnapshot}
-          onRewind={handleRewindSnapshot}
-        />
-
-        <div className="h-44 flex flex-col min-h-0 border-b border-app-border bg-[#050506]">
-          <div className="p-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center justify-between border-b border-app-border">
-            <span>Task State</span>
-            <span className="text-slate-600">{tasks.filter(task => task.status !== "complete").length} active</span>
-          </div>
-          <div className="flex-1 overflow-y-auto p-2 space-y-1">
-            {tasks.length === 0 ? (
-              <div className="text-[11px] text-slate-600 px-2 py-2">No tracked tasks</div>
-            ) : (
-              tasks.slice(0, 8).map(task => (
-                <div key={task.id} className="border border-app-border bg-black px-2 py-1.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] uppercase tracking-wider text-brand-cyan truncate">{task.target}</span>
-                    <span className={`text-[9px] uppercase ${task.status === "complete" ? "text-emerald-400" : "text-brand-amber"}`}>
-                      {task.status.replace("_", " ")}
-                    </span>
-                  </div>
-                  <div className="text-[11px] text-slate-400 truncate mt-1">{task.summary || "Delegated task"}</div>
-                </div>
-              ))
+              <button 
+                onClick={handleOpenProject} 
+                className="w-full bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 px-3 py-2 text-xs font-medium text-zinc-300 flex items-center justify-between transition-colors group rounded-sm"
+              >
+                <span className="truncate">{currentProject ? currentProject.split('\\').pop() : "Select Directory..."}</span>
+                <FolderOpen size={14} className="text-zinc-500 group-hover:text-zinc-300 transition-colors" />
+              </button>
+            </div>
+            
+            {currentProject && (
+              <button 
+                onClick={handleInitialize} 
+                className="w-full bg-brand-accent/10 hover:bg-brand-accent/20 text-brand-primary border border-brand-accent/30 hover:border-brand-accent/50 px-3 py-2 text-xs font-bold uppercase transition-colors flex items-center justify-center gap-2 rounded-sm"
+              >
+                <ShieldAlert size={14} /> Initialize Didi Protocol
+              </button>
             )}
           </div>
-        </div>
 
-        {/* Activity Feed */}
-        <div className="h-1/3 flex flex-col min-h-0 bg-[#030303]">
-          <div className="p-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2 border-b border-app-border">
-            <Activity size={12} /> System Feed
+          <SentinelPanel
+            enabled={sentinelEnabled}
+            incidents={sentinelIncidents}
+            onToggle={() => setSentinelEnabled(value => !value)}
+          />
+
+          {/* Agents List */}
+          <div className="shrink-0 flex flex-col min-h-0 border-b border-app-border">
+            <div className="px-4 py-2.5 text-xs font-semibold text-zinc-400 bg-zinc-950 flex items-center justify-between border-b border-app-border">
+              <span className="flex items-center gap-2"><Cpu size={14} /> Active Agents</span>
+              <span>{agents.length}</span>
+            </div>
+            <div className="p-3 space-y-2">
+              {agents.map(agent => (
+                <div key={agent} className="group flex items-center justify-between px-3 py-2 bg-zinc-950 border border-zinc-800/50 hover:border-zinc-700 transition-colors rounded-sm">
+                  <div className="flex items-center gap-2 truncate">
+                    <div className="w-1.5 h-1.5 rounded-full bg-brand-accent animate-pulse"></div>
+                    <span className="text-xs font-medium text-zinc-300 truncate">{agent}</span>
+                  </div>
+                  <button 
+                    onClick={() => removeAgent(agent)}
+                    className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-red-400 transition-all"
+                    title="Terminate Agent"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="flex-1 overflow-y-auto p-3 space-y-2">
-            {activity.map(log => (
-              <div key={log.id} className="text-[11px] leading-tight">
-                <span className="text-slate-600 mr-2">[{log.time}]</span>
-                <span className={log.type === 'handoff' ? 'text-brand-amber font-medium' : 'text-slate-400'}>
-                  {log.message}
-                </span>
+
+          <SnapshotPanel
+            currentProject={currentProject}
+            snapshots={snapshots}
+            isBusy={snapshotBusy}
+            onSnapshot={handleManualSnapshot}
+            onRewind={handleRewindSnapshot}
+          />
+
+          <div className="shrink-0 flex flex-col min-h-0 border-b border-app-border bg-zinc-900/10">
+            <div className="px-4 py-2.5 text-xs font-semibold text-zinc-400 bg-zinc-950 flex items-center justify-between border-b border-app-border">
+              <div className="flex items-center gap-2">
+                <button onClick={() => setIsTasksCollapsed(!isTasksCollapsed)} className="text-zinc-500 hover:text-zinc-300 transition-colors">
+                  {isTasksCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+                </button>
+                <span>Task State</span>
               </div>
-            ))}
+              <span className="text-zinc-500 font-normal">{tasks.filter(task => task.status !== "complete").length} active</span>
+            </div>
+            {!isTasksCollapsed && (
+              <div className="p-3 space-y-2">
+                {tasks.length === 0 ? (
+                  <div className="text-xs text-zinc-500">No tracked tasks</div>
+                ) : (
+                  tasks.slice(0, 8).map(task => (
+                    <div key={task.id} className="border border-zinc-800/50 bg-zinc-950/50 px-3 py-2 rounded-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-medium text-brand-primary truncate">{task.target}</span>
+                        <span className={`text-[10px] uppercase ${task.status === "complete" ? "text-emerald-400" : "text-amber-400"}`}>
+                          {task.status.replace("_", " ")}
+                        </span>
+                      </div>
+                      <div className="text-xs text-zinc-400 truncate mt-1">{task.summary || "Delegated task"}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Activity Feed */}
+          <div className="shrink-0 flex flex-col min-h-0 bg-zinc-900/10 pb-4">
+            <div className="px-4 py-2.5 text-xs font-semibold text-zinc-400 bg-zinc-950 flex items-center gap-2 border-b border-app-border">
+              <button onClick={() => setIsActivityCollapsed(!isActivityCollapsed)} className="text-zinc-500 hover:text-zinc-300 transition-colors">
+                {isActivityCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+              </button>
+              <Activity size={14} /> System Feed
+            </div>
+            {!isActivityCollapsed && (
+              <div className="p-3 space-y-2">
+                {activity.map(log => (
+                  <div key={log.id} className="text-xs leading-tight flex gap-2">
+                    <span className="text-zinc-600 shrink-0">[{log.time}]</span>
+                    <span className={log.type === 'handoff' ? 'text-amber-400 font-medium' : 'text-zinc-400'}>
+                      {log.message}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </aside>
@@ -952,7 +974,7 @@ function App() {
                 value={newAgentName}
                 onChange={e => setNewAgentName(e.target.value)}
                 placeholder="Spawn new agent..."
-                className="bg-[#0a0a0c] border border-app-border focus:border-brand-cyan text-slate-200 pl-7 pr-3 py-1.5 text-xs outline-none transition-colors w-64 placeholder:text-slate-600"
+                className="bg-[#0a0a0c] border border-app-border focus:border-brand-accent text-slate-200 pl-7 pr-3 py-1.5 text-xs outline-none transition-colors w-64 placeholder:text-slate-600"
               />
             </div>
             <button type="submit" className="hidden" /> {/* Hidden submit so enter works */}
@@ -961,14 +983,14 @@ function App() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowBrainstorm(true)}
-              className="p-1.5 rounded-sm transition-colors text-slate-500 hover:text-brand-cyan bg-[#0a0a0c] border border-app-border"
+              className="p-1.5 rounded-sm transition-colors text-slate-500 hover:text-brand-primary bg-[#0a0a0c] border border-app-border"
               title="Brainstorm Mode"
             >
               <Brain size={16} />
             </button>
             <button
               onClick={() => setShowNetworkGraph(true)}
-              className="p-1.5 rounded-sm transition-colors text-slate-500 hover:text-brand-cyan bg-[#0a0a0c] border border-app-border"
+              className="p-1.5 rounded-sm transition-colors text-slate-500 hover:text-brand-primary bg-[#0a0a0c] border border-app-border"
               title="Collaboration Graph"
             >
               <Network size={16} />
@@ -976,21 +998,21 @@ function App() {
             <div className="flex items-center gap-1 bg-[#0a0a0c] p-1 border border-app-border rounded-sm">
               <button 
                 onClick={() => setLayoutOrientation('horizontal')}
-                className={`p-1.5 rounded-sm transition-colors ${layoutOrientation === 'horizontal' ? 'bg-brand-cyan/20 text-brand-cyan' : 'text-slate-500 hover:text-slate-300'}`}
+                className={`p-1.5 rounded-sm transition-colors ${layoutOrientation === 'horizontal' ? 'bg-brand-accent/20 text-brand-primary' : 'text-slate-500 hover:text-slate-300'}`}
                 title="Vertical Splits"
               >
                 <Columns size={14} />
               </button>
               <button 
                 onClick={() => setLayoutOrientation('vertical')}
-                className={`p-1.5 rounded-sm transition-colors ${layoutOrientation === 'vertical' ? 'bg-brand-cyan/20 text-brand-cyan' : 'text-slate-500 hover:text-slate-300'}`}
+                className={`p-1.5 rounded-sm transition-colors ${layoutOrientation === 'vertical' ? 'bg-brand-accent/20 text-brand-primary' : 'text-slate-500 hover:text-slate-300'}`}
                 title="Horizontal Splits"
               >
                 <Rows size={14} />
               </button>
               <button 
                 onClick={() => setLayoutOrientation('grid')}
-                className={`p-1.5 rounded-sm transition-colors ${layoutOrientation === 'grid' ? 'bg-brand-cyan/20 text-brand-cyan' : 'text-slate-500 hover:text-slate-300'}`}
+                className={`p-1.5 rounded-sm transition-colors ${layoutOrientation === 'grid' ? 'bg-brand-accent/20 text-brand-primary' : 'text-slate-500 hover:text-slate-300'}`}
                 title="Grid Split"
               >
                 <Grid2X2 size={14} />
@@ -999,7 +1021,7 @@ function App() {
             
             <button 
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-1.5 rounded-sm transition-colors text-slate-500 hover:text-brand-cyan bg-[#0a0a0c] border border-app-border"
+              className="p-1.5 rounded-sm transition-colors text-slate-500 hover:text-brand-primary bg-[#0a0a0c] border border-app-border"
               title="Toggle Sidebar"
             >
               {isSidebarOpen ? <PanelLeftClose size={16} /> : <PanelLeft size={16} />}
@@ -1022,12 +1044,12 @@ function App() {
                   const rowsCount = Math.ceil(agents.length / cols);
                   return (
                     <Fragment key={`row-${rowIndex}`}>
-                      {rowIndex > 0 && <Separator className="bg-app-border transition-colors hover:bg-brand-cyan focus:bg-brand-cyan h-1 my-0.5" />}
+                      {rowIndex > 0 && <Separator className="bg-app-border transition-colors hover:bg-brand-accent focus:bg-brand-accent h-1 my-0.5" />}
                       <Panel defaultSize={100 / rowsCount} minSize={10}>
                         <Group orientation="horizontal" className="h-full w-full">
                           {rowAgents.map((agent, colIndex) => (
                             <Fragment key={agent}>
-                              {colIndex > 0 && <Separator className="bg-app-border transition-colors hover:bg-brand-cyan focus:bg-brand-cyan w-1 mx-0.5" />}
+                              {colIndex > 0 && <Separator className="bg-app-border transition-colors hover:bg-brand-accent focus:bg-brand-accent w-1 mx-0.5" />}
                               <Panel defaultSize={100 / rowAgents.length} minSize={10}>
                                 <TerminalInstance 
                                   agentName={agent}
@@ -1051,7 +1073,7 @@ function App() {
               <Group orientation={layoutOrientation} className="h-full w-full rounded-sm overflow-hidden border border-app-border">
                 {agents.map((agent, index) => (
                   <Fragment key={agent}>
-                    {index > 0 && <Separator className={`bg-app-border transition-colors hover:bg-brand-cyan focus:bg-brand-cyan ${layoutOrientation === 'horizontal' ? 'w-1 mx-0.5' : 'h-1 my-0.5'}`} />}
+                    {index > 0 && <Separator className={`bg-app-border transition-colors hover:bg-brand-accent focus:bg-brand-accent ${layoutOrientation === 'horizontal' ? 'w-1 mx-0.5' : 'h-1 my-0.5'}`} />}
                     <Panel defaultSize={100 / agents.length} minSize={10}>
                       <TerminalInstance 
                         agentName={agent} 

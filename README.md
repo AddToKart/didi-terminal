@@ -37,27 +37,53 @@ DidiTerminal is built with a state-of-the-art hybrid architecture that bridges h
 
 ---
 
-## 🛠️ How It Works (The Walkthrough)
+## 📖 Step-by-Step Tutorial
 
-### 1. Project Initialization
-Click **"Init Didi Protocol"** in any workspace. This creates the `.didi/` helpers and the `MASTER_PLAN.md`.
+### 1. Setup & Launch
+- Clone the repository and install dependencies using `npm install`.
+- Launch the application with `npm run tauri dev`.
+- Ensure **PowerShell** is installed, as DidiTerminal is optimized for Windows-native automation.
 
-### 2. Spawning the Team
-Spawn specialized agents (e.g., `Main`, `Builder`, `Tester`). Each agent runs in its own native PTY.
+### 2. Initializing a Workspace
+- Click the **Folder Icon** in the sidebar to select your project directory.
+- Click **"Init Didi Protocol"**. This scaffolds the `.didi/` directory which contains the secret sauce:
+  - `delegate.ps1`: The bridge to the IPC bus.
+  - `context.ps1`: Automated context gathering for agents.
+  - `MASTER_PLAN.md`: The shared state file for task tracking.
 
-### 3. Task Delegation
-An agent can delegate work by running:
-```powershell
-.didi\delegate Builder "Implement the Auth API. Refer to MASTER_PLAN Step 2."
-```
-The message is serialized into JSON, sent over the Named Pipe bus, captured by the Rust backend, and instantly injected into the target agent's terminal.
+### 3. Spawning Your Team
+- Use the **"+"** button or the input field at the bottom of the sidebar to create new agents.
+- **Pro Tip:** Give them specialized names like `Architect`, `Builder`, `UI-Designer`, or `Tester`. DidiTerminal automatically assigns them unique PTY instances.
 
-### 4. Continuous Coordination
-Agents update the `MASTER_PLAN.md`, check off tasks, and pass control back and forth. The **Sentinel** ensures no one gets stuck, while the **Time-Travel** system keeps your code safe.
+### 4. The Delegation Loop
+- Start a task in the **Main Terminal**.
+- When an agent needs help, it can run:
+  ```powershell
+  .didi\delegate Builder "Create a React component for the login page."
+  ```
+- The **DidiBus** will instantly route this task to the `Builder` agent. You'll see the handoff appear in the **Network Graph** and the **Activity Feed**.
+
+### 5. Mastering the Brainstorm
+- Stuck on a complex architectural decision? Click the **Brain** icon.
+- Select your participants and describe the problem.
+- Watch as your agents debate in real-time. Once they reach a consensus, the result is automatically appended to your `MASTER_PLAN.md`.
+
+### 6. Safety with Sentinel & Time-Travel
+- **Sentinel:** Keep the **Shield** icon active. If an agent enters a hallucination loop or fails a command repeatedly, Sentinel will automatically intervene, pause the agent, and inject a corrective prompt.
+- **Snapshots:** Every time a task is delegated, DidiTerminal takes a git snapshot. If an agent goes rogue and deletes files, use the **Snapshot Panel** to "Rewind" the workspace to a known good state.
 
 ---
 
-## ⚡ Getting Started
+## 💡 Best Practices
+
+- **Atomic Tasks:** Keep delegated tasks small and specific.
+- **Plan First:** Always update the `MASTER_PLAN.md` before starting a major feature. Agents can read this file to understand the "Big Picture."
+- **Context is King:** Use `.didi\context` within your prompts to feed agents the latest directory structure and git status.
+- **Grid Layout:** When running 4+ agents, switch to **Grid Layout** (Grid icon) for the best visual overview of the entire team.
+
+---
+
+## ⚡ Developer Setup
 
 ### Prerequisites
 - Node.js (v18+)
@@ -97,12 +123,10 @@ graph LR
 
 ## 🚀 Future Roadmap
 
-We are continuously evolving DidiTerminal to be the ultimate digital factory. Upcoming features include:
-
-- **📸 Autonomous UI Vision:** Integrated headless browser snapshots that allow agents to "see" and fix UI/UX bugs in real-time.
-- **🧬 Codebase-Wide RAG:** Local vector database integration for codebase-wide semantic search and long-term memory.
-- **🏢 DidiCloud Bridge:** Extending the DidiBus over WebSockets to allow local agents to coordinate with remote GPU clusters.
-- **🛡️ Sandboxed Execution:** Optional Docker/WASM isolation for agents to safely execute high-risk code.
-- **🎤 Voice Command Overlay:** Natural language voice control for the human orchestrator to direct the team verbally.
-- **📦 Didi Skill Marketplace:** A community-driven registry of standardized `.didi/skills` for common DevOps and Refactoring tasks.
+- **📸 Autonomous UI Vision:** Integrated headless browser snapshots for real-time UI/UX debugging.
+- **🧬 Codebase-Wide RAG:** Local vector database for semantic search and long-term memory.
+- **🏢 DidiCloud Bridge:** Extending the DidiBus over WebSockets for remote GPU coordination.
+- **🛡️ Sandboxed Execution:** Docker/WASM isolation for high-risk code execution.
+- **🎤 Voice Command Overlay:** Natural language control for the human orchestrator.
+- **📦 Didi Skill Marketplace:** Standardized `.didi/skills` registry for DevOps tasks.
 

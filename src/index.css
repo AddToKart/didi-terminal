@@ -1,10 +1,12 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   body {
-    @apply bg-app-bg text-slate-300 font-plex overflow-hidden;
+    @apply bg-app-bg text-zinc-300 font-sans overflow-hidden antialiased;
     margin: 0;
   }
 }
@@ -16,12 +18,12 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #050505;
+  background: #09090b;
 }
 
 ::-webkit-scrollbar-thumb {
   background: #27272a;
-  border-radius: 0;
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -34,15 +36,16 @@
 }
 
 .xterm-viewport::-webkit-scrollbar-track {
-  background: #0a0a0c;
+  background: #18181b;
 }
 
 .xterm-viewport::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: #27272a;
+  border-radius: 4px;
 }
 
 .xterm-viewport::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: #3f3f46;
 }
 
 .terminal-surface {
@@ -69,5 +72,5 @@
 
 [data-panel-resize-handle-state]:hover,
 [data-panel-resize-handle-state][data-resize-handle-state="drag"] {
-  background-color: theme('colors.brand.cyan');
+  background-color: theme('colors.brand.accent');
 }

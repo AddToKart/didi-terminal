@@ -49,17 +49,17 @@ export const BrainstormModal = ({ agents, sessions, onStart, onClose }: Props) =
   const activeSession = sessions[0];
 
   return (
-    <div className="absolute inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-8">
-      <div className="w-full max-w-4xl max-h-full border border-brand-cyan/30 bg-app-panel shadow-[0_0_40px_rgba(0,240,255,0.08)] flex flex-col">
+    <div className="absolute inset-0 z-50 bg-zinc-950/90 backdrop-blur-md flex items-center justify-center p-8">
+      <div className="w-full max-w-4xl max-h-full border border-brand-accent/30 bg-app-panel shadow-md flex flex-col">
         <div className="flex items-center justify-between p-4 border-b border-app-border">
           <div>
-            <h2 className="text-lg text-brand-cyan font-bold uppercase tracking-widest flex items-center gap-2">
+            <h2 className="text-lg text-brand-primary font-bold font-medium tracking-tight flex items-center gap-2">
               <Brain size={20} />
               Brainstorm Mode
             </h2>
             <p className="text-xs text-slate-500 mt-1">Broadcast a problem, collect debate rounds, then append consensus to MASTER_PLAN.md.</p>
           </div>
-          <button onClick={onClose} className="text-slate-500 hover:text-brand-amber p-2 border border-app-border hover:border-brand-amber bg-app-bg transition-colors">
+          <button onClick={onClose} className="text-slate-500 hover:text-brand-warn p-2 border border-app-border hover:border-brand-warn bg-app-bg transition-colors">
             <X size={18} />
           </button>
         </div>
@@ -67,20 +67,20 @@ export const BrainstormModal = ({ agents, sessions, onStart, onClose }: Props) =
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] min-h-0">
           <form onSubmit={handleSubmit} className="p-4 space-y-4 border-r border-app-border">
             <div>
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Problem</label>
+              <label className="text-[10px] font-bold text-slate-500 font-medium tracking-tight">Problem</label>
               <textarea
                 value={prompt}
                 onChange={event => setPrompt(event.target.value)}
-                className="mt-2 w-full h-36 bg-black border border-app-border focus:border-brand-cyan text-slate-200 p-3 text-sm outline-none resize-none"
+                className="mt-2 w-full h-36 bg-zinc-950 border border-app-border focus:border-brand-accent text-slate-200 p-3 text-sm outline-none resize-none"
                 placeholder="What should the agents debate?"
               />
             </div>
 
             <div>
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Agents</label>
+              <label className="text-[10px] font-bold text-slate-500 font-medium tracking-tight">Agents</label>
               <div className="mt-2 grid grid-cols-2 gap-2">
                 {agents.map(agent => (
-                  <label key={agent} className="flex items-center gap-2 border border-app-border bg-black px-3 py-2 text-xs text-slate-300">
+                  <label key={agent} className="flex items-center gap-2 border border-app-border bg-zinc-950 px-3 py-2 text-xs text-slate-300">
                     <input
                       type="checkbox"
                       checked={participants.includes(agent)}
@@ -94,7 +94,7 @@ export const BrainstormModal = ({ agents, sessions, onStart, onClose }: Props) =
             </div>
 
             <div className="flex items-center justify-between gap-4">
-              <label className="flex items-center gap-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+              <label className="flex items-center gap-3 text-[10px] font-bold text-slate-500 font-medium tracking-tight">
                 Turns
                 <input
                   type="number"
@@ -102,13 +102,13 @@ export const BrainstormModal = ({ agents, sessions, onStart, onClose }: Props) =
                   max={3}
                   value={turns}
                   onChange={event => setTurns(Math.min(3, Math.max(2, Number(event.target.value) || 2)))}
-                  className="w-16 bg-black border border-app-border text-slate-200 px-2 py-1 text-xs outline-none focus:border-brand-cyan"
+                  className="w-16 bg-zinc-950 border border-app-border text-slate-200 px-2 py-1 text-xs outline-none focus:border-brand-accent"
                 />
               </label>
               <button
                 type="submit"
                 disabled={prompt.trim().length === 0 || participants.length < 2}
-                className="bg-brand-cyan/10 hover:bg-brand-cyan/20 text-brand-cyan border border-brand-cyan/30 hover:border-brand-cyan/50 disabled:opacity-40 px-4 py-2 text-xs font-bold uppercase tracking-widest transition-colors flex items-center gap-2"
+                className="bg-brand-accent/10 hover:bg-brand-accent/20 text-brand-primary border border-brand-accent/30 hover:border-brand-accent/50 disabled:opacity-40 px-4 py-2 text-xs font-bold font-medium tracking-tight transition-colors flex items-center gap-2"
               >
                 <RadioTower size={14} />
                 Broadcast
@@ -117,14 +117,14 @@ export const BrainstormModal = ({ agents, sessions, onStart, onClose }: Props) =
           </form>
 
           <div className="p-4 min-h-0 flex flex-col">
-            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Latest Session</div>
+            <div className="text-[10px] font-bold text-slate-500 font-medium tracking-tight mb-2">Latest Session</div>
             {!activeSession ? (
-              <div className="text-xs text-slate-600 border border-app-border bg-black p-3">No brainstorm sessions yet</div>
+              <div className="text-xs text-slate-600 border border-app-border bg-zinc-950 p-3">No brainstorm sessions yet</div>
             ) : (
-              <div className="min-h-0 flex-1 flex flex-col border border-app-border bg-black">
+              <div className="min-h-0 flex-1 flex flex-col border border-app-border bg-zinc-950">
                 <div className="p-3 border-b border-app-border">
                   <div className="text-xs text-slate-300 line-clamp-3">{activeSession.prompt}</div>
-                  <div className="text-[10px] text-slate-600 mt-2 uppercase tracking-wider">
+                  <div className="text-[10px] text-slate-600 mt-2 font-medium tracking-tight">
                     Round {activeSession.round}/{activeSession.turns} - {activeSession.status}
                   </div>
                 </div>
@@ -135,7 +135,7 @@ export const BrainstormModal = ({ agents, sessions, onStart, onClose }: Props) =
                     activeSession.responses.map((response, index) => (
                       <div key={`${response.agent}-${response.round}-${index}`} className="border border-app-border bg-[#050506] p-2">
                         <div className="flex items-center justify-between gap-2 mb-1">
-                          <span className="text-[10px] uppercase tracking-wider text-brand-cyan truncate">{response.agent}</span>
+                          <span className="text-[10px] font-medium tracking-tight text-brand-primary truncate">{response.agent}</span>
                           <span className="text-[9px] text-slate-600">R{response.round} {response.at}</span>
                         </div>
                         <div className="text-[11px] text-slate-400 leading-snug line-clamp-3">{response.text}</div>

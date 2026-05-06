@@ -15,36 +15,36 @@ interface Props {
 }
 
 export const SentinelPanel = ({ enabled, incidents, onToggle }: Props) => (
-  <div className="border-b border-app-border bg-[#050506]">
-    <div className="p-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center justify-between border-b border-app-border">
+  <div className="shrink-0 flex flex-col min-h-0 border-b border-app-border bg-zinc-900/10">
+    <div className="px-4 py-2.5 text-xs font-semibold text-zinc-400 bg-zinc-950 flex items-center justify-between border-b border-app-border">
       <span className="flex items-center gap-2">
-        {enabled ? <ShieldCheck size={12} /> : <PauseCircle size={12} />}
+        {enabled ? <ShieldCheck size={14} /> : <PauseCircle size={14} />}
         Sentinel
       </span>
       <button
         type="button"
         onClick={onToggle}
-        className={`px-2 py-1 border text-[9px] uppercase tracking-wider transition-colors ${
+        className={`px-2 py-0.5 rounded-sm border text-[10px] font-medium transition-colors ${
           enabled
-            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
-            : "border-slate-700 bg-black text-slate-500"
+            ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
+            : "border-zinc-800 bg-zinc-900 text-zinc-500"
         }`}
       >
         {enabled ? "Armed" : "Off"}
       </button>
     </div>
-    <div className="max-h-28 overflow-y-auto p-2 space-y-1">
+    <div className="p-3 space-y-2">
       {incidents.length === 0 ? (
-        <div className="text-[11px] text-slate-600 px-2 py-1.5">No loop interventions</div>
+        <div className="text-xs text-zinc-500">No loop interventions</div>
       ) : (
         incidents.slice(0, 4).map(incident => (
-          <div key={incident.id} className="border border-red-500/20 bg-red-500/5 px-2 py-1.5">
+          <div key={incident.id} className="border border-red-900/30 bg-red-950/20 px-3 py-2 rounded-sm">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[10px] uppercase tracking-wider text-red-300 truncate">{incident.agent}</span>
-              <span className="text-[9px] text-slate-600">{incident.at}</span>
+              <span className="text-xs font-medium text-red-400 truncate">{incident.agent}</span>
+              <span className="text-[10px] text-zinc-500">{incident.at}</span>
             </div>
-            <div className="mt-1 flex items-start gap-1.5 text-[11px] text-slate-400 leading-tight">
-              <AlertTriangle size={12} className="text-red-300 shrink-0 mt-0.5" />
+            <div className="mt-1.5 flex items-start gap-2 text-xs text-zinc-400 leading-tight">
+              <AlertTriangle size={14} className="text-red-500/70 shrink-0 mt-0.5" />
               <span className="truncate">{incident.command || incident.reason}</span>
             </div>
           </div>

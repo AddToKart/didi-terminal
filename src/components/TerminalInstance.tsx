@@ -279,30 +279,30 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onDragSta
   };
 
   return (
-    <div className={`flex flex-col h-full w-full bg-[#020202] border transition-colors duration-300 ${sentinelPaused ? 'border-red-400 shadow-[0_0_18px_rgba(248,113,113,0.22)] z-10 relative' : isPulsing ? 'border-brand-cyan animate-pulse-border shadow-[0_0_15px_rgba(0,240,255,0.2)] z-10 relative' : 'border-app-border z-0'}`}>
+    <div className={`flex flex-col h-full w-full bg-[#020202] border transition-colors duration-300 ${sentinelPaused ? 'border-red-400 shadow-sm z-10 relative' : isPulsing ? 'border-brand-accent animate-pulse-border shadow-sm z-10 relative' : 'border-app-border z-0'}`}>
       
       {/* Terminal Header & Macros */}
       <div 
-        className={`flex items-center justify-between px-3 py-1.5 border-b transition-colors duration-300 cursor-grab active:cursor-grabbing ${sentinelPaused ? 'bg-red-500/10 border-red-400/50' : isPulsing ? 'bg-brand-cyan/10 border-brand-cyan/50' : 'bg-[#080809] border-app-border'}`}
+        className={`flex items-center justify-between px-3 py-1.5 border-b transition-colors duration-300 cursor-grab active:cursor-grabbing ${sentinelPaused ? 'bg-red-500/10 border-red-400/50' : isPulsing ? 'bg-brand-accent/10 border-brand-accent/50' : 'bg-[#080809] border-app-border'}`}
         draggable
         onDragStart={onDragStart}
         onDrop={onDrop}
         onDragOver={onDragOver}
       >
         <div className="flex items-center gap-2">
-          <TerminalIcon size={12} className={sentinelPaused ? 'text-red-300' : isPulsing ? 'text-brand-cyan' : 'text-slate-500'} />
-          <span className={`text-[11px] font-bold tracking-widest uppercase ${sentinelPaused ? 'text-red-200' : isPulsing ? 'text-brand-cyan' : 'text-slate-300'}`}>
+          <TerminalIcon size={12} className={sentinelPaused ? 'text-red-300' : isPulsing ? 'text-brand-primary' : 'text-slate-500'} />
+          <span className={`text-[11px] font-bold tracking-widest uppercase ${sentinelPaused ? 'text-red-200' : isPulsing ? 'text-brand-primary' : 'text-slate-300'}`}>
             {agentName}
           </span>
-          {(isPulsing || sentinelPaused) && <Zap size={12} className="text-brand-amber animate-pulse" />}
+          {(isPulsing || sentinelPaused) && <Zap size={12} className="text-brand-warn animate-pulse" />}
         </div>
         
         {/* Macro Bar */}
         <div className="flex flex-1 mx-4 justify-end gap-1 opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity">
-           <button onClick={() => executeMacro("clear")} className="px-1.5 py-0.5 text-[9px] bg-[#111] hover:bg-[#1a1a1a] text-slate-400 hover:text-brand-cyan border border-app-border rounded flex items-center gap-1">
+           <button onClick={() => executeMacro("clear")} className="px-1.5 py-0.5 text-[9px] bg-[#111] hover:bg-[#1a1a1a] text-slate-400 hover:text-brand-primary border border-app-border rounded flex items-center gap-1">
              <Eraser size={9} /> CLEAR
            </button>
-           <button onClick={() => executeMacro("npm run dev")} className="px-1.5 py-0.5 text-[9px] bg-[#111] hover:bg-[#1a1a1a] text-slate-400 hover:text-brand-cyan border border-app-border rounded flex items-center gap-1">
+           <button onClick={() => executeMacro("npm run dev")} className="px-1.5 py-0.5 text-[9px] bg-[#111] hover:bg-[#1a1a1a] text-slate-400 hover:text-brand-primary border border-app-border rounded flex items-center gap-1">
              <Play size={9} /> DEV
            </button>
         </div>
@@ -313,8 +313,8 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onDragSta
              <span title="Memory Usage">{(stats.mem / 1024 / 1024).toFixed(0)} MB</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className={`w-1.5 h-1.5 rounded-full ${isReady ? 'bg-emerald-400' : 'bg-brand-amber animate-pulse'}`}></div>
-            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
+            <div className={`w-1.5 h-1.5 rounded-full ${isReady ? 'bg-emerald-400' : 'bg-brand-warn animate-pulse'}`}></div>
+            <span className="text-[9px] font-bold text-slate-500 font-medium tracking-tight">
               {sentinelPaused ? 'PAUSED' : isReady ? 'IDLE' : 'INIT'}
             </span>
           </div>
@@ -322,7 +322,7 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onDragSta
             <div className="flex items-center gap-1 ml-2">
               <button 
                 onClick={handlePopOut}
-                className="text-slate-500 hover:text-brand-cyan transition-colors bg-app-bg hover:bg-brand-cyan/10 p-1 rounded-sm border border-app-border hover:border-brand-cyan/30"
+                className="text-slate-500 hover:text-brand-primary transition-colors bg-app-bg hover:bg-brand-accent/10 p-1 rounded-sm border border-app-border hover:border-brand-accent/30"
                 title="Pop-out Terminal"
               >
                 <ExternalLink size={10} strokeWidth={2} />
@@ -353,10 +353,10 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onDragSta
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder="Search..." 
-                className="bg-black border border-app-border text-slate-200 px-2 py-0.5 outline-none focus:border-brand-cyan w-32"
+                className="bg-zinc-950 border border-app-border text-slate-200 px-2 py-0.5 outline-none focus:border-brand-accent w-32"
               />
-              <button type="button" onClick={(e) => handleSearch(e, 'prev')} className="p-1 text-slate-500 hover:text-slate-200 bg-black border border-app-border hover:border-slate-500"><ChevronUp size={12}/></button>
-              <button type="submit" className="p-1 text-slate-500 hover:text-slate-200 bg-black border border-app-border hover:border-slate-500"><ChevronDown size={12}/></button>
+              <button type="button" onClick={(e) => handleSearch(e, 'prev')} className="p-1 text-slate-500 hover:text-slate-200 bg-zinc-950 border border-app-border hover:border-slate-500"><ChevronUp size={12}/></button>
+              <button type="submit" className="p-1 text-slate-500 hover:text-slate-200 bg-zinc-950 border border-app-border hover:border-slate-500"><ChevronDown size={12}/></button>
             </form>
             <button onClick={() => { setShowSearch(false); searchAddon.current?.clearDecorations(); }} className="p-1 text-slate-500 hover:text-red-400 ml-1"><X size={12}/></button>
           </div>

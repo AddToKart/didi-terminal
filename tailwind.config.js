@@ -7,32 +7,34 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        plex: ['"IBM Plex Mono"', 'monospace'],
-        jetbrains: ['"JetBrains Mono"', 'monospace'],
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'monospace'],
+        plex: ['"IBM Plex Mono"', 'monospace'], // Keep for backward compatibility if needed in term
       },
       colors: {
         app: {
-          bg: '#050505',
-          panel: '#0a0a0c',
-          border: '#18181b',
+          bg: '#09090b', // zinc-950
+          panel: '#18181b', // zinc-900
+          border: '#27272a', // zinc-800
         },
         brand: {
-          cyan: '#00f0ff',
-          amber: '#ffb000',
+          primary: '#e4e4e7', // zinc-200 (sharp white/gray contrast)
+          accent: '#3b82f6', // blue-500 (modern clean blue)
+          warn: '#ef4444', // red-500 (clean red for alerts)
         }
       },
       keyframes: {
         pulseBorder: {
-          '0%, 100%': { borderColor: 'var(--tw-colors-brand-cyan, #00f0ff)' },
-          '50%': { borderColor: 'var(--tw-colors-app-border, #18181b)' },
+          '0%, 100%': { borderColor: 'var(--tw-colors-brand-accent, #3b82f6)' },
+          '50%': { borderColor: 'var(--tw-colors-app-border, #27272a)' },
         },
         flashBg: {
-          '0%': { backgroundColor: 'rgba(0, 240, 255, 0.1)' },
+          '0%': { backgroundColor: 'rgba(59, 130, 246, 0.05)' },
           '100%': { backgroundColor: 'transparent' },
         }
       },
       animation: {
-        'pulse-border': 'pulseBorder 1s ease-in-out 3',
+        'pulse-border': 'pulseBorder 1.5s ease-in-out 3',
         'flash-bg': 'flashBg 0.5s ease-out 1',
       }
     },

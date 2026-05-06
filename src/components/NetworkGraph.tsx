@@ -24,22 +24,22 @@ function AgentNode({ data }: NodeProps) {
   
   return (
     <div className={`px-4 py-3 rounded-md border-2 bg-[#0a0a0c] min-w-[200px] max-w-[250px] shadow-lg
-      ${isWorking ? 'border-brand-amber shadow-brand-amber/20' : 
+      ${isWorking ? 'border-brand-warn shadow-brand-warn/20' : 
         isWaiting ? 'border-slate-500 shadow-slate-500/20' : 
-        'border-brand-cyan shadow-brand-cyan/20'}`}>
+        'border-brand-accent shadow-brand-accent/20'}`}>
       
-      <Handle type="target" position={Position.Top} className="w-2 h-2 !bg-brand-cyan opacity-0" />
+      <Handle type="target" position={Position.Top} className="w-2 h-2 !bg-brand-accent opacity-0" />
       
       <div className="flex items-center justify-between mb-3 border-b border-app-border pb-2">
         <div className="flex items-center gap-2">
-          <Cpu size={16} className={isWorking ? 'text-brand-amber' : 'text-brand-cyan'} />
+          <Cpu size={16} className={isWorking ? 'text-brand-warn' : 'text-brand-primary'} />
           <span className="font-bold text-sm tracking-wider text-slate-200 truncate">{label}</span>
         </div>
       </div>
       
       <div className="text-xs space-y-2">
         {isWorking && (
-          <div className="flex items-start gap-2 text-brand-amber bg-brand-amber/10 p-2 rounded border border-brand-amber/20">
+          <div className="flex items-start gap-2 text-brand-warn bg-brand-warn/10 p-2 rounded border border-brand-warn/20">
             <Clock size={14} className="animate-spin-slow shrink-0 mt-0.5" />
             <span className="font-medium leading-tight">Working...</span>
           </div>
@@ -51,14 +51,14 @@ function AgentNode({ data }: NodeProps) {
           </div>
         )}
         {!isWorking && !isWaiting && (
-          <div className="flex items-start gap-2 text-brand-cyan bg-brand-cyan/10 p-2 rounded border border-brand-cyan/20">
+          <div className="flex items-start gap-2 text-brand-primary bg-brand-accent/10 p-2 rounded border border-brand-accent/20">
             <CheckCircle2 size={14} className="shrink-0 mt-0.5" />
             <span className="font-medium">Idle / Ready</span>
           </div>
         )}
       </div>
 
-      <Handle type="source" position={Position.Bottom} className="w-2 h-2 !bg-brand-cyan opacity-0" />
+      <Handle type="source" position={Position.Bottom} className="w-2 h-2 !bg-brand-accent opacity-0" />
     </div>
   );
 }
@@ -149,22 +149,22 @@ export function NetworkGraph({ agents, tasks = [], onClose }: Props) {
   }, [agents, tasks]);
 
   return (
-    <div className="absolute inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col p-8">
+    <div className="absolute inset-0 z-50 bg-zinc-950/90 backdrop-blur-md flex flex-col p-8">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h2 className="text-2xl text-brand-cyan font-bold uppercase tracking-widest flex items-center gap-3 mb-1">
+          <h2 className="text-2xl text-brand-primary font-bold font-medium tracking-tight flex items-center gap-3 mb-1">
             <Network className="stroke-[2.5]" /> Orchestration Map
           </h2>
           <p className="text-slate-400 text-sm font-medium">Live visualization of agent task delegations and dependencies.</p>
         </div>
-        <button onClick={onClose} className="text-slate-400 hover:text-brand-amber p-2 border border-app-border hover:border-brand-amber rounded bg-app-bg transition-colors">
+        <button onClick={onClose} className="text-slate-400 hover:text-brand-warn p-2 border border-app-border hover:border-brand-warn rounded bg-app-bg transition-colors">
           <X size={24} />
         </button>
       </div>
-      <div className="flex-1 border border-brand-cyan/20 rounded-lg bg-[#020202] overflow-hidden relative shadow-[0_0_40px_rgba(0,240,255,0.05)]">
+      <div className="flex-1 border border-brand-accent/20 rounded-lg bg-[#020202] overflow-hidden relative shadow-md">
         <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} fitView minZoom={0.2} maxZoom={2}>
           <Background color="#18181b" gap={24} size={2} />
-          <Controls className="bg-[#0a0a0c] text-brand-cyan border border-brand-cyan/30 !fill-brand-cyan" />
+          <Controls className="bg-[#0a0a0c] text-brand-primary border border-brand-accent/30 !fill-brand-accent" />
         </ReactFlow>
       </div>
     </div>
