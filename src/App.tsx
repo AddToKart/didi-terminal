@@ -298,7 +298,8 @@ function App() {
       state.signatureCount = 0;
 
       const prompt = `You are stuck in a loop. Sentinel paused you because ${reason}. Try a different approach, inspect the actual error, or ask another agent for help. Do not retry the same command again unchanged.`;
-      invoke("write_pty", { agent: key, data: "\u0003" }).catch(console.error);
+      // Use Escape (\u001b) 4 times to reliably interrupt the agent's internal process
+      invoke("write_pty", { agent: key, data: "\u001b\u001b\u001b\u001b" }).catch(console.error);
       setTimeout(() => {
         invoke("write_pty", { agent: key, data: prompt }).catch(console.error);
       }, 300);
