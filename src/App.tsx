@@ -608,7 +608,7 @@ function App() {
 
       try {
         const context = await invoke<string>("get_project_context", { cwd: workspace });
-        return `${safePayload} WORKSPACE ROOT: ${workspace}. All file reads and writes must stay under this workspace root. Do not edit files in the DidiTerminal app directory unless it is the selected workspace. WORKSPACE CONTEXT: ${context.replace(/\r?\n/g, " ").trim()}`;
+        return `${safePayload} WORKSPACE ROOT: ${workspace}. All file reads and writes must stay under this workspace root. Do not edit files in the DidiTerminal app directory unless it is the selected workspace. If another specialist owns the next step, delegate directly to that agent instead of routing through Orchestrator. Notify Orchestrator only when the whole delegated chain is complete or explicitly requested. WORKSPACE CONTEXT: ${context.replace(/\r?\n/g, " ").trim()}`;
       } catch (err) {
         console.warn("Failed to add workspace context", err);
         return safePayload;

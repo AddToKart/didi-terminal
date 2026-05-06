@@ -514,7 +514,7 @@ if ($isCompletion) {
     $payload = "[$sender COMPLETED TASK]: $Task`n[SYSTEM RULE: This is a terminal status update. Do not acknowledge it, do not report back, and do not delegate a response unless this message explicitly assigns a new task.]"
 } else {
     $kind = "task"
-    $payload = "[$sender DELEGATED A TASK]: $Task`n[SYSTEM RULE: Do this task exactly once. When finished, report back exactly once by running: .didi\delegate $sender `"Task complete: <summary>`". After sending that completion callback, stop; do not send acknowledgements or confirmations.]"
+    $payload = "[$sender DELEGATED A TASK]: $Task`n[SYSTEM RULE: This is a peer-to-peer handoff from $sender. Do this task exactly once. You may delegate directly to the next specialist when useful. Report back to $sender only when your part is done or blocked; report to Orchestrator only when the whole delegated chain is complete or explicitly requested. Use: .didi\delegate $sender `"Task complete: <summary>`". After sending a completion callback, stop.]"
 }
 
 $msgObj = @{
@@ -579,17 +579,30 @@ Use delegation only when assigning a new task that requires action.
 
 Do not delegate acknowledgements, thanks, status chatter, or confirmations.
 
-## Rule 3: Complete Each Delegated Task Once
+## Rule 3: Use Peer-to-Peer Specialist Chains
+Agents may delegate directly to other agents. Do not route through Orchestrator unless the human explicitly asked for orchestration, the full chain is complete, or the next step needs human-level coordination.
+
+Preferred implementation flow for code tasks:
+1. Builder implements the requested change.
+2. Builder delegates directly to CodeChecker for review and validation.
+3. If CodeChecker finds issues, CodeChecker delegates directly back to Builder with concise fixes required.
+4. If CodeChecker approves, CodeChecker delegates directly to Documentator for docs and summary updates.
+5. Documentator updates docs, then notifies Orchestrator once with the final task completion summary.
+
+Keep each handoff short. Point to files, plan items, errors, and validation commands instead of copying code.
+
+## Rule 4: Complete Each Delegated Task Once
 When you receive a delegated task, do the work. When finished, send ONE completion callback:
 **Usage:** `.didi\delegate <SenderName> "Task complete. Check MASTER_PLAN."`
 
-After sending the completion callback, stop. 
+If you pass work to a next specialist, do not also send a separate acknowledgement. The next specialist owns the next step.
+After sending a completion callback, stop. 
 
-## Rule 4: Context Gathering
+## Rule 5: Context Gathering
 If you lose track of what the team is doing, or where files are, DO NOT guess or ask the human. 
 Run `.didi\context` to instantly get a token-efficient snapshot of the directory tree, git status, and the MASTER_PLAN.
 
-## Rule 5: Sentinel Recovery
+## Rule 6: Sentinel Recovery
 If the terminal warns that you are repeating the same failed command, stop the loop, choose a different approach, or ask for help. Do not retry the same command again without changing the plan.
 "#;
 
