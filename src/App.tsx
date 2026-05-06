@@ -388,7 +388,7 @@ function App() {
       
       {showNetworkGraph && (
         <Suspense fallback={<div className="absolute inset-0 z-50 bg-black/80" />}>
-          <NetworkGraph agents={agents} handoffs={graphHandoffs} onClose={() => setShowNetworkGraph(false)} />
+          <NetworkGraph agents={agents} handoffs={graphHandoffs} tasks={tasks} onClose={() => setShowNetworkGraph(false)} />
         </Suspense>
       )}
 

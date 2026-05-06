@@ -321,56 +321,71 @@ try {
 powershell -ExecutionPolicy Bypass -File "%~dp0delegate.ps1" %*
 "#;
 
+    let master_plan_md = r#"# Project Master Plan
+
+## Current Phase: Planning
+
+### Tasks
+- [ ] Define architecture and state logic.
+- [ ] Implement backend components.
+- [ ] Implement frontend components.
+- [ ] Testing and finalization.
+"#;
+
     let agents_md = r#"# DidiTerminal - Autonomous Collaboration Protocol
 
 You are an AI Agent running inside the DidiTerminal Orchestrator.
-You are part of a multi-agent team. Communicate through the local `.didi\delegate` command and keep task handoffs strict.
+You are part of a multi-agent team. Communicate through the local `.didi\delegate` command.
+CRITICAL: To conserve tokens and maintain context, YOU MUST NOT SEND CODE IN YOUR MESSAGES.
 
-## Rule 1: Delegate Real Work Only
+## Rule 1: The Global Brain (MASTER_PLAN.md)
+This workspace contains a `MASTER_PLAN.md`. This is your shared state.
+1. When starting a task, update `MASTER_PLAN.md`.
+2. When you finish a step, check it off in `MASTER_PLAN.md`.
+3. When delegating, tell the target agent: "I finished step 2. Proceed with step 3 in the MASTER_PLAN."
+
+## Rule 2: Delegate Real Work Only
 Use delegation only when assigning a new task that requires action.
-**Usage:** `.didi\delegate <AgentName> "<Task Description>"`
+**Usage:** `.didi\delegate <AgentName> "<Short message pointing to MASTER_PLAN>"`
 
 Do not delegate acknowledgements, thanks, status chatter, or confirmations.
 
-## Rule 2: Complete Each Delegated Task Once
-When you receive `[<SenderName> DELEGATED A TASK]`, do the assigned work exactly once.
-When finished, send one completion callback:
-**Usage:** `.didi\delegate <SenderName> "Task complete: <summary>"`
+## Rule 3: Complete Each Delegated Task Once
+When you receive a delegated task, do the work. When finished, send ONE completion callback:
+**Usage:** `.didi\delegate <SenderName> "Task complete. Check MASTER_PLAN."`
 
-After sending the completion callback, stop. Do not send follow-up acknowledgements unless the sender explicitly assigns a new task.
+After sending the completion callback, stop. 
 
-## Rule 3: Completion Messages Are Terminal
-Messages marked `[<SenderName> COMPLETED TASK]` or messages beginning with `Task complete:`, `Done:`, `Completed:`, `Finished:`, `Status:`, `FYI:`, `Ack:`, or `Acknowledged:` are terminal status updates.
-
-When you receive a terminal status update:
-- Do not acknowledge it.
-- Do not report back to the sender.
-- Do not delegate a response.
-- Only continue if the message explicitly assigns a new task.
-
-## Rule 4: Orchestrator Discipline
-If you are acting as Orchestrator, keep a simple task state mentally: pending, in progress, complete.
-Delegate the next task only after receiving a completion callback for the current task.
-Do not re-delegate completed work unless the human asks for revisions.
-
-## Rule 5: Do Not Ask The Human To Relay Messages
-Do not stop and ask the human to pass messages for you. If you need to talk to Builder, use `.didi\delegate Builder "..."`. If you need to tell Orchestrator a task is done, use one completion callback.
-
-## The `context` command
-If you lose track of what the team is doing, run `.didi\context` to see the global history of all tasks passed between agents.
+## Rule 4: Context Gathering
+If you lose track of what the team is doing, or where files are, DO NOT guess or ask the human. 
+Run `.didi\context` to instantly get a token-efficient snapshot of the directory tree, git status, and the MASTER_PLAN.
 "#;
 
     let context_ps1 = r#"
-$sessionFile = "$env:APPDATA\DidiTerminal\context\session.json"
-if (Test-Path $sessionFile) {
-    $data = Get-Content $sessionFile | ConvertFrom-Json
-    Write-Host "--- DIDI GLOBAL SESSION HISTORY ---" -ForegroundColor Cyan
-    foreach ($entry in $data) {
-        Write-Host "[$($entry.timestamp)] $($entry.target): $($entry.payload)"
-    }
+Write-Host "--- DIDI CONTEXT SNAPSHOT ---" -ForegroundColor Cyan
+
+Write-Host "`n[1] PROJECT STRUCTURE (Max depth 2):" -ForegroundColor Yellow
+if (Get-Command tree -ErrorAction SilentlyContinue) {
+    tree /F /A | Select-String -NotMatch "node_modules|target|\.git" | Select-Object -First 30
 } else {
-    Write-Host "No global session history found yet." -ForegroundColor Gray
+    Get-ChildItem -Depth 2 -Exclude "node_modules","target",".git" | Select-Object FullName
 }
+
+Write-Host "`n[2] GIT STATUS:" -ForegroundColor Yellow
+if (Test-Path ".git") {
+    git status -s
+} else {
+    Write-Host "Not a git repository."
+}
+
+Write-Host "`n[3] MASTER PLAN PENDING TASKS:" -ForegroundColor Yellow
+if (Test-Path "MASTER_PLAN.md") {
+    Get-Content "MASTER_PLAN.md" | Select-String -Pattern "- \[ \]" | Select-Object -First 5
+} else {
+    Write-Host "No MASTER_PLAN.md found."
+}
+
+Write-Host "`n--- END OF SNAPSHOT ---" -ForegroundColor Cyan
 "#;
 
     let context_cmd = r#"@echo off
@@ -382,6 +397,12 @@ powershell -ExecutionPolicy Bypass -File "%~dp0context.ps1"
     std::fs::write(didi_dir.join("context.ps1"), context_ps1).map_err(|e| e.to_string())?;
     std::fs::write(didi_dir.join("context.cmd"), context_cmd).map_err(|e| e.to_string())?;
     std::fs::write(path.join("AGENTS.md"), agents_md).map_err(|e| e.to_string())?;
+    
+    // Only write MASTER_PLAN if it doesn't already exist so we don't overwrite user progress
+    let plan_path = path.join("MASTER_PLAN.md");
+    if !plan_path.exists() {
+        std::fs::write(plan_path, master_plan_md).map_err(|e| e.to_string())?;
+    }
 
     Ok(())
 }
