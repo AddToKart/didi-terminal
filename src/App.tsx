@@ -1,10 +1,13 @@
 import { Panel, Group, Separator } from "react-resizable-panels";
 import { TerminalInstance } from "./components/TerminalInstance";
-import { useEffect, useState, useRef, FormEvent, Fragment, lazy, Suspense } from "react";
-import { listen } from "@tauri-apps/api/event";
+import { useCallback, useEffect, useState, useRef, FormEvent, Fragment, lazy, Suspense } from "react";
+import { emit, listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { Terminal, FolderOpen, ShieldAlert, Cpu, Columns, Rows, Plus, X, Activity, Grid2X2, PanelLeftClose, PanelLeft, Network, Settings, Server } from "lucide-react";
+import { Terminal, FolderOpen, ShieldAlert, Cpu, Columns, Rows, Plus, X, Activity, Grid2X2, PanelLeftClose, PanelLeft, Network, Settings, Server, Brain } from "lucide-react";
+import { SentinelIncident, SentinelPanel } from "./components/SentinelPanel";
+import { GitSnapshotRecord, SnapshotPanel } from "./components/SnapshotPanel";
+import { BrainstormModal, BrainstormSession } from "./components/BrainstormModal";
 
 const NetworkGraph = lazy(() => import("./components/NetworkGraph").then(module => ({ default: module.NetworkGraph })));
 const SettingsModal = lazy(() => import("./components/SettingsModal").then(module => ({ default: module.SettingsModal })));
@@ -12,6 +15,7 @@ const SettingsModal = lazy(() => import("./components/SettingsModal").then(modul
 const EXISTING_AGENT_FALLBACK_MS = 1000;
 const NEW_AGENT_FALLBACK_MS = 6000;
 const HANDOFF_SUBMIT_DELAY_MS = 400;
+const BRAINSTORM_CALLBACK_TARGET = "Brainstorm";
 
 const getPtyKey = (agentName: string) => agentName.trim().toLowerCase();
 
@@ -57,6 +61,38 @@ const getTaskSummary = (payload: string) =>
     .trim()
     .slice(0, 140);
 
+const stripTerminalControls = (value: string) =>
+  value
+    .replace(/\x1B\][^\x07]*(?:\x07|\x1B\\)/g, "")
+    .replace(/\x1B\[[0-?]*[ -/]*[@-~]/g, "")
+    .replace(/\x1B[@-_][0-?]*[ -/]*[@-~]/g, "");
+
+const isFailureOutput = (value: string) =>
+  /(error|failed|exception|traceback|cannot find|not recognized|command not found|permission denied|access is denied|tests? failed|build failed|compilation failed|panic|fatal:)/i.test(value);
+
+const normalizeLoopSignature = (value: string) =>
+  stripTerminalControls(value)
+    .replace(/\s+/g, " ")
+    .replace(/\d{2,}/g, "#")
+    .trim()
+    .slice(0, 220);
+
+const getBrainstormResponse = (payload: string) => {
+  const match = payload.match(/^\s*(?:\[[^\]]+\]\s*:\s*)?brainstorm\s+response\s+([a-z0-9-]+)\s+round\s+(\d+)\s*:\s*([\s\S]+)/i);
+  if (!match) return null;
+
+  return {
+    sessionId: match[1],
+    round: Number(match[2]),
+    text: match[3].replace(/\[SYSTEM RULE:[\s\S]*$/i, "").trim(),
+  };
+};
+
+const getHandoffSender = (handoff: HandoffPayload) => {
+  const bracketSender = handoff.payload.match(/^\s*\[([^\]]+?)\s+(?:DELEGATED A TASK|COMPLETED TASK)\]/i)?.[1];
+  return bracketSender?.trim() || handoff.sender?.trim() || "";
+};
+
 interface ActivityLog {
   id: number;
   time: string;
@@ -92,6 +128,27 @@ interface GraphHandoff {
   kind: string;
 }
 
+interface TerminalInputPayload {
+  agent: string;
+  data: string;
+}
+
+interface TerminalOutputPayload {
+  agent: string;
+  data: string;
+}
+
+interface SentinelAgentState {
+  inputBuffer: string;
+  lastCommand: string;
+  lastFailureCommand: string;
+  failureCount: number;
+  lastFailureAt: number;
+  lastSignature: string;
+  signatureCount: number;
+  lastInterventionAt: number;
+}
+
 function App() {
   const params = new URLSearchParams(window.location.search);
   const standaloneAgent = params.get('agent');
@@ -116,10 +173,16 @@ function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => localStorage.getItem("didi_sidebar") !== "false");
   const [showNetworkGraph, setShowNetworkGraph] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showBrainstorm, setShowBrainstorm] = useState(false);
   const [sidecarStatus, setSidecarStatus] = useState("Checking...");
   const [activity, setActivity] = useState<ActivityLog[]>([{ id: 0, time: new Date().toLocaleTimeString(), message: "System initialized", type: 'system' }]);
   const [tasks, setTasks] = useState<TaskRecord[]>([]);
   const [graphHandoffs, setGraphHandoffs] = useState<GraphHandoff[]>([]);
+  const [sentinelEnabled, setSentinelEnabled] = useState(() => localStorage.getItem("didi_sentinel") !== "false");
+  const [sentinelIncidents, setSentinelIncidents] = useState<SentinelIncident[]>([]);
+  const [snapshots, setSnapshots] = useState<GitSnapshotRecord[]>([]);
+  const [snapshotBusy, setSnapshotBusy] = useState(false);
+  const [brainstormSessions, setBrainstormSessions] = useState<BrainstormSession[]>([]);
 
   const pendingHandoffs = useRef<Map<string, string>>(new Map());
   const readyAgents = useRef<Set<string>>(new Set());
@@ -127,7 +190,9 @@ function App() {
   const currentProjectRef = useRef(currentProject);
   const fallbackTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const logIdCounter = useRef(1);
-  const tasksRef = useRef<TaskRecord[]>([]);
+  const sentinelEnabledRef = useRef(sentinelEnabled);
+  const sentinelStates = useRef<Map<string, SentinelAgentState>>(new Map());
+  const brainstormSessionsRef = useRef<BrainstormSession[]>([]);
 
   const addLog = (message: string, type: 'system' | 'handoff' = 'system') => {
     setActivity(prev => {
@@ -135,6 +200,21 @@ function App() {
       return [newLog, ...prev].slice(0, 50); // Keep last 50
     });
   };
+
+  const refreshSnapshots = useCallback(async (project = currentProjectRef.current) => {
+    if (!project) {
+      setSnapshots([]);
+      return;
+    }
+
+    try {
+      const records = await invoke<GitSnapshotRecord[]>("list_git_snapshots", { cwd: project });
+      setSnapshots(records);
+    } catch (err) {
+      console.warn("Failed to list git snapshots", err);
+      setSnapshots([]);
+    }
+  }, []);
 
   useEffect(() => {
     const uniqueAgents = getUniqueAgents(agents);
@@ -148,10 +228,13 @@ function App() {
   }, [agents]);
 
   useEffect(() => {
-    tasksRef.current = tasks;
-  }, [tasks]);
+    sentinelEnabledRef.current = sentinelEnabled;
+    localStorage.setItem("didi_sentinel", String(sentinelEnabled));
+  }, [sentinelEnabled]);
 
-
+  useEffect(() => {
+    brainstormSessionsRef.current = brainstormSessions;
+  }, [brainstormSessions]);
 
   useEffect(() => {
     localStorage.setItem("didi_layout", layoutOrientation);
@@ -168,6 +251,7 @@ function App() {
       localStorage.removeItem("didi_project");
     }
     currentProjectRef.current = currentProject;
+    refreshSnapshots(currentProject);
   }, [currentProject]);
 
   useEffect(() => {
@@ -182,6 +266,245 @@ function App() {
     }, 5000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const getState = (agent: string): SentinelAgentState => {
+      const key = getPtyKey(agent);
+      const existing = sentinelStates.current.get(key);
+      if (existing) return existing;
+
+      const next: SentinelAgentState = {
+        inputBuffer: "",
+        lastCommand: "",
+        lastFailureCommand: "",
+        failureCount: 0,
+        lastFailureAt: 0,
+        lastSignature: "",
+        signatureCount: 0,
+        lastInterventionAt: 0,
+      };
+      sentinelStates.current.set(key, next);
+      return next;
+    };
+
+    const intervene = (agent: string, reason: string, command?: string) => {
+      const key = getPtyKey(agent);
+      const state = getState(key);
+      const now = Date.now();
+      if (now - state.lastInterventionAt < 45000) return;
+
+      state.lastInterventionAt = now;
+      state.failureCount = 0;
+      state.signatureCount = 0;
+
+      const prompt = `You are stuck in a loop. Sentinel paused you because ${reason}. Try a different approach, inspect the actual error, or ask another agent for help. Do not retry the same command again unchanged.`;
+      invoke("write_pty", { agent: key, data: "\u0003" }).catch(console.error);
+      setTimeout(() => {
+        invoke("write_pty", { agent: key, data: prompt }).catch(console.error);
+      }, 300);
+      setTimeout(() => {
+        invoke("write_pty", { agent: key, data: "\r" }).catch(console.error);
+      }, 700);
+
+      const incident: SentinelIncident = {
+        id: `${now}-${key}`,
+        agent,
+        reason,
+        command,
+        at: new Date().toLocaleTimeString(),
+      };
+      setSentinelIncidents(prev => [incident, ...prev].slice(0, 20));
+      addLog(`Sentinel paused ${agent}: ${reason}`, "system");
+      emit("sentinel-intervention", incident).catch(console.error);
+    };
+
+    const unlistenInput = listen<TerminalInputPayload>("agent-input", (event) => {
+      if (!sentinelEnabledRef.current) return;
+
+      const key = getPtyKey(event.payload.agent);
+      const state = getState(key);
+      for (const char of event.payload.data) {
+        if (char === "\r" || char === "\n") {
+          const command = stripTerminalControls(state.inputBuffer).trim();
+          if (command) state.lastCommand = command.slice(-240);
+          state.inputBuffer = "";
+          continue;
+        }
+
+        if (char === "\u007f" || char === "\b") {
+          state.inputBuffer = state.inputBuffer.slice(0, -1);
+          continue;
+        }
+
+        if (char >= " " && char !== "\u001b") {
+          state.inputBuffer = `${state.inputBuffer}${char}`.slice(-400);
+        }
+      }
+    });
+
+    const unlistenOutput = listen<TerminalOutputPayload>("pty-output", (event) => {
+      if (!sentinelEnabledRef.current) return;
+
+      const key = getPtyKey(event.payload.agent);
+      const state = getState(key);
+      const text = stripTerminalControls(event.payload.data);
+      const signature = normalizeLoopSignature(text);
+      if (signature.length > 40 && signature === state.lastSignature) {
+        state.signatureCount += 1;
+      } else if (signature.length > 40) {
+        state.lastSignature = signature;
+        state.signatureCount = 1;
+      }
+
+      if (state.signatureCount >= 4) {
+        intervene(key, "the same terminal output repeated several times", state.lastCommand);
+        return;
+      }
+
+      if (!state.lastCommand || !isFailureOutput(text)) return;
+
+      const now = Date.now();
+      const sameCommand = state.lastFailureCommand === state.lastCommand && now - state.lastFailureAt < 180000;
+      state.failureCount = sameCommand ? state.failureCount + 1 : 1;
+      state.lastFailureCommand = state.lastCommand;
+      state.lastFailureAt = now;
+
+      if (state.failureCount >= 3) {
+        intervene(key, "the same command appears to have failed 3 times", state.lastCommand);
+      }
+    });
+
+    return () => {
+      unlistenInput.then(f => f());
+      unlistenOutput.then(f => f());
+    };
+  }, []);
+
+  const sendBrainstormRound = async (session: BrainstormSession, round: number) => {
+    const previousResponses = session.responses
+      .filter(response => response.round < round)
+      .map(response => `${response.agent}: ${response.text}`)
+      .join(" ");
+
+    await Promise.all(session.participants.map(participant => emit("agent-handoff", {
+      target: participant,
+      sender: "Brainstorm",
+      kind: "task",
+      taskId: `${session.id}-r${round}-${getAgentId(participant)}`,
+      payload: [
+        `[Brainstorm round ${round}/${session.turns}] ${session.prompt}`,
+        previousResponses ? `Previous responses: ${previousResponses}` : "",
+        `Respond with your position and one concrete recommendation, then run exactly: .didi\\delegate ${BRAINSTORM_CALLBACK_TARGET} "Brainstorm response ${session.id} round ${round}: <your concise response without quotation marks>"`,
+      ].filter(Boolean).join(" "),
+    })));
+  };
+
+  const finishBrainstorm = async (session: BrainstormSession) => {
+    const transcript = session.responses
+      .map(response => `- ${response.agent} (round ${response.round}): ${response.text}`)
+      .join("\n");
+
+    let consensus = transcript;
+    try {
+      consensus = await invoke<string>("ask_llm", {
+        system: "You convert multi-agent debate notes into a concise implementation plan. Return bullets only.",
+        prompt: `Problem: ${session.prompt}\n\nResponses:\n${transcript}`,
+      });
+    } catch (err) {
+      console.warn("Consensus synthesis failed; using raw brainstorm transcript", err);
+    }
+
+    const body = [
+      `Prompt: ${session.prompt}`,
+      "",
+      "### Consensus",
+      consensus,
+      "",
+      "### Participants",
+      session.participants.map(agent => `- ${agent}`).join("\n"),
+    ].join("\n");
+
+    if (currentProjectRef.current) {
+      try {
+        await invoke("append_master_plan_entry", {
+          cwd: currentProjectRef.current,
+          title: `Brainstorm Consensus ${new Date().toLocaleString()}`,
+          body,
+        });
+        addLog("Brainstorm consensus appended to MASTER_PLAN.md", "system");
+      } catch (err) {
+        addLog(`Brainstorm consensus save failed: ${err}`, "system");
+      }
+    } else {
+      addLog("Brainstorm consensus ready; select a workspace to write MASTER_PLAN.md", "system");
+    }
+
+    const completedSessions: BrainstormSession[] = brainstormSessionsRef.current.map(item => (
+      item.id === session.id ? { ...item, status: "complete" as const } : item
+    ));
+    brainstormSessionsRef.current = completedSessions;
+    setBrainstormSessions(completedSessions);
+  };
+
+  const recordBrainstormResponse = async (
+    agent: string,
+    response: { sessionId: string; round: number; text: string }
+  ) => {
+    const session = brainstormSessionsRef.current.find(item => item.id === response.sessionId);
+    if (!session || session.status === "complete") return;
+
+    const cleanAgent = agent.trim() || "Agent";
+    const isParticipant = session.participants.some(participant => getAgentId(participant) === getAgentId(cleanAgent));
+    if (!isParticipant) return;
+
+    const alreadyRecorded = session.responses.some(item =>
+      getAgentId(item.agent) === getAgentId(cleanAgent) && item.round === response.round
+    );
+    if (alreadyRecorded) return;
+
+    const nextSession: BrainstormSession = {
+      ...session,
+      responses: [
+        ...session.responses,
+        {
+          agent: cleanAgent,
+          round: response.round,
+          text: response.text,
+          at: new Date().toLocaleTimeString(),
+        },
+      ],
+    };
+
+    const nextSessions = brainstormSessionsRef.current.map(item =>
+      item.id === nextSession.id ? nextSession : item
+    );
+    brainstormSessionsRef.current = nextSessions;
+    setBrainstormSessions(nextSessions);
+    addLog(`Brainstorm response from ${cleanAgent}`, "handoff");
+
+    const roundResponders = new Set(
+      nextSession.responses
+        .filter(item => item.round === nextSession.round)
+        .map(item => getAgentId(item.agent))
+    );
+    const participantIds = nextSession.participants.map(getAgentId);
+    const roundComplete = participantIds.every(id => roundResponders.has(id));
+    if (!roundComplete) return;
+
+    if (nextSession.round < nextSession.turns) {
+      const advancedSession = { ...nextSession, round: nextSession.round + 1 };
+      const advancedSessions = brainstormSessionsRef.current.map(item =>
+        item.id === advancedSession.id ? advancedSession : item
+      );
+      brainstormSessionsRef.current = advancedSessions;
+      setBrainstormSessions(advancedSessions);
+      addLog(`Brainstorm advancing to round ${advancedSession.round}`, "system");
+      await sendBrainstormRound(advancedSession, advancedSession.round);
+      return;
+    }
+
+    await finishBrainstorm(nextSession);
+  };
 
   useEffect(() => {
     const writeHandoff = (agentKey: string, payload: string) => {
@@ -242,7 +565,7 @@ function App() {
           updatedAt,
         };
         setTasks(prev => [record, ...prev.filter(task => task.id !== id)].slice(0, 30));
-        return;
+        return id;
       }
 
       if (kind === "completion") {
@@ -251,6 +574,26 @@ function App() {
           if (task.status !== "in_progress" || getAgentId(task.target) !== completedAgentId) return task;
           return { ...task, status: "complete", updatedAt };
         }));
+      }
+
+      return id;
+    };
+
+    const createPlanSnapshot = async (taskId: string, targetName: string, summary: string) => {
+      const project = currentProjectRef.current;
+      if (!project) return;
+
+      try {
+        const snapshot = await invoke<GitSnapshotRecord>("create_git_snapshot", {
+          cwd: project,
+          taskId,
+          label: summary || `Task for ${targetName}`,
+          agent: targetName,
+        });
+        setSnapshots(prev => [snapshot, ...prev.filter(item => item.id !== snapshot.id)].slice(0, 40));
+        addLog(`Snapshot ${snapshot.commit.slice(0, 8)} before ${targetName}`, "system");
+      } catch (err) {
+        addLog(`Snapshot skipped: ${err}`, "system");
       }
     };
 
@@ -274,6 +617,12 @@ function App() {
       const resolvedAgentName = matchingAgent ?? targetName;
       const agentKey = getPtyKey(resolvedAgentName);
       const kind = getHandoffKind(handoff);
+      const brainstormResponse = getBrainstormResponse(handoff.payload);
+
+      if (brainstormResponse) {
+        await recordBrainstormResponse(getHandoffSender(handoff) || resolvedAgentName, brainstormResponse);
+        return;
+      }
 
       addLog(
         matchingAgent && matchingAgent !== targetName
@@ -281,7 +630,7 @@ function App() {
           : `${kind} to ${targetName}`,
         "handoff"
       );
-      registerTask(handoff, resolvedAgentName, kind);
+      const taskId = registerTask(handoff, resolvedAgentName, kind);
 
       const agentExists = Boolean(matchingAgent);
       if (!agentExists) {
@@ -294,6 +643,10 @@ function App() {
       }
 
       const safePayload = await enrichPayload(handoff, kind);
+
+      if (kind === "task") {
+        await createPlanSnapshot(taskId, resolvedAgentName, getTaskSummary(handoff.payload));
+      }
 
       if (agentExists && readyAgents.current.has(agentKey)) {
         writeHandoff(agentKey, safePayload);
@@ -365,6 +718,60 @@ function App() {
     }
   };
 
+  const handleManualSnapshot = async () => {
+    if (!currentProject) return;
+
+    setSnapshotBusy(true);
+    try {
+      const snapshot = await invoke<GitSnapshotRecord>("create_git_snapshot", {
+        cwd: currentProject,
+        taskId: `manual-${Date.now()}`,
+        label: "Manual checkpoint",
+        agent: "Manual",
+      });
+      setSnapshots(prev => [snapshot, ...prev.filter(item => item.id !== snapshot.id)].slice(0, 40));
+      addLog(`Manual snapshot ${snapshot.commit.slice(0, 8)} created`, "system");
+    } catch (err) {
+      addLog(`Manual snapshot failed: ${err}`, "system");
+    } finally {
+      setSnapshotBusy(false);
+    }
+  };
+
+  const handleRewindSnapshot = async (snapshot: GitSnapshotRecord) => {
+    if (!currentProject) return;
+    const confirmed = window.confirm(`Rewind workspace files to snapshot ${snapshot.commit.slice(0, 8)}? This will overwrite current working tree changes.`);
+    if (!confirmed) return;
+
+    setSnapshotBusy(true);
+    try {
+      await invoke("rewind_git_snapshot", { cwd: currentProject, commit: snapshot.commit });
+      addLog(`Rewound workspace to ${snapshot.commit.slice(0, 8)}`, "system");
+      await refreshSnapshots(currentProject);
+    } catch (err) {
+      addLog(`Rewind failed: ${err}`, "system");
+    } finally {
+      setSnapshotBusy(false);
+    }
+  };
+
+  const handleStartBrainstorm = async (prompt: string, participants: string[], turns: number) => {
+    const session: BrainstormSession = {
+      id: `bs-${Date.now().toString(36)}`,
+      prompt,
+      participants,
+      turns,
+      round: 1,
+      status: "collecting",
+      responses: [],
+    };
+    const nextSessions = [session, ...brainstormSessionsRef.current].slice(0, 8);
+    brainstormSessionsRef.current = nextSessions;
+    setBrainstormSessions(nextSessions);
+    addLog(`Brainstorm started with ${participants.length} agents`, "system");
+    await sendBrainstormRound(session, 1);
+  };
+
   const handleDragStart = (e: React.DragEvent, index: number) => {
     e.dataTransfer.setData('agentIndex', index.toString());
   };
@@ -396,6 +803,15 @@ function App() {
         <Suspense fallback={null}>
           <SettingsModal onClose={() => setShowSettings(false)} />
         </Suspense>
+      )}
+
+      {showBrainstorm && (
+        <BrainstormModal
+          agents={agents}
+          sessions={brainstormSessions}
+          onStart={handleStartBrainstorm}
+          onClose={() => setShowBrainstorm(false)}
+        />
       )}
 
       {/* Sidebar */}
@@ -442,6 +858,12 @@ function App() {
           )}
         </div>
 
+        <SentinelPanel
+          enabled={sentinelEnabled}
+          incidents={sentinelIncidents}
+          onToggle={() => setSentinelEnabled(value => !value)}
+        />
+
         {/* Agents List */}
         <div className="flex-1 flex flex-col min-h-0 border-b border-app-border">
           <div className="p-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2 bg-[#080809]">
@@ -465,6 +887,14 @@ function App() {
             ))}
           </div>
         </div>
+
+        <SnapshotPanel
+          currentProject={currentProject}
+          snapshots={snapshots}
+          isBusy={snapshotBusy}
+          onSnapshot={handleManualSnapshot}
+          onRewind={handleRewindSnapshot}
+        />
 
         <div className="h-44 flex flex-col min-h-0 border-b border-app-border bg-[#050506]">
           <div className="p-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center justify-between border-b border-app-border">
@@ -528,6 +958,13 @@ function App() {
           </form>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowBrainstorm(true)}
+              className="p-1.5 rounded-sm transition-colors text-slate-500 hover:text-brand-cyan bg-[#0a0a0c] border border-app-border"
+              title="Brainstorm Mode"
+            >
+              <Brain size={16} />
+            </button>
             <button
               onClick={() => setShowNetworkGraph(true)}
               className="p-1.5 rounded-sm transition-colors text-slate-500 hover:text-brand-cyan bg-[#0a0a0c] border border-app-border"

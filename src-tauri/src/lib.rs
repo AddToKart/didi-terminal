@@ -3,6 +3,10 @@ use portable_pty::{Child, CommandBuilder, NativePtySystem, PtySize, PtySystem};
 use std::collections::HashMap;
 use std::sync::Mutex;
 use std::io::{Read, Write};
+use std::hash::{DefaultHasher, Hash, Hasher};
+use std::path::{Path, PathBuf};
+use std::process::Command;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub struct AppConfig {
@@ -38,6 +42,18 @@ struct PtyProcess {
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
+struct GitSnapshot {
+    id: String,
+    commit: String,
+    cwd: String,
+    task_id: String,
+    label: String,
+    agent: String,
+    created_at: u64,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 struct HandoffMessage {
     target: String,
     payload: String,
@@ -57,6 +73,72 @@ fn default_handoff_kind() -> String {
 
 fn normalize_agent(agent: &str) -> String {
     agent.trim().to_lowercase()
+}
+
+fn workspace_hash(cwd: &str) -> String {
+    let mut hasher = DefaultHasher::new();
+    cwd.to_lowercase().hash(&mut hasher);
+    format!("{:x}", hasher.finish())
+}
+
+fn snapshots_dir(app_handle: &AppHandle) -> Result<PathBuf, String> {
+    let app_data_dir = app_handle.path().app_data_dir().map_err(|e| e.to_string())?;
+    let dir = app_data_dir.join("snapshots");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir)
+}
+
+fn snapshots_file(app_handle: &AppHandle, cwd: &str) -> Result<PathBuf, String> {
+    Ok(snapshots_dir(app_handle)?.join(format!("{}.json", workspace_hash(cwd))))
+}
+
+fn read_snapshots(app_handle: &AppHandle, cwd: &str) -> Vec<GitSnapshot> {
+    let Ok(path) = snapshots_file(app_handle, cwd) else {
+        return Vec::new();
+    };
+
+    std::fs::read_to_string(path)
+        .ok()
+        .and_then(|contents| serde_json::from_str(&contents).ok())
+        .unwrap_or_default()
+}
+
+fn write_snapshots(app_handle: &AppHandle, cwd: &str, snapshots: &[GitSnapshot]) -> Result<(), String> {
+    let path = snapshots_file(app_handle, cwd)?;
+    let json = serde_json::to_string_pretty(snapshots).map_err(|e| e.to_string())?;
+    std::fs::write(path, json).map_err(|e| e.to_string())
+}
+
+fn run_git(cwd: &Path, args: &[&str], index_file: Option<&Path>) -> Result<String, String> {
+    let mut command = Command::new("git");
+    command.current_dir(cwd).args(args);
+
+    if let Some(index_file) = index_file {
+        command.env("GIT_INDEX_FILE", index_file);
+    }
+
+    let output = command.output().map_err(|e| e.to_string())?;
+    if output.status.success() {
+        return Ok(String::from_utf8_lossy(&output.stdout).trim().to_string());
+    }
+
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    if stderr.is_empty() {
+        Err(format!("git {:?} failed", args))
+    } else {
+        Err(stderr)
+    }
+}
+
+fn ensure_git_repo(cwd: &Path) -> Result<(), String> {
+    run_git(cwd, &["rev-parse", "--is-inside-work-tree"], None)
+        .and_then(|value| {
+            if value == "true" {
+                Ok(())
+            } else {
+                Err("Selected workspace is not inside a Git work tree.".to_string())
+            }
+        })
 }
 
 fn cleanup_pty(agent: &str, state: &State<'_, AppState>) {
@@ -233,6 +315,111 @@ fn get_project_context(cwd: Option<String>) -> Result<String, String> {
 }
 
 #[tauri::command]
+fn create_git_snapshot(
+    cwd: String,
+    task_id: String,
+    label: String,
+    agent: String,
+    app_handle: AppHandle,
+) -> Result<GitSnapshot, String> {
+    let cwd_path = Path::new(&cwd);
+    ensure_git_repo(cwd_path)?;
+    let repo_root = run_git(cwd_path, &["rev-parse", "--show-toplevel"], None)?;
+    let repo_path = PathBuf::from(repo_root);
+
+    let snapshot_dir = snapshots_dir(&app_handle)?;
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let id = format!("{}-{}", now, task_id.chars().take(10).collect::<String>());
+    let index_file = snapshot_dir.join(format!("{}.index", id));
+    let git_dir = run_git(&repo_path, &["rev-parse", "--git-dir"], None)?;
+    let existing_index = repo_path.join(git_dir).join("index");
+
+    if existing_index.exists() {
+        std::fs::copy(existing_index, &index_file).map_err(|e| e.to_string())?;
+    }
+
+    run_git(&repo_path, &["add", "-A"], Some(&index_file))?;
+    let tree = run_git(&repo_path, &["write-tree"], Some(&index_file))?;
+    let parent = run_git(&repo_path, &["rev-parse", "--verify", "HEAD"], None).ok();
+
+    let message = format!(
+        "didi hidden snapshot\n\nTask: {}\nAgent: {}\nTask-ID: {}",
+        label, agent, task_id
+    );
+    let commit = if let Some(parent) = parent {
+        run_git(&repo_path, &["commit-tree", &tree, "-p", &parent, "-m", &message], Some(&index_file))?
+    } else {
+        run_git(&repo_path, &["commit-tree", &tree, "-m", &message], Some(&index_file))?
+    };
+
+    let _ = std::fs::remove_file(&index_file);
+
+    let snapshot = GitSnapshot {
+        id,
+        commit,
+        cwd: cwd.clone(),
+        task_id,
+        label,
+        agent,
+        created_at: now,
+    };
+
+    let mut snapshots = read_snapshots(&app_handle, &cwd);
+    snapshots.insert(0, snapshot.clone());
+    snapshots.truncate(40);
+    write_snapshots(&app_handle, &cwd, &snapshots)?;
+
+    Ok(snapshot)
+}
+
+#[tauri::command]
+fn list_git_snapshots(cwd: String, app_handle: AppHandle) -> Result<Vec<GitSnapshot>, String> {
+    Ok(read_snapshots(&app_handle, &cwd))
+}
+
+#[tauri::command]
+fn rewind_git_snapshot(cwd: String, commit: String) -> Result<String, String> {
+    let cwd_path = Path::new(&cwd);
+    ensure_git_repo(cwd_path)?;
+    let repo_root = run_git(cwd_path, &["rev-parse", "--show-toplevel"], None)?;
+    let repo_path = PathBuf::from(repo_root);
+
+    run_git(&repo_path, &["cat-file", "-e", &format!("{}^{{commit}}", commit)], None)?;
+    run_git(&repo_path, &["read-tree", "--reset", "-u", &commit], None)?;
+    run_git(&repo_path, &["clean", "-fd"], None)?;
+
+    Ok(format!("Workspace restored to snapshot {}", commit))
+}
+
+#[tauri::command]
+fn append_master_plan_entry(cwd: String, title: String, body: String) -> Result<(), String> {
+    let plan_path = Path::new(&cwd).join("MASTER_PLAN.md");
+    let heading = title.trim();
+    let content = body.trim();
+
+    let entry = if content.is_empty() {
+        format!("\n\n## {}\n", heading)
+    } else {
+        format!("\n\n## {}\n{}\n", heading, content)
+    };
+
+    if plan_path.exists() {
+        let mut file = std::fs::OpenOptions::new()
+            .append(true)
+            .open(plan_path)
+            .map_err(|e| e.to_string())?;
+        file.write_all(entry.as_bytes()).map_err(|e| e.to_string())?;
+    } else {
+        std::fs::write(plan_path, format!("# Project Master Plan{}", entry)).map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
 async fn ask_llm(prompt: String, system: String, state: State<'_, AppState>) -> Result<String, String> {
     let endpoint = state.config.lock().unwrap().llm_endpoint.clone();
     
@@ -343,6 +530,7 @@ This workspace contains a `MASTER_PLAN.md`. This is your shared state.
 1. When starting a task, update `MASTER_PLAN.md`.
 2. When you finish a step, check it off in `MASTER_PLAN.md`.
 3. When delegating, tell the target agent: "I finished step 2. Proceed with step 3 in the MASTER_PLAN."
+DidiTerminal creates hidden git snapshots around delegated plan work so the human can rewind a bad change without disturbing normal terminal handoffs.
 
 ## Rule 2: Delegate Real Work Only
 Use delegation only when assigning a new task that requires action.
@@ -359,6 +547,9 @@ After sending the completion callback, stop.
 ## Rule 4: Context Gathering
 If you lose track of what the team is doing, or where files are, DO NOT guess or ask the human. 
 Run `.didi\context` to instantly get a token-efficient snapshot of the directory tree, git status, and the MASTER_PLAN.
+
+## Rule 5: Sentinel Recovery
+If the terminal warns that you are repeating the same failed command, stop the loop, choose a different approach, or ask for help. Do not retry the same command again without changing the plan.
 "#;
 
     let context_ps1 = r#"
@@ -492,7 +683,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             spawn_pty, write_pty, close_pty, resize_pty, initialize_project, get_process_stats,
-            get_project_context, get_config, set_config, get_sidecar_status, ask_llm
+            get_project_context, get_config, set_config, get_sidecar_status, ask_llm,
+            create_git_snapshot, list_git_snapshots, rewind_git_snapshot, append_master_plan_entry
         ])
         .setup(|app| {
             start_agent_bus(app.handle().clone());

@@ -62,9 +62,12 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onDragSta
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [stats, setStats] = useState({ cpu: 0, mem: 0 });
+  const [sentinelPaused, setSentinelPaused] = useState(false);
 
   const executeMacro = (command: string) => {
-    invoke("write_pty", { agent: agentName.toLowerCase(), data: command + "\r" }).catch(console.error);
+    const agent = agentName.toLowerCase();
+    invoke("write_pty", { agent, data: command + "\r" }).catch(console.error);
+    emit("agent-input", { agent, data: command + "\r" }).catch(console.error);
   };
 
   const handlePopOut = async () => {
@@ -124,6 +127,19 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onDragSta
   }, [agentName]);
 
   useEffect(() => {
+    const unlistenSentinel = listen<{ agent: string }>("sentinel-intervention", (event) => {
+      if (getAgentId(event.payload.agent) !== getAgentId(agentName)) return;
+      setSentinelPaused(true);
+      setIsReady(false);
+      setTimeout(() => setSentinelPaused(false), 7000);
+    });
+
+    return () => {
+      unlistenSentinel.then(f => f());
+    };
+  }, [agentName]);
+
+  useEffect(() => {
     if (!terminalRef.current) return;
 
     term.current = new Terminal({
@@ -176,7 +192,9 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onDragSta
     resizeObserver.observe(terminalRef.current);
 
     term.current.onData((data) => {
-      invoke("write_pty", { agent: agentName.toLowerCase(), data }).catch(console.error);
+      const agent = agentName.toLowerCase();
+      invoke("write_pty", { agent, data }).catch(console.error);
+      emit("agent-input", { agent, data }).catch(console.error);
     });
 
     term.current.attachCustomKeyEventHandler((e) => {
@@ -192,7 +210,9 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onDragSta
       if (e.ctrlKey && e.key === "v" && e.type === "keydown") {
         readText().then((text) => {
           if (text) {
-            invoke("write_pty", { agent: agentName.toLowerCase(), data: text }).catch(console.error);
+            const agent = agentName.toLowerCase();
+            invoke("write_pty", { agent, data: text }).catch(console.error);
+            emit("agent-input", { agent, data: text }).catch(console.error);
           }
         }).catch(console.error);
         return false;
@@ -204,7 +224,9 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onDragSta
       e.preventDefault();
       const text = e.clipboardData?.getData("text");
       if (text) {
-        invoke("write_pty", { agent: agentName.toLowerCase(), data: text }).catch(console.error);
+        const agent = agentName.toLowerCase();
+        invoke("write_pty", { agent, data: text }).catch(console.error);
+        emit("agent-input", { agent, data: text }).catch(console.error);
       }
     };
 
@@ -257,22 +279,22 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onDragSta
   };
 
   return (
-    <div className={`flex flex-col h-full w-full bg-[#020202] border transition-colors duration-300 ${isPulsing ? 'border-brand-cyan animate-pulse-border shadow-[0_0_15px_rgba(0,240,255,0.2)] z-10 relative' : 'border-app-border z-0'}`}>
+    <div className={`flex flex-col h-full w-full bg-[#020202] border transition-colors duration-300 ${sentinelPaused ? 'border-red-400 shadow-[0_0_18px_rgba(248,113,113,0.22)] z-10 relative' : isPulsing ? 'border-brand-cyan animate-pulse-border shadow-[0_0_15px_rgba(0,240,255,0.2)] z-10 relative' : 'border-app-border z-0'}`}>
       
       {/* Terminal Header & Macros */}
       <div 
-        className={`flex items-center justify-between px-3 py-1.5 border-b transition-colors duration-300 cursor-grab active:cursor-grabbing ${isPulsing ? 'bg-brand-cyan/10 border-brand-cyan/50' : 'bg-[#080809] border-app-border'}`}
+        className={`flex items-center justify-between px-3 py-1.5 border-b transition-colors duration-300 cursor-grab active:cursor-grabbing ${sentinelPaused ? 'bg-red-500/10 border-red-400/50' : isPulsing ? 'bg-brand-cyan/10 border-brand-cyan/50' : 'bg-[#080809] border-app-border'}`}
         draggable
         onDragStart={onDragStart}
         onDrop={onDrop}
         onDragOver={onDragOver}
       >
         <div className="flex items-center gap-2">
-          <TerminalIcon size={12} className={isPulsing ? 'text-brand-cyan' : 'text-slate-500'} />
-          <span className={`text-[11px] font-bold tracking-widest uppercase ${isPulsing ? 'text-brand-cyan' : 'text-slate-300'}`}>
+          <TerminalIcon size={12} className={sentinelPaused ? 'text-red-300' : isPulsing ? 'text-brand-cyan' : 'text-slate-500'} />
+          <span className={`text-[11px] font-bold tracking-widest uppercase ${sentinelPaused ? 'text-red-200' : isPulsing ? 'text-brand-cyan' : 'text-slate-300'}`}>
             {agentName}
           </span>
-          {isPulsing && <Zap size={12} className="text-brand-amber animate-pulse" />}
+          {(isPulsing || sentinelPaused) && <Zap size={12} className="text-brand-amber animate-pulse" />}
         </div>
         
         {/* Macro Bar */}
@@ -293,7 +315,7 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onDragSta
           <div className="flex items-center gap-1.5">
             <div className={`w-1.5 h-1.5 rounded-full ${isReady ? 'bg-emerald-400' : 'bg-brand-amber animate-pulse'}`}></div>
             <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
-              {isReady ? 'IDLE' : 'INIT'}
+              {sentinelPaused ? 'PAUSED' : isReady ? 'IDLE' : 'INIT'}
             </span>
           </div>
           {onRemove && (
