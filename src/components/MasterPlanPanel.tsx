@@ -50,7 +50,8 @@ const getTaskStatus = (checked: string, text: string): PlanStatus => {
 const notePattern = /^(\s*)-\s+(.+?)\s*$/;
 
 const parseMasterPlan = (markdown: string): PlanTask[] => {
-  let section = "Tasks";
+  let section = "";
+  let inAgentQueue = false;
   const tasks: PlanTask[] = [];
   let currentTask: PlanTask | null = null;
 
@@ -58,8 +59,13 @@ const parseMasterPlan = (markdown: string): PlanTask[] => {
     const heading = line.match(/^\s{0,3}#{1,6}\s+(.+?)\s*$/);
     if (heading) {
       section = heading[1].replace(/#+$/, "").trim();
+      inAgentQueue = section === "Agent Queue";
+      currentTask = null;
       return;
     }
+
+    // Only parse tasks inside ### Agent Queue
+    if (!inAgentQueue) return;
 
     const task = line.match(taskPattern);
     if (task) {
@@ -100,6 +106,7 @@ const parseMasterPlan = (markdown: string): PlanTask[] => {
 
   return tasks;
 };
+
 
 const columns: Array<{ status: PlanStatus; label: string; icon: typeof Circle }> = [
   { status: "todo", label: "Todo", icon: Circle },

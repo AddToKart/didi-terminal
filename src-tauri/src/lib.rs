@@ -701,7 +701,11 @@ fn initialize_project(cwd: String) -> Result<(), String> {
     [string]$Target,
 
     [Parameter(Mandatory=$true)]
-    [string]$Task
+    [string]$Task,
+
+    # Optional: override who the receiver should report back to.
+    # Use this when chaining specialists so Documentator reports to Orchestrator, not to Builder.
+    [string]$ReportTo = ""
 )
 
 $workspace = Split-Path -Parent $PSScriptRoot
@@ -711,16 +715,56 @@ Set-Location -LiteralPath $workspace
 $sender = $env:AGENT_NAME
 if ([string]::IsNullOrEmpty($sender)) { $sender = "Main" }
 
+$reportTarget = if ([string]::IsNullOrEmpty($ReportTo)) { $sender } else { $ReportTo }
+
 $isCompletion = $Task -match '^\s*(Task complete|Done|Completed|Finished|Status|FYI|Ack|Acknowledged)\b'
 $isCompletion = $isCompletion -or ($Task -match 'completion callback')
 $taskId = [guid]::NewGuid().ToString("N")
+
+# --- Auto-manage ### Agent Queue in_progress markers (NEVER touches ### Tasks) ---
+$planPath = Join-Path $workspace "MASTER_PLAN.md"
+$targetTaskLine = ""
+if (Test-Path $planPath) {
+    $planLines = Get-Content $planPath
+    $inQueue = $false
+    $updatedLines = @()
+
+    foreach ($line in $planLines) {
+        # Track which section we are in
+        if ($line -match "^###\s+Agent Queue") { $inQueue = $true }
+        elseif ($line -match "^###" -and $line -notmatch "^###\s+Agent Queue") { $inQueue = $false }
+
+        if ($inQueue) {
+            if ($isCompletion) {
+                # Remove in_progress from sender's queue line
+                if ($line -match "(?i)^-\s*\[.\]\s*$([regex]::Escape($sender))[:\s]" -and $line -match "didi:status=in_progress") {
+                    $line = $line -replace "\s*<!--\s*didi:status=in_progress\s*-->", ""
+                }
+            } else {
+                # Add in_progress to ALL pending queue entries
+                if ($line -match "^-\s*\[ \]" -and $line -notmatch "didi:status=in_progress") {
+                    $line = "$line <!-- didi:status=in_progress -->"
+                }
+                # Capture target's line for the SYSTEM RULE hint
+                if ($line -match "(?i)^-\s*\[.\]\s*$([regex]::Escape($Target))[:\s]" -and !$targetTaskLine) {
+                    $targetTaskLine = $line.Trim()
+                }
+            }
+        }
+        $updatedLines += $line
+    }
+
+    $updatedLines | Set-Content $planPath
+}
+# --- End Agent Queue management ---
 
 if ($isCompletion) {
     $kind = "completion"
     $payload = "[$sender COMPLETED TASK]: $Task`n[SYSTEM RULE: This is a terminal status update. Do not acknowledge it, do not report back, and do not delegate a response unless this message explicitly assigns a new task.]"
 } else {
     $kind = "task"
-    $payload = "[$sender DELEGATED A TASK]: $Task`n[SYSTEM RULE: This is a peer-to-peer handoff from $sender. Do this task exactly once. You may add or complete indented subtasks in MASTER_PLAN.md, but do not mark the top-level task done unless you are Orchestrator. Default behavior: when your assigned work is done, report completion back to $sender by running .didi\delegate $sender `"Task complete: <summary>`". Only delegate to another specialist if the task explicitly asks for review/docs/follow-up work, or if you are blocked and need that specialist. Do not ask the human whether to report back. If you delegate the work to another agent, stop immediately after the delegate command and wait for their completion callback; do not poll files, inspect progress, retry the task yourself, or use internal subagent/Task tools to replace the delegated agent. After sending a completion callback, stop.]"
+    $hint = if ($targetTaskLine) { "Your assignment line in MASTER_PLAN.md is: [$targetTaskLine]. Add YOUR subtasks in the '### Tasks' section below it." } else { "Find your assignment in '### Agent Queue' section of MASTER_PLAN.md." }
+    $payload = "[$sender DELEGATED A TASK]: $Task`n[SYSTEM RULE: You are a SPECIALIST. $hint You MUST NOT add any new entries to the '### Agent Queue' section — that is read-only for specialists. Write your own work checklist in '### Tasks' only. Do the work. When done: .didi\delegate $reportTarget `"Task complete: <summary>`". If chaining: .didi\delegate <Next> `"<task>`" -ReportTo $reportTarget then STOP — do NOT also send your own callback.]"
 }
 
 $msgObj = @{
@@ -733,30 +777,49 @@ $msgObj = @{
 }
 $msg = $msgObj | ConvertTo-Json -Compress
 
+function Send-BusMessage($json) {
+    $p = New-Object System.IO.Pipes.NamedPipeClientStream(".", "agentbus", [System.IO.Pipes.PipeDirection]::Out)
+    try {
+        $p.Connect(2000)
+        $w = New-Object System.IO.StreamWriter($p)
+        $w.AutoFlush = $true
+        $w.Write($json)
+        $w.Flush()
+    } finally {
+        if ($w) { try { $w.Dispose() } catch {} }
+        if ($p) { try { $p.Dispose() } catch {} }
+    }
+}
+
 try {
-    $pipe = New-Object System.IO.Pipes.NamedPipeClientStream(".", "agentbus", [System.IO.Pipes.PipeDirection]::Out)
-    $pipe.Connect(2000)
-    $writer = New-Object System.IO.StreamWriter($pipe)
-    $writer.AutoFlush = $true
-    $writer.Write($msg)
-    $writer.Flush()
+    Send-BusMessage $msg
+
+    # When chaining with -ReportTo, auto-emit a completion for the sender
+    # so the UI task tracker marks their task done without a double-report.
+    if (!$isCompletion -and ![string]::IsNullOrEmpty($ReportTo) -and $ReportTo -ne $sender) {
+        Start-Sleep -Milliseconds 300
+        $autoComplete = @{
+            target = $reportTarget
+            payload = "[$sender COMPLETED TASK]: Chained work to $Target.`n[SYSTEM RULE: This is a terminal status update. Do not acknowledge it or delegate a response.]"
+            kind = "completion"
+            sender = $sender
+            taskId = [guid]::NewGuid().ToString("N")
+            parentTaskId = ""
+        } | ConvertTo-Json -Compress
+        Send-BusMessage $autoComplete
+    }
     if ($kind -eq "completion") {
         Write-Host "Sent completion update to '$Target'. No response is expected." -ForegroundColor Green
     } else {
-        Write-Host "Delegated task to '$Target' successfully. Waiting for one completion callback." -ForegroundColor Green
-        Write-Host "STOP NOW: do not inspect files, poll for progress, retry, or do the delegated work yourself. Resume only when '$Target' sends a completion callback." -ForegroundColor Yellow
+        Write-Host "Delegated task to '$Target'. They will report to '$reportTarget'." -ForegroundColor Green
+        Write-Host "STOP NOW: do not poll files, sleep, or send your own callback if you chained." -ForegroundColor Yellow
     }
 } catch {
     Write-Error "Failed to delegate task to $Target. Error: $_"
-} finally {
-    if ($writer) {
-        try { $writer.Dispose() } catch {}
-    }
-    if ($pipe) {
-        try { $pipe.Dispose() } catch {}
-    }
 }
 "#;
+
+
 
     let delegate_cmd = r#"@echo off
 powershell -ExecutionPolicy Bypass -File "%~dp0delegate.ps1" %*
@@ -777,60 +840,112 @@ powershell -ExecutionPolicy Bypass -File "%~dp0delegate.ps1" %*
 
 ## Current Phase: Active Work
 
+### Agent Queue
+<!-- Orchestrator writes delegation assignments here. Specialists: DO NOT add entries to this section. -->
+
 ### Tasks
+<!-- Specialists write their own work items here freely. -->
 "#;
 
     let agents_md = r#"# DidiTerminal - Autonomous Collaboration Protocol
 
 You are an AI Agent running inside the DidiTerminal Orchestrator.
-You are part of a multi-agent team. Communicate through the local `.didi\delegate` command.
-CRITICAL: To conserve tokens and maintain context, YOU MUST NOT SEND CODE IN YOUR MESSAGES.
-The selected workspace root is exposed as `$env:DIDI_WORKSPACE`. Treat that path as the boundary for all file reads and writes.
+You are part of a multi-agent team. Communicate ONLY through the local `.didi\delegate` command.
+CRITICAL: YOU MUST NOT SEND CODE IN YOUR MESSAGES. Point to files instead.
+The workspace root is `$env:DIDI_WORKSPACE`. All file reads/writes must stay within it.
 
-## Rule 1: The Global Brain (MASTER_PLAN.md)
-This workspace contains a `MASTER_PLAN.md`. This is your shared state.
-1. Keep top-level tasks for human/orchestrator-requested work only.
-2. If you need an execution checklist, add indented subtasks under the assigned top-level task.
-3. Specialists may check off their own indented subtasks, but must not mark the top-level task done.
-4. Orchestrator is the only agent that may close a top-level delegated task after the assigned specialist reports completion.
-5. When delegating, point the target agent to the relevant top-level task and any subtasks instead of copying code.
-DidiTerminal creates hidden git snapshots around delegated plan work so the human can rewind a bad change without disturbing normal terminal handoffs.
+---
 
-## Rule 2: Delegate Real Work Only
-Use delegation only when assigning a new task that requires action.
-**Usage:** `.didi\delegate <AgentName> "<Short message pointing to MASTER_PLAN>"`
+## ORCHESTRATOR PROTOCOL
 
-Do not delegate acknowledgements, thanks, status chatter, or confirmations.
-After a successful delegation, stop immediately and wait for a real completion callback. Do not poll the workspace, check whether files appeared, retry the task yourself, or use internal subagent/Task tools as a substitute for the delegated pane.
+> You are the Orchestrator if the human addressed you directly.
 
-## Rule 3: Use Peer-to-Peer Specialist Chains
-Agents may delegate directly to other agents, but direct specialist chaining is opt-in. If a task does not explicitly ask for review, documentation, or another follow-up specialist step, complete your assigned work and report back to the agent that delegated it.
+### Step 1 — Write ALL assignments into `### Agent Queue` in MASTER_PLAN.md BEFORE delegating anyone.
+Write ONE entry per specialist. Use this exact format:
+```
+- [ ] Builder: <what Builder must do>
+- [ ] Documentator: <what Documentator must do>
+```
+Do NOT write to `### Tasks`. That section is for specialists. `### Agent Queue` is yours only.
 
-Optional implementation flow for code tasks when review/docs are explicitly requested:
-1. Builder implements the requested change.
-2. Builder delegates directly to CodeChecker for review and validation.
-3. If CodeChecker finds issues, CodeChecker delegates directly back to Builder with concise fixes required.
-4. If CodeChecker approves, CodeChecker delegates directly to Documentator for docs and summary updates.
-5. Documentator updates docs, then notifies Orchestrator once with the final task completion summary.
+### Step 2 — Delegate to the FIRST specialist only.
+Use `.didi\delegate` with `-ReportTo Orchestrator` if the first specialist must chain to a second one.
+Example (Builder chains to Documentator, both report to you):
+```
+.didi\delegate Builder "Build the landing page. When done, delegate to Documentator with -ReportTo Orchestrator." -ReportTo Orchestrator
+```
+Do NOT delegate to Documentator yourself. Builder will do that.
 
-Keep each handoff short. Point to files, plan items, errors, and validation commands instead of copying code. Do not ask the human whether to report back; report to your sender by default.
+### Step 3 — STOP COMPLETELY. Do not do any of the following:
+- Do NOT run Start-Sleep, sleep, or any waiting loop.
+- Do NOT glob files, ls, dir, or check if files appeared.
+- Do NOT re-read MASTER_PLAN.md to check progress.
+- Do NOT think about whether Builder has finished.
+- Do NOT send any more messages until a completion callback arrives.
+You are now idle. The system will resume you when the callback comes in.
 
-## Rule 4: Complete Each Delegated Task Once
-When you receive a delegated task, do the work. When finished, send ONE completion callback:
-**Usage:** `.didi\delegate <SenderName> "Task complete. Check MASTER_PLAN."`
+### Step 4 — When ALL callbacks arrive:
+- Mark each top-level task as `[x]` in MASTER_PLAN.md.
+- Notify the human that all tasks are complete.
 
-If you pass work to a next specialist, do not also send a separate acknowledgement. The next specialist owns the next step.
-After sending a completion callback, stop.
+---
 
-## Rule 5: Orchestrator Wait State
-When Orchestrator delegates a task to Builder, Documentator, or another active agent, Orchestrator's work is paused until that agent reports completion. Orchestrator may update task state and route the next step only after the callback arrives. It must not continue implementing the delegated task itself.
+## SPECIALIST PROTOCOL
 
-## Rule 6: Context Gathering
-If you lose track of what the team is doing, or where files are, DO NOT guess or ask the human. 
-Run `.didi\context` to instantly get a token-efficient snapshot of the directory tree, git status, and the MASTER_PLAN.
+> You are a Specialist (Builder, Documentator, etc.) if you received a delegated task.
 
-## Rule 7: Sentinel Recovery
-If the terminal warns that you are repeating the same failed command, stop the loop, choose a different approach, or ask for help. Do not retry the same command again without changing the plan.
+### Step 1 — Read your assignment from `### Agent Queue` in MASTER_PLAN.md. DO NOT add to that section.
+Your entry is already there. The delegation system marked it `in_progress` automatically.
+
+### Step 2 — Write your own work items in `### Tasks` section.
+Add your subtask checklist ONLY in the `### Tasks` section (not Agent Queue).
+```
+### Tasks
+- [ ] Create index.html skeleton
+- [ ] Add hero section
+- [ ] Add menu section
+```
+Check them off as you go.
+
+### Step 3 — Do the work. Check off your subtasks as you go.
+
+### Step 4 — Chain or Report.
+**If the task says to chain to another specialist:**
+```
+.didi\delegate Documentator "Document the landing page at index.html and write README.md" -ReportTo Orchestrator
+```
+Then STOP. Do NOT send a completion callback yourself. The next specialist will report to Orchestrator for you.
+
+**If no chaining is needed:**
+```
+.didi\delegate Orchestrator "Task complete: <one-line summary>"
+```
+Then STOP.
+
+---
+
+## RULES (apply to everyone)
+
+### Rule 1 — MASTER_PLAN.md ownership
+- Orchestrator: writes top-level tasks. Only Orchestrator marks top-level tasks `[x]`.
+- Specialists: add/edit only their own indented subtasks.
+- No specialist may add a new top-level task. Ever.
+
+### Rule 2 — One delegate call per handoff. No chatter.
+Do not delegate acknowledgements, progress updates, or confirmations.
+
+### Rule 3 — Never double-report when chaining
+If you chained to a next specialist, you are done. Do NOT also send a callback to your sender.
+The next specialist owns the loop closure.
+
+### Rule 4 — Orchestrator wait state is absolute
+After delegating, Orchestrator does nothing until it receives a callback. No monitoring. No polling. No sleeping.
+
+### Rule 5 — Context gathering
+If lost, run `.didi\context` for directory tree, git status, and MASTER_PLAN pending tasks. Do not guess.
+
+### Rule 6 — Sentinel recovery
+If warned that you are looping on a failed command, stop and try a different approach.
 "#;
 
     let context_ps1 = r#"
