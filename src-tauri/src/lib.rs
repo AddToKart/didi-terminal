@@ -9,9 +9,12 @@ use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
+#[serde(default)]
 pub struct AppConfig {
     pub shell: String,
     pub llm_endpoint: String,
+    pub llm_model: String,
+    pub llm_api_key: String,
     pub theme_cyan: String,
     pub theme_amber: String,
 }
@@ -21,6 +24,8 @@ impl Default for AppConfig {
         Self {
             shell: "pwsh.exe".to_string(),
             llm_endpoint: "http://localhost:8080/v1".to_string(),
+            llm_model: "local-model".to_string(),
+            llm_api_key: String::new(),
             theme_cyan: "#00f0ff".to_string(),
             theme_amber: "#ffb000".to_string(),
         }
@@ -90,6 +95,30 @@ fn snapshots_dir(app_handle: &AppHandle) -> Result<PathBuf, String> {
 
 fn snapshots_file(app_handle: &AppHandle, cwd: &str) -> Result<PathBuf, String> {
     Ok(snapshots_dir(app_handle)?.join(format!("{}.json", workspace_hash(cwd))))
+}
+
+fn config_file(app_handle: &AppHandle) -> Result<PathBuf, String> {
+    let app_data_dir = app_handle.path().app_data_dir().map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&app_data_dir).map_err(|e| e.to_string())?;
+    Ok(app_data_dir.join("config.json"))
+}
+
+fn load_config(app_handle: &AppHandle) -> AppConfig {
+    config_file(app_handle)
+        .ok()
+        .and_then(|path| std::fs::read_to_string(path).ok())
+        .and_then(|contents| serde_json::from_str(&contents).ok())
+        .unwrap_or_default()
+}
+
+fn save_config(app_handle: &AppHandle, config: &AppConfig) -> Result<(), String> {
+    let path = config_file(app_handle)?;
+    let json = serde_json::to_string_pretty(config).map_err(|e| e.to_string())?;
+    std::fs::write(path, json).map_err(|e| e.to_string())
+}
+
+fn llm_url(endpoint: &str, path: &str) -> String {
+    format!("{}/{}", endpoint.trim_end_matches('/'), path.trim_start_matches('/'))
 }
 
 fn read_snapshots(app_handle: &AppHandle, cwd: &str) -> Vec<GitSnapshot> {
@@ -298,22 +327,35 @@ fn get_config(state: State<'_, AppState>) -> Result<AppConfig, String> {
 }
 
 #[tauri::command]
-fn set_config(new_config: AppConfig, state: State<'_, AppState>) -> Result<(), String> {
+fn set_config(new_config: AppConfig, app_handle: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+    save_config(&app_handle, &new_config)?;
     *state.config.lock().unwrap() = new_config;
     Ok(())
 }
 
 #[tauri::command]
-fn get_sidecar_status(state: State<'_, AppState>) -> Result<String, String> {
-    let mut sys = state.sys.lock().unwrap();
-    sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
-    for (_pid, process) in sys.processes() {
-        let name = process.name().to_string_lossy().to_lowercase();
-        if name.contains("llama-server") {
-            return Ok("Running".to_string());
-        }
+async fn get_sidecar_status(state: State<'_, AppState>) -> Result<String, String> {
+    let config = state.config.lock().unwrap().clone();
+    let endpoint = config.llm_endpoint.trim();
+    if endpoint.is_empty() {
+        return Ok("Not configured".to_string());
     }
-    Ok("Stopped".to_string())
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(3))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let mut request = client.get(llm_url(endpoint, "models"));
+    if !config.llm_api_key.trim().is_empty() {
+        request = request.bearer_auth(config.llm_api_key.trim());
+    }
+
+    match request.send().await {
+        Ok(response) if response.status().is_success() => Ok("Connected".to_string()),
+        Ok(response) if response.status().as_u16() == 401 || response.status().as_u16() == 403 => Ok("Auth required".to_string()),
+        Ok(response) => Ok(format!("HTTP {}", response.status().as_u16())),
+        Err(_) => Ok("Unreachable".to_string()),
+    }
 }
 
 #[tauri::command]
@@ -456,11 +498,157 @@ fn append_master_plan_entry(cwd: String, title: String, body: String) -> Result<
 }
 
 #[tauri::command]
+fn read_master_plan(cwd: String) -> Result<String, String> {
+    let plan_path = Path::new(&cwd).join("MASTER_PLAN.md");
+    if !plan_path.exists() {
+        return Ok(String::new());
+    }
+
+    std::fs::read_to_string(plan_path).map_err(|e| e.to_string())
+}
+
+fn strip_didi_status_marker(value: &str) -> String {
+    let Some(start) = value.find("<!--") else {
+        return value.trim_end().to_string();
+    };
+    let Some(end_offset) = value[start..].find("-->") else {
+        return value.trim_end().to_string();
+    };
+
+    let marker = &value[start..start + end_offset + 3];
+    if !marker.contains("didi:status=") {
+        return value.trim_end().to_string();
+    }
+
+    format!("{}{}", &value[..start], &value[start + end_offset + 3..])
+        .trim_end()
+        .to_string()
+}
+
+#[tauri::command]
+fn set_master_plan_task_status(cwd: String, line: usize, status: String) -> Result<String, String> {
+    let plan_path = Path::new(&cwd).join("MASTER_PLAN.md");
+    let contents = if plan_path.exists() {
+        std::fs::read_to_string(&plan_path).map_err(|e| e.to_string())?
+    } else {
+        String::new()
+    };
+
+    let mut lines: Vec<String> = contents.lines().map(|item| item.to_string()).collect();
+    if line >= lines.len() {
+        return Err("Task line no longer exists in MASTER_PLAN.md.".to_string());
+    }
+
+    let current_line = &lines[line];
+    let Some(box_start) = current_line.find("- [") else {
+        return Err("Selected line is not a markdown task.".to_string());
+    };
+    let box_char = box_start + 3;
+    if current_line.as_bytes().get(box_char + 1) != Some(&b']') {
+        return Err("Selected line is not a markdown task.".to_string());
+    }
+
+    let mut next_line = current_line.clone();
+    let checkbox = if status == "done" { "x" } else { " " };
+    next_line.replace_range(box_char..box_char + 1, checkbox);
+    next_line = strip_didi_status_marker(&next_line);
+    if status == "in_progress" {
+        next_line.push_str(" <!-- didi:status=in_progress -->");
+    }
+
+    lines[line] = next_line;
+    let updated = lines.join("\n");
+    std::fs::write(&plan_path, &updated).map_err(|e| e.to_string())?;
+    Ok(updated)
+}
+
+#[tauri::command]
+fn set_master_plan_task_status_by_text(cwd: String, text: String, status: String) -> Result<String, String> {
+    let plan_path = Path::new(&cwd).join("MASTER_PLAN.md");
+    let contents = if plan_path.exists() {
+        std::fs::read_to_string(&plan_path).map_err(|e| e.to_string())?
+    } else {
+        String::new()
+    };
+    let clean_text = text.trim();
+    let Some(line) = contents
+        .lines()
+        .position(|item| item.contains("- [") && strip_didi_status_marker(item).contains(clean_text))
+    else {
+        return Err("Could not find matching task in MASTER_PLAN.md.".to_string());
+    };
+
+    set_master_plan_task_status(cwd, line, status)
+}
+
+#[tauri::command]
+fn append_master_plan_task(cwd: String, text: String, status: String) -> Result<String, String> {
+    let plan_path = Path::new(&cwd).join("MASTER_PLAN.md");
+    let clean_text = text.trim();
+    if clean_text.is_empty() {
+        return Err("Task text cannot be empty.".to_string());
+    }
+
+    let mut contents = if plan_path.exists() {
+        std::fs::read_to_string(&plan_path).map_err(|e| e.to_string())?
+    } else {
+        "# Project Master Plan\n\n### Tasks\n".to_string()
+    };
+
+    if !contents.contains("### Tasks") && !contents.contains("## Tasks") {
+        if !contents.ends_with('\n') {
+            contents.push('\n');
+        }
+        contents.push_str("\n### Tasks\n");
+    }
+
+    let checkbox = if status == "done" { "x" } else { " " };
+    let marker = if status == "in_progress" {
+        " <!-- didi:status=in_progress -->"
+    } else {
+        ""
+    };
+    let task_line = format!("- [{}] {}{}", checkbox, clean_text, marker);
+
+    let lines: Vec<&str> = contents.lines().collect();
+    let mut insert_at = lines.len();
+    if let Some(tasks_index) = lines.iter().position(|line| {
+        let trimmed = line.trim();
+        trimmed == "### Tasks" || trimmed == "## Tasks"
+    }) {
+        insert_at = tasks_index + 1;
+        while insert_at < lines.len() && !lines[insert_at].trim_start().starts_with('#') {
+            insert_at += 1;
+        }
+    }
+
+    let mut updated_lines: Vec<String> = lines.iter().map(|line| line.to_string()).collect();
+    updated_lines.insert(insert_at, task_line);
+    let updated = updated_lines.join("\n");
+    std::fs::write(&plan_path, &updated).map_err(|e| e.to_string())?;
+    Ok(updated)
+}
+
+#[tauri::command]
 async fn ask_llm(prompt: String, system: String, state: State<'_, AppState>) -> Result<String, String> {
-    let endpoint = state.config.lock().unwrap().llm_endpoint.clone();
+    let config = state.config.lock().unwrap().clone();
+    let endpoint = config.llm_endpoint.trim().to_string();
+    if endpoint.is_empty() {
+        return Err("LLM endpoint is not configured.".to_string());
+    }
     
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(120))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let model = if config.llm_model.trim().is_empty() {
+        "local-model"
+    } else {
+        config.llm_model.trim()
+    };
+
     let payload = serde_json::json!({
+        "model": model,
         "messages": [
             {"role": "system", "content": system},
             {"role": "user", "content": prompt}
@@ -468,13 +656,31 @@ async fn ask_llm(prompt: String, system: String, state: State<'_, AppState>) -> 
         "temperature": 0.2
     });
 
-    let res = client.post(format!("{}/chat/completions", endpoint))
-        .json(&payload)
-        .send()
-        .await
-        .map_err(|e| format!("Reqwest error: {}", e))?;
+    let mut request = client
+        .post(llm_url(&endpoint, "chat/completions"))
+        .json(&payload);
+    if !config.llm_api_key.trim().is_empty() {
+        request = request.bearer_auth(config.llm_api_key.trim());
+    }
 
-    let json: serde_json::Value = res.json().await.map_err(|e| format!("JSON error: {}", e))?;
+    let res = request.send().await.map_err(|e| {
+        format!(
+            "LLM request failed. Check that {} is running and reachable. {}",
+            endpoint, e
+        )
+    })?;
+
+    let status = res.status();
+    let body = res.text().await.map_err(|e| format!("LLM response read failed: {}", e))?;
+    if !status.is_success() {
+        return Err(format!(
+            "LLM request returned HTTP {}: {}",
+            status.as_u16(),
+            body.chars().take(500).collect::<String>()
+        ));
+    }
+
+    let json: serde_json::Value = serde_json::from_str(&body).map_err(|e| format!("JSON error: {}", e))?;
     
     if let Some(content) = json["choices"][0]["message"]["content"].as_str() {
         Ok(content.to_string())
@@ -733,20 +939,22 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
-        .manage(AppState {
-            pty_writers: Mutex::new(HashMap::new()),
-            pty_resizers: Mutex::new(HashMap::new()),
-            pty_processes: Mutex::new(HashMap::new()),
-            sys: Mutex::new(sysinfo::System::new_all()),
-            config: Mutex::new(AppConfig::default()),
-        })
         .invoke_handler(tauri::generate_handler![
             spawn_pty, write_pty, close_pty, resize_pty, initialize_project, get_process_stats,
             get_project_context, get_config, set_config, get_sidecar_status, ask_llm,
-            create_git_snapshot, list_git_snapshots, rewind_git_snapshot, append_master_plan_entry
+            create_git_snapshot, list_git_snapshots, rewind_git_snapshot, append_master_plan_entry,
+            read_master_plan, set_master_plan_task_status, set_master_plan_task_status_by_text,
+            append_master_plan_task
         ])
         .setup(|app| {
             start_agent_bus(app.handle().clone());
+            app.manage(AppState {
+                pty_writers: Mutex::new(HashMap::new()),
+                pty_resizers: Mutex::new(HashMap::new()),
+                pty_processes: Mutex::new(HashMap::new()),
+                sys: Mutex::new(sysinfo::System::new_all()),
+                config: Mutex::new(load_config(app.handle())),
+            });
             
             use tauri_plugin_shell::ShellExt;
             if let Ok(sidecar_command) = app.handle().shell().sidecar("llama-server") {

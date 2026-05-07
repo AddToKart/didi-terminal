@@ -4,10 +4,11 @@ import { useCallback, useEffect, useState, useRef, FormEvent, Fragment, lazy, Su
 import { emit, listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { Terminal, FolderOpen, ShieldAlert, Cpu, Columns, Rows, Plus, X, Activity, Grid2X2, PanelLeftClose, PanelLeft, Network, Settings, Server, Brain, ChevronDown, ChevronRight } from "lucide-react";
+import { Terminal, FolderOpen, ShieldAlert, Cpu, Columns, Rows, Plus, X, Activity, Grid2X2, PanelLeftClose, PanelLeft, Network, Settings, Server, Brain, ChevronDown, ChevronRight, ClipboardList } from "lucide-react";
 import { SentinelIncident, SentinelPanel } from "./components/SentinelPanel";
 import { GitSnapshotRecord, SnapshotPanel } from "./components/SnapshotPanel";
 import { BrainstormModal, BrainstormSession } from "./components/BrainstormModal";
+import { MasterPlanPanel } from "./components/MasterPlanPanel";
 
 const NetworkGraph = lazy(() => import("./components/NetworkGraph").then(module => ({ default: module.NetworkGraph })));
 const SettingsModal = lazy(() => import("./components/SettingsModal").then(module => ({ default: module.SettingsModal })));
@@ -121,6 +122,12 @@ interface TaskRecord {
   updatedAt: string;
 }
 
+interface MasterPlanTaskDispatch {
+  line: number;
+  text: string;
+  section: string;
+}
+
 interface GraphHandoff {
   id: string;
   source: string;
@@ -175,6 +182,7 @@ function App() {
   const [showNetworkGraph, setShowNetworkGraph] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showBrainstorm, setShowBrainstorm] = useState(false);
+  const [showMasterPlan, setShowMasterPlan] = useState(false);
   const [sidecarStatus, setSidecarStatus] = useState("Checking...");
   const [activity, setActivity] = useState<ActivityLog[]>([{ id: 0, time: new Date().toLocaleTimeString(), message: "System initialized", type: 'system' }]);
   const [tasks, setTasks] = useState<TaskRecord[]>([]);
@@ -187,7 +195,7 @@ function App() {
   const [snapshotBusy, setSnapshotBusy] = useState(false);
   const [brainstormSessions, setBrainstormSessions] = useState<BrainstormSession[]>([]);
 
-  const pendingHandoffs = useRef<Map<string, string>>(new Map());
+  const pendingHandoffs = useRef<Map<string, string[]>>(new Map());
   const readyAgents = useRef<Set<string>>(new Set());
   const agentsRef = useRef(agents);
   const currentProjectRef = useRef(currentProject);
@@ -196,6 +204,7 @@ function App() {
   const sentinelEnabledRef = useRef(sentinelEnabled);
   const sentinelStates = useRef<Map<string, SentinelAgentState>>(new Map());
   const brainstormSessionsRef = useRef<BrainstormSession[]>([]);
+  const activeMasterPlanTasks = useRef<Array<{ line: number; text: string; dispatchedAt: number }>>([]);
 
   const addLog = (message: string, type: 'system' | 'handoff' = 'system') => {
     setActivity(prev => {
@@ -528,18 +537,28 @@ function App() {
     };
 
     const flushQueuedHandoff = (agentKey: string) => {
-      const queued = pendingHandoffs.current.get(agentKey);
+      const queue = pendingHandoffs.current.get(agentKey);
+      if (!queue || queue.length === 0) return;
+
+      const queued = queue.shift();
+      if (queue.length === 0) {
+        pendingHandoffs.current.delete(agentKey);
+        clearFallbackTimer(agentKey);
+      } else {
+        pendingHandoffs.current.set(agentKey, queue);
+      }
       if (!queued) return;
 
-      pendingHandoffs.current.delete(agentKey);
       clearFallbackTimer(agentKey);
       writeHandoff(agentKey, queued);
     };
 
     const queueHandoff = (agentKey: string, payload: string, fallbackMs: number) => {
-      pendingHandoffs.current.set(agentKey, payload);
-      clearFallbackTimer(agentKey);
+      const queue = pendingHandoffs.current.get(agentKey) ?? [];
+      queue.push(payload);
+      pendingHandoffs.current.set(agentKey, queue);
 
+      if (fallbackTimers.current.has(agentKey)) return;
       const timer = setTimeout(() => {
         if (!pendingHandoffs.current.has(agentKey)) return;
         readyAgents.current.add(agentKey);
@@ -578,6 +597,29 @@ function App() {
           if (task.status !== "in_progress" || getAgentId(task.target) !== completedAgentId) return task;
           return { ...task, status: "complete", updatedAt };
         }));
+
+        const completionTargetId = getAgentId(targetName);
+        if ((completionTargetId === "orchestrator" || completionTargetId === "masterplan") && currentProjectRef.current && activeMasterPlanTasks.current.length > 0) {
+          const [completedPlanTask, ...remainingPlanTasks] = activeMasterPlanTasks.current;
+          activeMasterPlanTasks.current = remainingPlanTasks;
+          invoke("set_master_plan_task_status", {
+            cwd: currentProjectRef.current,
+            line: completedPlanTask.line,
+            status: "done",
+          }).then(() => {
+            addLog(`Master Plan completed: ${completedPlanTask.text}`, "system");
+          }).catch(err => {
+            invoke("set_master_plan_task_status_by_text", {
+              cwd: currentProjectRef.current,
+              text: completedPlanTask.text,
+              status: "done",
+            }).then(() => {
+              addLog(`Master Plan completed: ${completedPlanTask.text}`, "system");
+            }).catch(() => {
+              addLog(`Master Plan completion sync failed: ${err}`, "system");
+            });
+          });
+        }
       }
 
       return id;
@@ -623,6 +665,12 @@ function App() {
       const agentKey = getPtyKey(resolvedAgentName);
       const kind = getHandoffKind(handoff);
       const brainstormResponse = getBrainstormResponse(handoff.payload);
+
+      if (getAgentId(targetName) === "masterplan" && kind === "completion") {
+        addLog("completion to Master Plan", "handoff");
+        registerTask(handoff, targetName, kind);
+        return;
+      }
 
       if (brainstormResponse) {
         const senderAgent = getHandoffSender(handoff) || resolvedAgentName;
@@ -780,6 +828,29 @@ function App() {
     await sendBrainstormRound(session, 1);
   };
 
+  const handleDispatchMasterPlanTask = async (task: MasterPlanTaskDispatch) => {
+    if (!currentProjectRef.current) return;
+
+    activeMasterPlanTasks.current = [
+      ...activeMasterPlanTasks.current.filter(item => item.line !== task.line),
+      { line: task.line, text: task.text, dispatchedAt: Date.now() },
+    ];
+
+    await emit("agent-handoff", {
+      target: "Orchestrator",
+      sender: "MasterPlan",
+      kind: "task",
+      taskId: `master-plan-${task.line}-${Date.now()}`,
+      payload: [
+        `Queue this MASTER_PLAN.md task and delegate it to the right specialist when you are ready: ${task.text}`,
+        `Section: ${task.section}.`,
+        `Workspace: ${currentProjectRef.current}.`,
+        `When the specialist chain is fully complete, ensure MASTER_PLAN.md line ${task.line + 1} is complete and send one completion callback to MasterPlan.`,
+      ].join(" "),
+    });
+    addLog(`Queued Master Plan task for Orchestrator: ${task.text}`, "handoff");
+  };
+
   const handleDragStart = (e: React.DragEvent, index: number) => {
     e.dataTransfer.setData('agentIndex', index.toString());
   };
@@ -822,6 +893,14 @@ function App() {
         />
       )}
 
+      {showMasterPlan && (
+        <MasterPlanPanel
+          currentProject={currentProject}
+          onDispatchTask={handleDispatchMasterPlanTask}
+          onClose={() => setShowMasterPlan(false)}
+        />
+      )}
+
       {/* Sidebar */}
       {isSidebarOpen && (
       <aside className="w-72 border-r border-app-border bg-app-panel flex flex-col shadow-md z-10 shrink-0">
@@ -842,8 +921,8 @@ function App() {
         <div className="flex-1 overflow-y-auto flex flex-col">
           <div className="shrink-0 p-4 border-b border-app-border space-y-4">
             <div className="flex justify-between items-center text-xs font-semibold text-zinc-400">
-               <div className="flex items-center gap-2"><Server size={14} /> LLM Sidecar</div>
-               <span className={`${sidecarStatus === 'Running' ? 'text-emerald-400' : 'text-amber-400'}`}>{sidecarStatus}</span>
+               <div className="flex items-center gap-2"><Server size={14} /> LLM API</div>
+               <span className={`${sidecarStatus === 'Connected' ? 'text-emerald-400' : 'text-amber-400'}`}>{sidecarStatus}</span>
             </div>
 
             <div>
@@ -989,6 +1068,13 @@ function App() {
               title="Brainstorm Mode"
             >
               <Brain size={16} />
+            </button>
+            <button
+              onClick={() => setShowMasterPlan(true)}
+              className="p-1.5 rounded-sm transition-colors text-slate-500 hover:text-brand-primary bg-[#0a0a0c] border border-app-border"
+              title="Master Plan Board"
+            >
+              <ClipboardList size={16} />
             </button>
             <button
               onClick={() => setShowNetworkGraph(true)}

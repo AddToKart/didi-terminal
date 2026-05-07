@@ -5,6 +5,8 @@ import { invoke } from "@tauri-apps/api/core";
 interface AppConfig {
   shell: string;
   llm_endpoint: string;
+  llm_model: string;
+  llm_api_key: string;
   theme_cyan: string;
   theme_amber: string;
 }
@@ -15,6 +17,7 @@ interface Props {
 
 export function SettingsModal({ onClose }: Props) {
   const [config, setConfig] = useState<AppConfig | null>(null);
+  const [llmStatus, setLlmStatus] = useState<string | null>(null);
 
   useEffect(() => {
     invoke<AppConfig>("get_config").then(setConfig).catch(console.error);
@@ -61,6 +64,44 @@ export function SettingsModal({ onClose }: Props) {
               onChange={e => setConfig({...config, llm_endpoint: e.target.value})}
               className="w-full bg-zinc-950 border border-app-border text-slate-200 px-3 py-2 text-xs outline-none focus:border-brand-accent"
             />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-500 font-medium tracking-tight">LLM Model</label>
+              <input
+                type="text"
+                value={config.llm_model}
+                onChange={e => setConfig({...config, llm_model: e.target.value})}
+                className="w-full bg-zinc-950 border border-app-border text-slate-200 px-3 py-2 text-xs outline-none focus:border-brand-accent"
+              />
+              <p className="text-[9px] text-slate-600">Use the model name exposed by your OpenAI-compatible server.</p>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-500 font-medium tracking-tight">LLM API Key</label>
+              <input
+                type="password"
+                value={config.llm_api_key}
+                onChange={e => setConfig({...config, llm_api_key: e.target.value})}
+                className="w-full bg-zinc-950 border border-app-border text-slate-200 px-3 py-2 text-xs outline-none focus:border-brand-accent"
+                placeholder="Optional for local servers"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={async () => {
+                if (!config) return;
+                await invoke("set_config", { newConfig: config });
+                const status = await invoke<string>("get_sidecar_status");
+                setLlmStatus(status);
+              }}
+              className="w-fit px-3 py-1.5 text-xs font-bold uppercase text-slate-300 border border-app-border hover:border-brand-accent hover:text-brand-primary transition-colors"
+            >
+              Test LLM
+            </button>
+            {llmStatus && <div className="text-[10px] text-slate-500">LLM status: {llmStatus}</div>}
           </div>
 
           <div className="flex gap-4">
