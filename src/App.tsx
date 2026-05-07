@@ -13,8 +13,6 @@ import { MasterPlanPanel } from "./components/MasterPlanPanel";
 const NetworkGraph = lazy(() => import("./components/NetworkGraph").then(module => ({ default: module.NetworkGraph })));
 const SettingsModal = lazy(() => import("./components/SettingsModal").then(module => ({ default: module.SettingsModal })));
 
-const EXISTING_AGENT_FALLBACK_MS = 1000;
-const NEW_AGENT_FALLBACK_MS = 6000;
 const HANDOFF_SUBMIT_DELAY_MS = 400;
 const BRAINSTORM_CALLBACK_TARGET = "Brainstorm";
 
@@ -61,6 +59,10 @@ const getTaskSummary = (payload: string) =>
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 140);
+
+const isMasterPlanManagedHandoff = (handoff: HandoffPayload) =>
+  getAgentId(handoff.sender || "") === "masterplan" ||
+  /Queue this MASTER_PLAN\.md task/i.test(handoff.payload);
 
 const stripTerminalControls = (value: string) =>
   value
@@ -128,6 +130,10 @@ interface MasterPlanTaskDispatch {
   section: string;
 }
 
+interface ActiveMasterPlanTask extends MasterPlanTaskDispatch {
+  dispatchedAt: number;
+}
+
 interface GraphHandoff {
   id: string;
   source: string;
@@ -186,6 +192,11 @@ function App() {
   const [sidecarStatus, setSidecarStatus] = useState("Checking...");
   const [activity, setActivity] = useState<ActivityLog[]>([{ id: 0, time: new Date().toLocaleTimeString(), message: "System initialized", type: 'system' }]);
   const [tasks, setTasks] = useState<TaskRecord[]>([]);
+  const [agentQueueCounts, setAgentQueueCounts] = useState<Record<string, number>>({});
+  const [masterPlanQueueState, setMasterPlanQueueState] = useState<{ activeLine: number | null; queuedLines: number[] }>({
+    activeLine: null,
+    queuedLines: [],
+  });
   const [isTasksCollapsed, setIsTasksCollapsed] = useState(false);
   const [isActivityCollapsed, setIsActivityCollapsed] = useState(false);
   const [graphHandoffs, setGraphHandoffs] = useState<GraphHandoff[]>([]);
@@ -199,12 +210,13 @@ function App() {
   const readyAgents = useRef<Set<string>>(new Set());
   const agentsRef = useRef(agents);
   const currentProjectRef = useRef(currentProject);
-  const fallbackTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const logIdCounter = useRef(1);
   const sentinelEnabledRef = useRef(sentinelEnabled);
   const sentinelStates = useRef<Map<string, SentinelAgentState>>(new Map());
   const brainstormSessionsRef = useRef<BrainstormSession[]>([]);
-  const activeMasterPlanTasks = useRef<Array<{ line: number; text: string; dispatchedAt: number }>>([]);
+  const activeMasterPlanTask = useRef<ActiveMasterPlanTask | null>(null);
+  const queuedMasterPlanTasks = useRef<MasterPlanTaskDispatch[]>([]);
+  const activeAgentPlanTasks = useRef<Map<string, string[]>>(new Map());
 
   const addLog = (message: string, type: 'system' | 'handoff' = 'system') => {
     setActivity(prev => {
@@ -227,6 +239,99 @@ function App() {
       setSnapshots([]);
     }
   }, []);
+
+  const syncMasterPlanQueueState = () => {
+    setMasterPlanQueueState({
+      activeLine: activeMasterPlanTask.current?.line ?? null,
+      queuedLines: queuedMasterPlanTasks.current.map(task => task.line),
+    });
+  };
+
+  const dispatchMasterPlanTaskToOrchestrator = async (task: MasterPlanTaskDispatch) => {
+    if (!currentProjectRef.current) return;
+    const activeAgentList = agentsRef.current.join(", ") || "none";
+    activeMasterPlanTask.current = { ...task, dispatchedAt: Date.now() };
+    syncMasterPlanQueueState();
+
+    await emit("agent-handoff", {
+      target: "Orchestrator",
+      sender: "MasterPlan",
+      kind: "task",
+      taskId: `master-plan-${task.line}-${Date.now()}`,
+      payload: [
+        `Queue this MASTER_PLAN.md task and delegate it to the right specialist when you are ready: ${task.text}`,
+        `Section: ${task.section}.`,
+        `Active agents available now: ${activeAgentList}. Delegate only to one of these active agents.`,
+        `Workspace: ${currentProjectRef.current}.`,
+        `MASTER_PLAN.md line ${task.line + 1} is already marked in progress. Do not mark it done when you delegate it.`,
+        `Specialists may create and complete indented subtasks under that line, but only Orchestrator may send the final completion callback that closes the top-level task.`,
+        `Unless this task explicitly asks for code review, documentation, or another follow-up specialist step, instruct the assigned specialist to finish the work and report completion back to Orchestrator.`,
+        `After Orchestrator delegates this task to a specialist, Orchestrator must stop immediately and wait for the completion callback. Do not poll files, check whether files were created, retry the task, or do the specialist's work.`,
+        `Only after the assigned specialist reports completion should Orchestrator send one completion callback to MasterPlan.`,
+      ].join(" "),
+    });
+    addLog(`Started Master Plan task: ${task.text}`, "handoff");
+  };
+
+  const dispatchNextMasterPlanTask = () => {
+    if (activeMasterPlanTask.current || queuedMasterPlanTasks.current.length === 0) return;
+    const nextTask = queuedMasterPlanTasks.current.shift();
+    syncMasterPlanQueueState();
+    if (!nextTask) return;
+    dispatchMasterPlanTaskToOrchestrator(nextTask).catch(err => {
+      addLog(`Master Plan queue dispatch failed: ${err}`, "system");
+    });
+  };
+
+  const syncPlanTaskStatusByText = async (text: string, status: "in_progress" | "done") => {
+    const project = currentProjectRef.current;
+    const cleanText = text.trim();
+    if (!project || !cleanText) return;
+
+    try {
+      await invoke("set_master_plan_task_status_by_text", {
+        cwd: project,
+        text: cleanText,
+        status,
+      });
+    } catch (err) {
+      if (status === "done") {
+        throw err;
+      }
+
+      await invoke("append_master_plan_task", {
+        cwd: project,
+        text: cleanText,
+        status,
+      });
+    }
+  };
+
+  const trackAgentPlanTask = (agentName: string, text: string) => {
+    const agentId = getAgentId(agentName);
+    const cleanText = text.trim();
+    if (!agentId || !cleanText) return;
+
+    const queue = activeAgentPlanTasks.current.get(agentId) ?? [];
+    if (!queue.includes(cleanText)) {
+      queue.push(cleanText);
+    }
+    activeAgentPlanTasks.current.set(agentId, queue);
+  };
+
+  const popAgentPlanTask = (agentName: string) => {
+    const agentId = getAgentId(agentName);
+    const queue = activeAgentPlanTasks.current.get(agentId);
+    if (!queue || queue.length === 0) return null;
+
+    const text = queue.shift() ?? null;
+    if (queue.length === 0) {
+      activeAgentPlanTasks.current.delete(agentId);
+    } else {
+      activeAgentPlanTasks.current.set(agentId, queue);
+    }
+    return text;
+  };
 
   useEffect(() => {
     const uniqueAgents = getUniqueAgents(agents);
@@ -263,6 +368,10 @@ function App() {
       localStorage.removeItem("didi_project");
     }
     currentProjectRef.current = currentProject;
+    activeMasterPlanTask.current = null;
+    queuedMasterPlanTasks.current = [];
+    activeAgentPlanTasks.current.clear();
+    syncMasterPlanQueueState();
     refreshSnapshots(currentProject);
   }, [currentProject]);
 
@@ -529,11 +638,17 @@ function App() {
       }, HANDOFF_SUBMIT_DELAY_MS);
     };
 
-    const clearFallbackTimer = (agentKey: string) => {
-      const timer = fallbackTimers.current.get(agentKey);
-      if (!timer) return;
-      clearTimeout(timer);
-      fallbackTimers.current.delete(agentKey);
+    const updateQueueCount = (agentKey: string) => {
+      const count = pendingHandoffs.current.get(agentKey)?.length ?? 0;
+      setAgentQueueCounts(prev => {
+        const next = { ...prev };
+        if (count > 0) {
+          next[agentKey] = count;
+        } else {
+          delete next[agentKey];
+        }
+        return next;
+      });
     };
 
     const flushQueuedHandoff = (agentKey: string) => {
@@ -543,29 +658,20 @@ function App() {
       const queued = queue.shift();
       if (queue.length === 0) {
         pendingHandoffs.current.delete(agentKey);
-        clearFallbackTimer(agentKey);
       } else {
         pendingHandoffs.current.set(agentKey, queue);
       }
+      updateQueueCount(agentKey);
       if (!queued) return;
 
-      clearFallbackTimer(agentKey);
       writeHandoff(agentKey, queued);
     };
 
-    const queueHandoff = (agentKey: string, payload: string, fallbackMs: number) => {
+    const queueHandoff = (agentKey: string, payload: string) => {
       const queue = pendingHandoffs.current.get(agentKey) ?? [];
       queue.push(payload);
       pendingHandoffs.current.set(agentKey, queue);
-
-      if (fallbackTimers.current.has(agentKey)) return;
-      const timer = setTimeout(() => {
-        if (!pendingHandoffs.current.has(agentKey)) return;
-        readyAgents.current.add(agentKey);
-        flushQueuedHandoff(agentKey);
-      }, fallbackMs);
-
-      fallbackTimers.current.set(agentKey, timer);
+      updateQueueCount(agentKey);
     };
 
     const registerTask = (handoff: HandoffPayload, targetName: string, kind: HandoffKind) => {
@@ -579,15 +685,24 @@ function App() {
       ].slice(0, 80));
 
       if (kind === "task") {
+        const summary = getTaskSummary(handoff.payload);
         const record: TaskRecord = {
           id,
           sender,
           target: targetName,
-          summary: getTaskSummary(handoff.payload),
+          summary,
           status: "in_progress",
           updatedAt,
         };
         setTasks(prev => [record, ...prev.filter(task => task.id !== id)].slice(0, 30));
+
+        if (!isMasterPlanManagedHandoff(handoff)) {
+          const completionOwner = getAgentId(sender) === "orchestrator" ? sender : targetName;
+          trackAgentPlanTask(completionOwner, summary);
+          syncPlanTaskStatusByText(summary, "in_progress").catch(err => {
+            addLog(`Master Plan task sync failed: ${err}`, "system");
+          });
+        }
         return id;
       }
 
@@ -599,15 +714,17 @@ function App() {
         }));
 
         const completionTargetId = getAgentId(targetName);
-        if ((completionTargetId === "orchestrator" || completionTargetId === "masterplan") && currentProjectRef.current && activeMasterPlanTasks.current.length > 0) {
-          const [completedPlanTask, ...remainingPlanTasks] = activeMasterPlanTasks.current;
-          activeMasterPlanTasks.current = remainingPlanTasks;
+        if (completionTargetId === "masterplan" && currentProjectRef.current && activeMasterPlanTask.current) {
+          const completedPlanTask = activeMasterPlanTask.current;
+          activeMasterPlanTask.current = null;
+          syncMasterPlanQueueState();
           invoke("set_master_plan_task_status", {
             cwd: currentProjectRef.current,
             line: completedPlanTask.line,
             status: "done",
           }).then(() => {
             addLog(`Master Plan completed: ${completedPlanTask.text}`, "system");
+            dispatchNextMasterPlanTask();
           }).catch(err => {
             invoke("set_master_plan_task_status_by_text", {
               cwd: currentProjectRef.current,
@@ -615,10 +732,19 @@ function App() {
               status: "done",
             }).then(() => {
               addLog(`Master Plan completed: ${completedPlanTask.text}`, "system");
+              dispatchNextMasterPlanTask();
             }).catch(() => {
               addLog(`Master Plan completion sync failed: ${err}`, "system");
+              dispatchNextMasterPlanTask();
             });
           });
+        } else {
+          const completedTaskText = popAgentPlanTask(sender);
+          if (completedTaskText) {
+            syncPlanTaskStatusByText(completedTaskText, "done").catch(err => {
+              addLog(`Master Plan completion sync failed: ${err}`, "system");
+            });
+          }
         }
       }
 
@@ -647,10 +773,11 @@ function App() {
       const safePayload = handoff.payload.replace(/\r?\n/g, " ").trim();
       const workspace = currentProjectRef.current;
       if (kind !== "task" || !workspace) return safePayload;
+      const activeAgentList = agentsRef.current.join(", ") || "none";
 
       try {
         const context = await invoke<string>("get_project_context", { cwd: workspace });
-        return `${safePayload} WORKSPACE ROOT: ${workspace}. All file reads and writes must stay under this workspace root. Do not edit files in the DidiTerminal app directory unless it is the selected workspace. If another specialist owns the next step, delegate directly to that agent instead of routing through Orchestrator. Notify Orchestrator only when the whole delegated chain is complete or explicitly requested. WORKSPACE CONTEXT: ${context.replace(/\r?\n/g, " ").trim()}`;
+        return `${safePayload} ACTIVE AGENTS: ${activeAgentList}. Delegate only to one of these active agents unless the human explicitly spawns another agent. WORKSPACE ROOT: ${workspace}. All file reads and writes must stay under this workspace root. Do not edit files in the DidiTerminal app directory unless it is the selected workspace. MASTER_PLAN RULE: specialists may add or check off indented subtasks under the assigned top-level task, but they must not mark the top-level task done; Orchestrator owns top-level completion. DELEGATION WAIT RULE: after delegating work to another agent, stop immediately and wait for that agent's completion callback; do not poll files, inspect progress, retry the task, or use internal subagent/Task tools to do the delegated work yourself. Default callback rule: when your assigned work is done, report completion to the agent that delegated it to you. Only delegate to another specialist if this task explicitly asks for review/docs/follow-up work, or if you are blocked and need that specialist. Do not ask the human whether to report back. WORKSPACE CONTEXT: ${context.replace(/\r?\n/g, " ").trim()}`;
       } catch (err) {
         console.warn("Failed to add workspace context", err);
         return safePayload;
@@ -660,9 +787,6 @@ function App() {
     const handleHandoff = async (handoff: HandoffPayload) => {
       const { target } = handoff;
       const targetName = target.trim();
-      const matchingAgent = findMatchingAgent(agentsRef.current, targetName);
-      const resolvedAgentName = matchingAgent ?? targetName;
-      const agentKey = getPtyKey(resolvedAgentName);
       const kind = getHandoffKind(handoff);
       const brainstormResponse = getBrainstormResponse(handoff.payload);
 
@@ -673,12 +797,34 @@ function App() {
       }
 
       if (brainstormResponse) {
-        const senderAgent = getHandoffSender(handoff) || resolvedAgentName;
+        const senderAgent = getHandoffSender(handoff) || targetName;
         await recordBrainstormResponse(senderAgent, brainstormResponse);
         // Treat brainstorm response as a task completion
         registerTask(handoff, targetName, "completion");
         return;
       }
+
+      const matchingAgent = findMatchingAgent(agentsRef.current, targetName);
+      if (!matchingAgent) {
+        const senderName = getHandoffSender(handoff) || handoff.sender || "Orchestrator";
+        const senderAgent = findMatchingAgent(agentsRef.current, senderName);
+        const available = agentsRef.current.join(", ") || "none";
+        const notice = `Target agent "${targetName}" is not active, so DidiTerminal did not create a new agent. Active agents: ${available}. Delegate to one of the active agents, or ask the human to spawn "${targetName}" first.`;
+        addLog(`Blocked handoff to inactive agent: ${targetName}`, "system");
+
+        if (senderAgent) {
+          const senderKey = getPtyKey(senderAgent);
+          if (readyAgents.current.has(senderKey)) {
+            writeHandoff(senderKey, notice);
+          } else {
+            queueHandoff(senderKey, notice);
+          }
+        }
+        return;
+      }
+
+      const resolvedAgentName = matchingAgent;
+      const agentKey = getPtyKey(resolvedAgentName);
 
       addLog(
         matchingAgent && matchingAgent !== targetName
@@ -688,26 +834,16 @@ function App() {
       );
       const taskId = registerTask(handoff, resolvedAgentName, kind);
 
-      const agentExists = Boolean(matchingAgent);
-      if (!agentExists) {
-        setAgents(prev => {
-          if (findMatchingAgent(prev, targetName)) return prev;
-          const nextAgents = getUniqueAgents([...prev, targetName]);
-          agentsRef.current = nextAgents;
-          return nextAgents;
-        });
-      }
-
       const safePayload = await enrichPayload(handoff, kind);
 
       if (kind === "task") {
         await createPlanSnapshot(taskId, resolvedAgentName, getTaskSummary(handoff.payload));
       }
 
-      if (agentExists && readyAgents.current.has(agentKey)) {
+      if (readyAgents.current.has(agentKey)) {
         writeHandoff(agentKey, safePayload);
       } else {
-        queueHandoff(agentKey, safePayload, agentExists ? EXISTING_AGENT_FALLBACK_MS : NEW_AGENT_FALLBACK_MS);
+        queueHandoff(agentKey, safePayload);
       }
     };
 
@@ -725,8 +861,6 @@ function App() {
     });
 
     return () => {
-      fallbackTimers.current.forEach(timer => clearTimeout(timer));
-      fallbackTimers.current.clear();
       unlistenHandoff.then(f => f());
       unlistenReady.then(f => f());
     };
@@ -743,9 +877,15 @@ function App() {
   };
 
   const removeAgent = (agentToRemove: string) => {
-    invoke("close_pty", { agent: getPtyKey(agentToRemove) }).catch(console.error);
-    pendingHandoffs.current.delete(getPtyKey(agentToRemove));
-    readyAgents.current.delete(getPtyKey(agentToRemove));
+    const agentKey = getPtyKey(agentToRemove);
+    invoke("close_pty", { agent: agentKey }).catch(console.error);
+    pendingHandoffs.current.delete(agentKey);
+    readyAgents.current.delete(agentKey);
+    setAgentQueueCounts(prev => {
+      const next = { ...prev };
+      delete next[agentKey];
+      return next;
+    });
     setAgents(agents.filter(a => a !== agentToRemove));
     addLog(`Terminated agent: ${agentToRemove}`, 'system');
   };
@@ -830,25 +970,21 @@ function App() {
 
   const handleDispatchMasterPlanTask = async (task: MasterPlanTaskDispatch) => {
     if (!currentProjectRef.current) return;
+    const isActive = activeMasterPlanTask.current?.line === task.line;
+    const isQueued = queuedMasterPlanTasks.current.some(item => item.line === task.line);
+    if (isActive || isQueued) {
+      addLog(`Master Plan task already queued: ${task.text}`, "system");
+      return;
+    }
 
-    activeMasterPlanTasks.current = [
-      ...activeMasterPlanTasks.current.filter(item => item.line !== task.line),
-      { line: task.line, text: task.text, dispatchedAt: Date.now() },
-    ];
+    if (!activeMasterPlanTask.current) {
+      await dispatchMasterPlanTaskToOrchestrator(task);
+      return;
+    }
 
-    await emit("agent-handoff", {
-      target: "Orchestrator",
-      sender: "MasterPlan",
-      kind: "task",
-      taskId: `master-plan-${task.line}-${Date.now()}`,
-      payload: [
-        `Queue this MASTER_PLAN.md task and delegate it to the right specialist when you are ready: ${task.text}`,
-        `Section: ${task.section}.`,
-        `Workspace: ${currentProjectRef.current}.`,
-        `When the specialist chain is fully complete, ensure MASTER_PLAN.md line ${task.line + 1} is complete and send one completion callback to MasterPlan.`,
-      ].join(" "),
-    });
-    addLog(`Queued Master Plan task for Orchestrator: ${task.text}`, "handoff");
+    queuedMasterPlanTasks.current.push(task);
+    syncMasterPlanQueueState();
+    addLog(`Queued Master Plan task behind active work: ${task.text}`, "handoff");
   };
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
@@ -897,6 +1033,8 @@ function App() {
         <MasterPlanPanel
           currentProject={currentProject}
           onDispatchTask={handleDispatchMasterPlanTask}
+          activeTaskLine={masterPlanQueueState.activeLine}
+          queuedTaskLines={masterPlanQueueState.queuedLines}
           onClose={() => setShowMasterPlan(false)}
         />
       )}
@@ -967,6 +1105,11 @@ function App() {
                     <div className="w-1.5 h-1.5 rounded-full bg-brand-accent animate-pulse"></div>
                     <span className="text-xs font-medium text-zinc-300 truncate">{agent}</span>
                   </div>
+                  {agentQueueCounts[getPtyKey(agent)] ? (
+                    <span className="text-[10px] text-amber-400 border border-amber-500/20 bg-amber-500/10 px-1.5 py-0.5 rounded-sm">
+                      {agentQueueCounts[getPtyKey(agent)]} queued
+                    </span>
+                  ) : null}
                   <button 
                     onClick={() => removeAgent(agent)}
                     className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-red-400 transition-all"

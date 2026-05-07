@@ -720,7 +720,7 @@ if ($isCompletion) {
     $payload = "[$sender COMPLETED TASK]: $Task`n[SYSTEM RULE: This is a terminal status update. Do not acknowledge it, do not report back, and do not delegate a response unless this message explicitly assigns a new task.]"
 } else {
     $kind = "task"
-    $payload = "[$sender DELEGATED A TASK]: $Task`n[SYSTEM RULE: This is a peer-to-peer handoff from $sender. Do this task exactly once. You may delegate directly to the next specialist when useful. Report back to $sender only when your part is done or blocked; report to Orchestrator only when the whole delegated chain is complete or explicitly requested. Use: .didi\delegate $sender `"Task complete: <summary>`". After sending a completion callback, stop.]"
+    $payload = "[$sender DELEGATED A TASK]: $Task`n[SYSTEM RULE: This is a peer-to-peer handoff from $sender. Do this task exactly once. You may add or complete indented subtasks in MASTER_PLAN.md, but do not mark the top-level task done unless you are Orchestrator. Default behavior: when your assigned work is done, report completion back to $sender by running .didi\delegate $sender `"Task complete: <summary>`". Only delegate to another specialist if the task explicitly asks for review/docs/follow-up work, or if you are blocked and need that specialist. Do not ask the human whether to report back. If you delegate the work to another agent, stop immediately after the delegate command and wait for their completion callback; do not poll files, inspect progress, retry the task yourself, or use internal subagent/Task tools to replace the delegated agent. After sending a completion callback, stop.]"
 }
 
 $msgObj = @{
@@ -737,16 +737,24 @@ try {
     $pipe = New-Object System.IO.Pipes.NamedPipeClientStream(".", "agentbus", [System.IO.Pipes.PipeDirection]::Out)
     $pipe.Connect(2000)
     $writer = New-Object System.IO.StreamWriter($pipe)
+    $writer.AutoFlush = $true
     $writer.Write($msg)
-    $writer.Dispose()
-    $pipe.Dispose()
+    $writer.Flush()
     if ($kind -eq "completion") {
         Write-Host "Sent completion update to '$Target'. No response is expected." -ForegroundColor Green
     } else {
         Write-Host "Delegated task to '$Target' successfully. Waiting for one completion callback." -ForegroundColor Green
+        Write-Host "STOP NOW: do not inspect files, poll for progress, retry, or do the delegated work yourself. Resume only when '$Target' sends a completion callback." -ForegroundColor Yellow
     }
 } catch {
     Write-Error "Failed to delegate task to $Target. Error: $_"
+} finally {
+    if ($writer) {
+        try { $writer.Dispose() } catch {}
+    }
+    if ($pipe) {
+        try { $pipe.Dispose() } catch {}
+    }
 }
 "#;
 
@@ -754,7 +762,7 @@ try {
 powershell -ExecutionPolicy Bypass -File "%~dp0delegate.ps1" %*
 "#;
 
-    let master_plan_md = r#"# Project Master Plan
+    let legacy_master_plan_md = r#"# Project Master Plan
 
 ## Current Phase: Planning
 
@@ -763,6 +771,13 @@ powershell -ExecutionPolicy Bypass -File "%~dp0delegate.ps1" %*
 - [ ] Implement backend components.
 - [ ] Implement frontend components.
 - [ ] Testing and finalization.
+"#;
+
+    let master_plan_md = r#"# Project Master Plan
+
+## Current Phase: Active Work
+
+### Tasks
 "#;
 
     let agents_md = r#"# DidiTerminal - Autonomous Collaboration Protocol
@@ -774,9 +789,11 @@ The selected workspace root is exposed as `$env:DIDI_WORKSPACE`. Treat that path
 
 ## Rule 1: The Global Brain (MASTER_PLAN.md)
 This workspace contains a `MASTER_PLAN.md`. This is your shared state.
-1. When starting a task, update `MASTER_PLAN.md`.
-2. When you finish a step, check it off in `MASTER_PLAN.md`.
-3. When delegating, tell the target agent: "I finished step 2. Proceed with step 3 in the MASTER_PLAN."
+1. Keep top-level tasks for human/orchestrator-requested work only.
+2. If you need an execution checklist, add indented subtasks under the assigned top-level task.
+3. Specialists may check off their own indented subtasks, but must not mark the top-level task done.
+4. Orchestrator is the only agent that may close a top-level delegated task after the assigned specialist reports completion.
+5. When delegating, point the target agent to the relevant top-level task and any subtasks instead of copying code.
 DidiTerminal creates hidden git snapshots around delegated plan work so the human can rewind a bad change without disturbing normal terminal handoffs.
 
 ## Rule 2: Delegate Real Work Only
@@ -784,31 +801,35 @@ Use delegation only when assigning a new task that requires action.
 **Usage:** `.didi\delegate <AgentName> "<Short message pointing to MASTER_PLAN>"`
 
 Do not delegate acknowledgements, thanks, status chatter, or confirmations.
+After a successful delegation, stop immediately and wait for a real completion callback. Do not poll the workspace, check whether files appeared, retry the task yourself, or use internal subagent/Task tools as a substitute for the delegated pane.
 
 ## Rule 3: Use Peer-to-Peer Specialist Chains
-Agents may delegate directly to other agents. Do not route through Orchestrator unless the human explicitly asked for orchestration, the full chain is complete, or the next step needs human-level coordination.
+Agents may delegate directly to other agents, but direct specialist chaining is opt-in. If a task does not explicitly ask for review, documentation, or another follow-up specialist step, complete your assigned work and report back to the agent that delegated it.
 
-Preferred implementation flow for code tasks:
+Optional implementation flow for code tasks when review/docs are explicitly requested:
 1. Builder implements the requested change.
 2. Builder delegates directly to CodeChecker for review and validation.
 3. If CodeChecker finds issues, CodeChecker delegates directly back to Builder with concise fixes required.
 4. If CodeChecker approves, CodeChecker delegates directly to Documentator for docs and summary updates.
 5. Documentator updates docs, then notifies Orchestrator once with the final task completion summary.
 
-Keep each handoff short. Point to files, plan items, errors, and validation commands instead of copying code.
+Keep each handoff short. Point to files, plan items, errors, and validation commands instead of copying code. Do not ask the human whether to report back; report to your sender by default.
 
 ## Rule 4: Complete Each Delegated Task Once
 When you receive a delegated task, do the work. When finished, send ONE completion callback:
 **Usage:** `.didi\delegate <SenderName> "Task complete. Check MASTER_PLAN."`
 
 If you pass work to a next specialist, do not also send a separate acknowledgement. The next specialist owns the next step.
-After sending a completion callback, stop. 
+After sending a completion callback, stop.
 
-## Rule 5: Context Gathering
+## Rule 5: Orchestrator Wait State
+When Orchestrator delegates a task to Builder, Documentator, or another active agent, Orchestrator's work is paused until that agent reports completion. Orchestrator may update task state and route the next step only after the callback arrives. It must not continue implementing the delegated task itself.
+
+## Rule 6: Context Gathering
 If you lose track of what the team is doing, or where files are, DO NOT guess or ask the human. 
 Run `.didi\context` to instantly get a token-efficient snapshot of the directory tree, git status, and the MASTER_PLAN.
 
-## Rule 6: Sentinel Recovery
+## Rule 7: Sentinel Recovery
 If the terminal warns that you are repeating the same failed command, stop the loop, choose a different approach, or ask for help. Do not retry the same command again without changing the plan.
 "#;
 
@@ -854,9 +875,15 @@ powershell -ExecutionPolicy Bypass -File "%~dp0context.ps1"
     std::fs::write(didi_dir.join("context.cmd"), context_cmd).map_err(|e| e.to_string())?;
     std::fs::write(path.join("AGENTS.md"), agents_md).map_err(|e| e.to_string())?;
     
-    // Only write MASTER_PLAN if it doesn't already exist so we don't overwrite user progress
+    // Only write MASTER_PLAN if it doesn't already exist. Replace the old bootstrap
+    // placeholder only when it is still untouched so real user progress is preserved.
     let plan_path = path.join("MASTER_PLAN.md");
     if !plan_path.exists() {
+        std::fs::write(plan_path, master_plan_md).map_err(|e| e.to_string())?;
+    } else if std::fs::read_to_string(&plan_path)
+        .map(|contents| contents.trim() == legacy_master_plan_md.trim())
+        .unwrap_or(false)
+    {
         std::fs::write(plan_path, master_plan_md).map_err(|e| e.to_string())?;
     }
 
@@ -886,10 +913,10 @@ fn start_agent_bus(app_handle: AppHandle) {
             };
 
             if server.connect().await.is_ok() {
-                let mut buf = vec![0; 4096];
-                if let Ok(n) = server.read(&mut buf).await {
-                    if n > 0 {
-                        let msg = String::from_utf8_lossy(&buf[..n]).to_string();
+                let mut buf = Vec::new();
+                if server.read_to_end(&mut buf).await.is_ok() {
+                    if !buf.is_empty() {
+                        let msg = String::from_utf8_lossy(&buf).to_string();
                         match serde_json::from_str::<serde_json::Value>(&msg) {
                             Ok(json) => {
                                 if let Ok(message) = serde_json::from_value::<HandoffMessage>(json) {

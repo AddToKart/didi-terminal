@@ -45,6 +45,7 @@ Never use an internal "Task" tool for delegation when running in this environmen
 - Delegate only real work that requires action.
 - Completion callbacks are terminal status updates, not new tasks.
 - If a message starts with `Task complete:`, `Done:`, `Completed:`, `Finished:`, `Status:`, `FYI:`, `Ack:`, or `Acknowledged:`, do not acknowledge it or report back unless it explicitly assigns new work.
+- After a successful `delegate` command, stop immediately and wait for the delegated agent's completion callback. Do not poll files, check whether work appeared, retry the delegated work yourself, or use internal subagent/Task tools as a substitute.
 - After completing a delegated task, report back exactly once with `delegate <SenderName> "Task complete: <summary>"`, then stop.
 - Orchestrators should track task state and only delegate the next step after a real completion callback, not after acknowledgements.
 
