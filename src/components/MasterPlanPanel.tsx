@@ -110,12 +110,11 @@ const parseMasterPlan = (markdown: string): PlanTask[] => {
   return tasks;
 };
 
-
 const columns: Array<{ status: PlanStatus; label: string; icon: typeof Circle }> = [
   { status: "todo", label: "Todo", icon: Circle },
   { status: "in_queue", label: "In Queue", icon: ListOrdered },
   { status: "in_progress", label: "In Progress", icon: Loader2 },
-  { status: "waiting_completion", label: "Waiting for Completion", icon: Clock },
+  { status: "waiting_completion", label: "Waiting", icon: Clock },
   { status: "done", label: "Done", icon: CheckCircle2 },
 ];
 
@@ -254,7 +253,7 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
   };
 
   return (
-    <div className="absolute inset-0 z-50 bg-zinc-950/80 backdrop-blur-sm flex items-center justify-center p-6">
+    <div className="absolute inset-0 z-50 bg-zinc-950/90 backdrop-blur-md flex items-center justify-center p-6">
 
       {/* Floating ghost card rendered outside any overflow:hidden ancestor */}
       {dragState && createPortal(
@@ -265,55 +264,55 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
             top: dragState.y - 18,
             pointerEvents: "none",
             zIndex: 99999,
-            width: 220,
-            opacity: 0.92,
-            transform: "rotate(2deg) scale(1.03)",
+            width: 260,
+            opacity: 0.95,
+            transform: "rotate(2deg)",
           }}
-          className="bg-zinc-800 border border-brand-accent/60 shadow-2xl px-3 py-2.5 rounded-sm"
+          className="bg-zinc-950 border border-brand-accent shadow-2xl px-4 py-3 rounded-none"
         >
-          <div className="text-[10px] text-zinc-400 truncate">{dragState.task.section}</div>
-          <div className="text-sm text-zinc-200 leading-snug mt-1">{dragState.task.text}</div>
+          <div className="text-[10px] uppercase font-bold tracking-widest text-zinc-500 mb-1">{dragState.task.section}</div>
+          <div className="text-sm font-medium text-zinc-200 leading-snug line-clamp-2">{dragState.task.text}</div>
         </div>,
         document.body
       )}
 
       {selectedTask && createPortal(
-        <div className="fixed inset-0 z-[100000] bg-zinc-950/80 backdrop-blur-sm flex items-center justify-center p-6">
-          <div className="w-full max-w-2xl max-h-[80vh] bg-app-bg border border-zinc-800 rounded-md shadow-2xl overflow-hidden flex flex-col">
-            <div className="px-5 py-4 border-b border-zinc-800 bg-zinc-950 flex items-start justify-between gap-4">
+        <div className="fixed inset-0 z-[100000] bg-zinc-950/90 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="w-full max-w-2xl max-h-[85vh] bg-zinc-950 border border-zinc-800 shadow-2xl overflow-hidden flex flex-col rounded-none">
+            <div className="px-6 py-5 border-b border-zinc-800 bg-zinc-900/50 flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <div className="text-[10px] uppercase tracking-wide text-zinc-500 font-bold">{selectedTask.section}</div>
-                <h3 className="text-base text-zinc-100 font-semibold mt-1 leading-snug">{selectedTask.text}</h3>
+                <div className="text-[10px] uppercase font-bold tracking-widest text-zinc-500 mb-1.5">{selectedTask.section}</div>
+                <h3 className="text-lg text-zinc-100 font-semibold leading-snug">{selectedTask.text}</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setSelectedTask(null)}
-                className="p-2 text-zinc-500 hover:text-zinc-200 border border-zinc-800 hover:border-zinc-600 rounded-sm transition-colors"
+                className="p-2 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 rounded-none transition-colors shrink-0"
                 title="Close details"
               >
-                <X size={16} />
+                <X size={18} />
               </button>
             </div>
-            <div className="p-5 overflow-y-auto min-h-0 space-y-4">
-              <div className="grid grid-cols-3 gap-2 text-xs">
-                <div className="border border-zinc-800 bg-zinc-950/60 rounded-sm px-3 py-2">
-                  <div className="text-zinc-500">Status</div>
-                  <div className="text-zinc-200 capitalize mt-1">{selectedTask.status.replace("_", " ")}</div>
+            <div className="p-6 overflow-y-auto min-h-0 space-y-6 bg-app-bg">
+              <div className="grid grid-cols-3 gap-3 text-xs">
+                <div className="border border-zinc-800 bg-zinc-950 rounded-none p-3 shadow-sm">
+                  <div className="text-zinc-500 font-bold uppercase tracking-wider text-[10px]">Status</div>
+                  <div className="text-zinc-200 capitalize font-medium mt-1.5">{selectedTask.status.replace("_", " ")}</div>
                 </div>
-                <div className="border border-zinc-800 bg-zinc-950/60 rounded-sm px-3 py-2">
-                  <div className="text-zinc-500">Line</div>
-                  <div className="text-zinc-200 mt-1">{selectedTask.line + 1}</div>
+                <div className="border border-zinc-800 bg-zinc-950 rounded-none p-3 shadow-sm">
+                  <div className="text-zinc-500 font-bold uppercase tracking-wider text-[10px]">Line Number</div>
+                  <div className="text-zinc-200 font-medium mt-1.5">{selectedTask.line + 1}</div>
                 </div>
-                <div className="border border-zinc-800 bg-zinc-950/60 rounded-sm px-3 py-2">
-                  <div className="text-zinc-500">Subtasks</div>
-                  <div className="text-zinc-200 mt-1">{selectedTask.children.filter(child => child.status).length}</div>
+                <div className="border border-zinc-800 bg-zinc-950 rounded-none p-3 shadow-sm">
+                  <div className="text-zinc-500 font-bold uppercase tracking-wider text-[10px]">Subtasks</div>
+                  <div className="text-zinc-200 font-medium mt-1.5">{selectedTask.children.filter(child => child.status).length}</div>
                 </div>
               </div>
 
               <div>
-                <div className="text-[10px] uppercase tracking-wide text-zinc-500 font-bold mb-2">Subtasks And Notes</div>
+                <div className="text-[11px] uppercase tracking-widest text-zinc-500 font-bold mb-3">Subtasks & Notes</div>
                 {selectedTask.children.length === 0 ? (
-                  <div className="text-sm text-zinc-600 border border-dashed border-zinc-800 rounded-sm py-8 text-center">
+                  <div className="text-sm text-zinc-600 border border-dashed border-zinc-800 bg-zinc-950/50 rounded-none py-8 text-center font-medium">
                     No subtasks or notes under this task.
                   </div>
                 ) : (
@@ -321,24 +320,24 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
                     {selectedTask.children.map(child => (
                       <div
                         key={child.id}
-                        className="border border-zinc-800 bg-zinc-900/60 rounded-sm px-3 py-2"
+                        className="border border-zinc-800 bg-zinc-950 rounded-none px-3 py-2 shadow-sm"
                         style={{ marginLeft: Math.min(child.depth, 24) }}
                       >
-                        <div className="flex items-start gap-2">
+                        <div className="flex items-start gap-2.5">
                           {child.status === "done" ? (
-                            <CheckCircle2 size={14} className="text-emerald-400 mt-0.5 shrink-0" />
+                            <CheckCircle2 size={14} className="text-emerald-500 mt-0.5 shrink-0" />
                           ) : child.status === "in_progress" ? (
-                            <Loader2 size={14} className="text-amber-400 mt-0.5 shrink-0" />
+                            <Loader2 size={14} className="text-amber-500 mt-0.5 shrink-0" />
                           ) : child.status === "waiting_completion" ? (
-                            <Clock size={14} className="text-blue-400 mt-0.5 shrink-0" />
+                            <Clock size={14} className="text-blue-500 mt-0.5 shrink-0" />
                           ) : child.status === "in_queue" ? (
-                            <ListOrdered size={14} className="text-purple-400 mt-0.5 shrink-0" />
+                            <ListOrdered size={14} className="text-purple-500 mt-0.5 shrink-0" />
                           ) : child.status === "todo" ? (
                             <Circle size={14} className="text-zinc-500 mt-0.5 shrink-0" />
                           ) : (
-                            <div className="w-1.5 h-1.5 rounded-full bg-zinc-600 mt-2 shrink-0" />
+                            <div className="w-1.5 h-1.5 rounded-none bg-zinc-600 mt-2 shrink-0" />
                           )}
-                          <div className="text-sm text-zinc-300 leading-snug break-words">{child.text}</div>
+                          <div className="text-sm text-zinc-300 leading-snug break-words font-medium">{child.text}</div>
                         </div>
                       </div>
                     ))}
@@ -352,17 +351,17 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
       )}
 
       <div
-        className="w-full max-w-7xl h-[86vh] border border-zinc-800 bg-app-bg shadow-xl flex flex-col rounded-lg overflow-hidden"
+        className="w-full max-w-[98vw] xl:max-w-[1800px] h-[92vh] border border-zinc-800 bg-zinc-950 shadow-2xl flex flex-col rounded-none overflow-hidden"
         style={{ cursor: dragState ? "grabbing" : "default", userSelect: dragState ? "none" : "auto" }}
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-zinc-800 bg-zinc-950 flex items-center justify-between gap-4">
+        <div className="px-6 py-4 border-b border-zinc-800 bg-zinc-900/50 flex items-center justify-between gap-4">
           <div className="min-w-0">
-            <h2 className="text-lg text-zinc-100 font-semibold tracking-tight flex items-center gap-2">
-              <ClipboardList className="text-brand-accent" size={20} />
-              Master Plan Board
+            <h2 className="text-lg text-zinc-100 font-semibold tracking-tight flex items-center gap-2.5">
+              <ClipboardList className="text-brand-accent" size={18} />
+              Master Plan
             </h2>
-            <div className="text-xs text-zinc-500 mt-1 truncate">
+            <div className="text-[10px] text-zinc-500 mt-1 truncate font-mono">
               {currentProject ? `${currentProject}\\MASTER_PLAN.md` : "Select a workspace to load the board"}
             </div>
           </div>
@@ -371,7 +370,7 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
               type="button"
               disabled={!currentProject || isBusy}
               onClick={() => refreshPlan().catch(console.error)}
-              className="p-2 text-zinc-500 hover:text-zinc-300 disabled:opacity-40 border border-zinc-800 hover:border-zinc-600 rounded-sm transition-colors"
+              className="p-1.5 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 disabled:opacity-40 rounded-none transition-all"
               title="Refresh MASTER_PLAN.md"
             >
               <RefreshCw size={16} className={isBusy ? "animate-spin" : ""} />
@@ -379,7 +378,7 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
             <button
               type="button"
               onClick={onClose}
-              className="p-2 text-zinc-500 hover:text-zinc-200 border border-zinc-800 hover:border-zinc-600 rounded-sm transition-colors"
+              className="p-1.5 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-none transition-all"
               title="Close"
             >
               <X size={16} />
@@ -388,40 +387,40 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
         </div>
 
         {/* Body */}
-        <div className="p-5 space-y-4 min-h-0 flex-1 overflow-hidden">
+        <div className="p-6 space-y-6 min-h-0 flex-1 overflow-hidden flex flex-col bg-app-bg">
           {!currentProject ? (
-            <div className="h-full border border-dashed border-zinc-800 rounded-md flex items-center justify-center text-sm text-zinc-500">
+            <div className="h-full border border-dashed border-zinc-800 rounded-none flex items-center justify-center text-sm text-zinc-500 font-medium">
               Select a workspace to load MASTER_PLAN.md
             </div>
           ) : tasks.length === 0 ? (
-            <div className="h-full border border-dashed border-zinc-800 rounded-md flex items-center justify-center text-sm text-zinc-500">
+            <div className="h-full border border-dashed border-zinc-800 rounded-none flex items-center justify-center text-sm text-zinc-500 font-medium">
               No markdown tasks found
             </div>
           ) : (
             <>
               {/* Progress bar + add task */}
-              <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs text-zinc-400">
-                    <span>{doneCount} / {tasks.length} complete</span>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 shrink-0">
+                <div className="flex-1 max-w-md space-y-2">
+                  <div className="flex items-center justify-between text-xs text-zinc-400 font-bold uppercase tracking-wider">
+                    <span>{doneCount} of {tasks.length} tasks complete</span>
                     <span>{progress}%</span>
                   </div>
-                  <div className="h-2 bg-zinc-950 border border-zinc-800 overflow-hidden rounded-sm">
-                    <div className="h-full bg-emerald-500 transition-all" style={{ width: `${progress}%` }} />
+                  <div className="h-2 bg-zinc-900 border border-zinc-800 overflow-hidden rounded-none">
+                    <div className="h-full bg-brand-accent transition-all duration-500 ease-out" style={{ width: `${progress}%` }} />
                   </div>
                 </div>
-                <form onSubmit={handleAddTask} className="flex items-center gap-2">
+                <form onSubmit={handleAddTask} className="flex items-center gap-2 w-full md:w-80 relative group">
                   <input
                     type="text"
                     value={newTask}
                     onChange={e => setNewTask(e.target.value)}
-                    placeholder="Add task to MASTER_PLAN.md"
-                    className="min-w-0 flex-1 bg-zinc-950 border border-zinc-800 focus:border-brand-accent text-zinc-300 px-3 py-2 text-xs outline-none rounded-sm"
+                    placeholder="Add a new task..."
+                    className="w-full bg-zinc-950 border border-zinc-800 focus:border-brand-accent text-zinc-200 px-4 py-2 text-sm outline-none rounded-none transition-all placeholder:text-zinc-600 font-medium shadow-inner"
                   />
                   <button
                     type="submit"
                     disabled={!newTask.trim() || isBusy}
-                    className="p-2 text-zinc-500 border border-zinc-800 hover:text-brand-primary hover:border-brand-accent disabled:opacity-40 rounded-sm transition-colors"
+                    className="absolute right-1.5 p-1 text-zinc-500 hover:text-brand-accent disabled:opacity-40 transition-colors"
                     title="Add task"
                   >
                     <Plus size={16} />
@@ -431,26 +430,26 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
 
               {/* Active tasks banner */}
               {(activeQueueTask || queuedTasks.length > 0 || activeTasks.length > 0) && (
-                <div className="border border-amber-500/20 bg-amber-500/10 px-4 py-3 rounded-sm">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="text-[10px] uppercase tracking-wide text-amber-400 font-bold">Queue Status</div>
-                    {queuedTasks.length > 0 && <div className="text-[10px] text-zinc-500">{queuedTasks.length} waiting</div>}
+                <div className="border border-amber-500/30 bg-amber-500/5 px-5 py-3 rounded-none shrink-0 shadow-sm">
+                  <div className="flex items-center justify-between gap-3 mb-2">
+                    <div className="text-[10px] uppercase tracking-widest text-amber-500 font-bold">Pipeline Status</div>
+                    {queuedTasks.length > 0 && <div className="text-[10px] text-amber-500/70 font-bold tracking-wider">{queuedTasks.length} waiting</div>}
                   </div>
-                  <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     {activeQueueTask && (
-                      <div className="text-xs text-zinc-100 truncate border border-emerald-500/20 bg-emerald-500/10 px-2 py-1.5 rounded-sm">
-                        <span className="text-emerald-400 font-bold mr-1">Active</span>
+                      <div className="text-xs text-zinc-200 truncate border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 rounded-none shadow-sm font-medium">
+                        <span className="text-emerald-400 font-bold mr-2 uppercase tracking-wide text-[10px]">Active</span>
                         {activeQueueTask.text}
                       </div>
                     )}
                     {queuedTasks.slice(0, 5).map((task, index) => (
-                      <div key={task.id} className="text-xs text-zinc-300 truncate border border-amber-500/10 bg-zinc-950/30 px-2 py-1.5 rounded-sm">
-                        <span className="text-amber-400 font-bold mr-1">Queued #{index + 1}</span>
+                      <div key={task.id} className="text-xs text-zinc-300 truncate border border-amber-500/20 bg-zinc-950 px-3 py-2 rounded-none font-medium">
+                        <span className="text-amber-500 font-bold mr-2 uppercase tracking-wide text-[10px]">Q#{index + 1}</span>
                         {task.text}
                       </div>
                     ))}
                     {!activeQueueTask && queuedTasks.length === 0 && activeTasks.slice(0, 6).map(task => (
-                      <div key={task.id} className="text-xs text-zinc-300 truncate border border-amber-500/10 bg-zinc-950/30 px-2 py-1.5 rounded-sm">
+                      <div key={task.id} className="text-xs text-zinc-300 truncate border border-amber-500/20 bg-zinc-950 px-3 py-2 rounded-none font-medium">
                         {task.text}
                       </div>
                     ))}
@@ -458,8 +457,8 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
                 </div>
               )}
 
-              {/* Kanban columns */}
-              <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 min-h-0 h-[calc(86vh-250px)]">
+              {/* Kanban columns - Flex evenly without scrollbars */}
+              <div className="flex flex-1 gap-4 pb-2 min-h-0">
                 {columns.map(column => {
                   const Icon = column.icon;
                   const columnTasks = tasks.filter(t => t.status === column.status);
@@ -469,92 +468,96 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
                     <div
                       key={column.status}
                       ref={el => { columnRefs.current.set(column.status, el); }}
-                      className={`min-w-0 min-h-0 flex flex-col border rounded-sm transition-all duration-150 ${
+                      className={`flex-1 flex flex-col border rounded-none transition-all duration-300 min-w-[200px] ${
                         isDropTarget
-                          ? "border-brand-accent/70 bg-brand-accent/5 shadow-[0_0_12px_0px_rgba(0,240,255,0.08)]"
-                          : "border-zinc-800/70 bg-zinc-950/50"
+                          ? "border-brand-accent/50 bg-brand-accent/5 shadow-inner"
+                          : "border-zinc-800 bg-zinc-900/30"
                       }`}
                     >
-                      <div className="px-4 py-3 border-b border-zinc-800 text-xs text-zinc-400 font-semibold flex items-center justify-between">
-                        <span className="flex items-center gap-1 min-w-0">
-                          <Icon
-                            size={14}
-                            className={
-                              column.status === "in_progress" ? "text-amber-400" :
-                              column.status === "waiting_completion" ? "text-blue-400" :
-                              column.status === "in_queue" ? "text-purple-400" :
-                              column.status === "done" ? "text-emerald-400" :
+                      <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/50">
+                        <div className="flex items-center gap-2">
+                          <Icon size={14} className={
+                              column.status === "in_progress" ? "text-amber-500" :
+                              column.status === "waiting_completion" ? "text-blue-500" :
+                              column.status === "in_queue" ? "text-purple-500" :
+                              column.status === "done" ? "text-emerald-500" :
                               "text-zinc-500"
-                            }
-                          />
-                          <span className="truncate">{column.label}</span>
+                          } />
+                          <span className="text-xs font-bold uppercase tracking-wider text-zinc-300">{column.label}</span>
+                        </div>
+                        <span className="text-[10px] font-mono font-bold text-zinc-500 bg-zinc-950 px-2 py-0.5 rounded-none border border-zinc-800">
+                          {columnTasks.length}
                         </span>
-                        <span>{columnTasks.length}</span>
                       </div>
 
-                      <div className="p-3 space-y-2 overflow-y-auto min-h-0 flex-1">
+                      <div className="p-3 space-y-3 overflow-y-auto min-h-0 flex-1 custom-scrollbar">
                         {columnTasks.map(task => {
                           const queueLabel = getQueueLabel(task);
                           return (
                             <div
                               key={task.id}
                               onPointerDown={e => handlePointerDown(e, task)}
-                              className={`bg-zinc-900/70 border px-3 py-2.5 rounded-sm select-none transition-opacity ${
+                              className={`group bg-zinc-950 hover:bg-zinc-900 border px-3 py-3 rounded-none shadow-sm hover:shadow-md transition-all select-none ${
                                 dragState?.task.id === task.id
-                                  ? "opacity-25 cursor-grabbing"
+                                  ? "opacity-30 cursor-grabbing"
                                   : task.status === "done"
-                                  ? "cursor-default"
-                                  : "cursor-grab hover:border-zinc-600"
-                              } ${task.line === activeTaskLine ? "border-emerald-500/50" : queuedTaskSet.has(task.line) ? "border-amber-500/40" : "border-zinc-800"}`}
+                                  ? "cursor-default border-zinc-800"
+                                  : "cursor-grab hover:border-zinc-600 border-zinc-800"
+                              } ${task.line === activeTaskLine ? "border-emerald-500/50" : queuedTaskSet.has(task.line) ? "border-amber-500/50" : ""}`}
                             >
-                              {/* pointer-events-none prevents children from stealing pointer events during drag */}
                               <div className="pointer-events-none">
-                                <div className="flex items-center justify-between gap-2">
-                                  <div className="text-[10px] text-zinc-500 truncate">{task.section}</div>
+                                <div className="flex items-start justify-between gap-2 mb-2">
+                                  <div className="text-[9px] uppercase tracking-widest font-bold text-zinc-500 truncate">{task.section}</div>
                                   {queueLabel && (
-                                    <div className={`text-[9px] px-1.5 py-0.5 rounded-sm border shrink-0 ${
+                                    <div className={`text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded-none border shrink-0 uppercase ${
                                       task.line === activeTaskLine
-                                        ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
-                                        : "border-amber-500/20 bg-amber-500/10 text-amber-400"
+                                        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                                        : "border-amber-500/30 bg-amber-500/10 text-amber-400"
                                     }`}>
                                       {queueLabel}
                                     </div>
                                   )}
                                 </div>
-                                <div className="text-sm text-zinc-300 leading-snug mt-1 break-words">{task.text}</div>
+                                <div className="text-sm font-medium text-zinc-200 leading-snug break-words">{task.text}</div>
                               </div>
-                              <div className="mt-2 flex items-center gap-1.5">
+                              <div className="mt-3 flex items-center justify-between pt-3 border-t border-zinc-800/80">
                                 <button
                                   type="button"
                                   onPointerDown={e => e.stopPropagation()}
                                   onClick={() => setSelectedTask(task)}
-                                  className="text-[10px] px-2 py-1 border border-zinc-800 text-zinc-500 hover:text-zinc-200 hover:border-zinc-600 rounded-sm transition-colors flex items-center gap-1"
+                                  className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 hover:text-brand-accent transition-colors flex items-center gap-1.5"
                                 >
-                                  <Info size={11} />
+                                  <Info size={12} />
                                   Details
                                 </button>
-                                {columns.filter(c => c.status !== task.status).map(c => (
-                                  <button
-                                    key={c.status}
-                                    type="button"
-                                    disabled={isBusy}
-                                    onPointerDown={e => e.stopPropagation()}
-                                    onClick={() => setTaskStatus(task, c.status)}
-                                    className="text-[10px] px-2 py-1 border border-zinc-800 text-zinc-500 hover:text-zinc-200 hover:border-zinc-600 disabled:opacity-40 rounded-sm transition-colors"
-                                  >
-                                    {c.label}
-                                  </button>
-                                ))}
+                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  {columns.filter(c => c.status !== task.status).map(c => {
+                                    const CIcon = c.icon;
+                                    return (
+                                      <button
+                                        key={c.status}
+                                        type="button"
+                                        disabled={isBusy}
+                                        onPointerDown={e => e.stopPropagation()}
+                                        onClick={() => setTaskStatus(task, c.status)}
+                                        className="p-1.5 rounded-none bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-zinc-200 hover:border-zinc-500 disabled:opacity-40 transition-colors shadow-sm"
+                                        title={`Move to ${c.label}`}
+                                      >
+                                        <CIcon size={12} />
+                                      </button>
+                                    );
+                                  })}
+                                </div>
                               </div>
                             </div>
                           );
                         })}
 
                         {columnTasks.length === 0 && (
-                          <div className={`text-[10px] px-1 py-10 text-center rounded-sm transition-all border border-dashed ${
+                          <div className={`text-[10px] font-bold uppercase tracking-wider px-1 py-8 text-center rounded-none transition-all border border-dashed ${
                             isDropTarget
-                              ? "text-brand-accent border-brand-accent/40"
-                              : "text-zinc-700 border-transparent"
+                              ? "text-brand-accent border-brand-accent/40 bg-brand-accent/5"
+                              : "text-zinc-600 border-zinc-800/50"
                           }`}>
                             {isDropTarget ? "↓ Drop here" : "Empty"}
                           </div>
