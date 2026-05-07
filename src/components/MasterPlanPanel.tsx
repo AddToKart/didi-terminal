@@ -1,9 +1,9 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
-import { CheckCircle2, Circle, ClipboardList, Info, Loader2, Plus, RefreshCw, X } from "lucide-react";
+import { CheckCircle2, Circle, ClipboardList, Info, Loader2, Plus, RefreshCw, X, Clock, ListOrdered } from "lucide-react";
 
-type PlanStatus = "todo" | "in_progress" | "done";
+type PlanStatus = "todo" | "in_queue" | "in_progress" | "waiting_completion" | "done";
 
 interface PlanTask {
   id: string;
@@ -39,12 +39,15 @@ interface DragState {
 }
 
 const taskPattern = /^(\s*)-\s+\[([ xX])\]\s+(.+?)\s*$/;
-const statusPattern = /<!--\s*didi:status=(todo|in_progress|done)\s*-->/i;
+const statusPattern = /<!--\s*didi:status=(todo|in_queue|in_progress|waiting_completion|done)\s*-->/i;
 
 const getTaskStatus = (checked: string, text: string): PlanStatus => {
   if (checked.toLowerCase() === "x") return "done";
   const marker = text.match(statusPattern)?.[1];
-  return marker === "in_progress" ? "in_progress" : "todo";
+  if (marker === "in_progress") return "in_progress";
+  if (marker === "waiting_completion") return "waiting_completion";
+  if (marker === "in_queue") return "in_queue";
+  return "todo";
 };
 
 const notePattern = /^(\s*)-\s+(.+?)\s*$/;
@@ -110,7 +113,9 @@ const parseMasterPlan = (markdown: string): PlanTask[] => {
 
 const columns: Array<{ status: PlanStatus; label: string; icon: typeof Circle }> = [
   { status: "todo", label: "Todo", icon: Circle },
-  { status: "in_progress", label: "Doing", icon: Loader2 },
+  { status: "in_queue", label: "In Queue", icon: ListOrdered },
+  { status: "in_progress", label: "In Progress", icon: Loader2 },
+  { status: "waiting_completion", label: "Waiting for Completion", icon: Clock },
   { status: "done", label: "Done", icon: CheckCircle2 },
 ];
 
@@ -324,6 +329,10 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
                             <CheckCircle2 size={14} className="text-emerald-400 mt-0.5 shrink-0" />
                           ) : child.status === "in_progress" ? (
                             <Loader2 size={14} className="text-amber-400 mt-0.5 shrink-0" />
+                          ) : child.status === "waiting_completion" ? (
+                            <Clock size={14} className="text-blue-400 mt-0.5 shrink-0" />
+                          ) : child.status === "in_queue" ? (
+                            <ListOrdered size={14} className="text-purple-400 mt-0.5 shrink-0" />
                           ) : child.status === "todo" ? (
                             <Circle size={14} className="text-zinc-500 mt-0.5 shrink-0" />
                           ) : (
@@ -450,7 +459,7 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
               )}
 
               {/* Kanban columns */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 min-h-0 h-[calc(86vh-250px)]">
+              <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 min-h-0 h-[calc(86vh-250px)]">
                 {columns.map(column => {
                   const Icon = column.icon;
                   const columnTasks = tasks.filter(t => t.status === column.status);
@@ -472,6 +481,8 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
                             size={14}
                             className={
                               column.status === "in_progress" ? "text-amber-400" :
+                              column.status === "waiting_completion" ? "text-blue-400" :
+                              column.status === "in_queue" ? "text-purple-400" :
                               column.status === "done" ? "text-emerald-400" :
                               "text-zinc-500"
                             }

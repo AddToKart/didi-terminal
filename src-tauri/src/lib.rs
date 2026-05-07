@@ -728,6 +728,7 @@ if (Test-Path $planPath) {
     $planLines = Get-Content $planPath
     $inQueue = $false
     $updatedLines = @()
+    $isChaining = (!$isCompletion -and ![string]::IsNullOrEmpty($ReportTo) -and $ReportTo -ne $sender)
 
     foreach ($line in $planLines) {
         # Track which section we are in
@@ -735,19 +736,27 @@ if (Test-Path $planPath) {
         elseif ($line -match "^###" -and $line -notmatch "^###\s+Agent Queue") { $inQueue = $false }
 
         if ($inQueue) {
-            if ($isCompletion) {
-                # Remove in_progress from sender's queue line
-                if ($line -match "(?i)^-\s*\[.\]\s*$([regex]::Escape($sender))[:\s]" -and $line -match "didi:status=in_progress") {
-                    $line = $line -replace "\s*<!--\s*didi:status=in_progress\s*-->", ""
+            if ($isCompletion -or $isChaining) {
+                # Mark sender as waiting_completion
+                if ($line -match "(?i)^-\s*\[.\]\s*$([regex]::Escape($sender))[:\s]") {
+                    $line = $line -replace "\s*<!--\s*didi:status=(in_progress|todo|in_queue|waiting_completion)\s*-->", ""
+                    $line = "$line <!-- didi:status=waiting_completion -->"
                 }
-            } else {
-                # Add in_progress to ALL pending queue entries
-                if ($line -match "^-\s*\[ \]" -and $line -notmatch "didi:status=in_progress") {
-                    $line = "$line <!-- didi:status=in_progress -->"
+            }
+            
+            if (!$isCompletion) {
+                # Add in_queue to ALL pending queue entries that don't have a status
+                if ($line -match "^-\s*\[ \]" -and $line -notmatch "didi:status=") {
+                    $line = "$line <!-- didi:status=in_queue -->"
                 }
-                # Capture target's line for the SYSTEM RULE hint
-                if ($line -match "(?i)^-\s*\[.\]\s*$([regex]::Escape($Target))[:\s]" -and !$targetTaskLine) {
-                    $targetTaskLine = $line.Trim()
+                
+                # If Target is receiving task, mark them in_progress
+                if ($line -match "(?i)^-\s*\[.\]\s*$([regex]::Escape($Target))[:\s]") {
+                    $line = $line -replace "\s*<!--\s*didi:status=(todo|in_queue|waiting_completion)\s*-->", ""
+                    if ($line -notmatch "didi:status=in_progress") {
+                        $line = "$line <!-- didi:status=in_progress -->"
+                    }
+                    if (!$targetTaskLine) { $targetTaskLine = $line.Trim() }
                 }
             }
         }
@@ -885,7 +894,7 @@ Do NOT delegate to Documentator yourself. Builder will do that.
 You are now idle. The system will resume you when the callback comes in.
 
 ### Step 4 — When ALL callbacks arrive:
-- Mark each top-level task as `[x]` in MASTER_PLAN.md.
+- Mark each top-level task as `[x]` in the `### Agent Queue` in MASTER_PLAN.md to move them to the 'Done' column.
 - Notify the human that all tasks are complete.
 
 ---
