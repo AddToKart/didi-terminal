@@ -7,7 +7,6 @@ import {
   useSensors,
   closestCenter,
   type DragEndEvent,
-  type DragStartEvent,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -15,7 +14,6 @@ import {
   rectSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useState } from "react";
 
 interface AppTerminalAreaProps {
   agents: string[];
