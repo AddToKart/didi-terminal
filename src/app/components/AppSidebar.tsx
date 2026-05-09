@@ -1,4 +1,4 @@
-import { Activity, ChevronDown, ChevronRight, Cpu, FolderOpen, Server, Settings, ShieldAlert, Terminal, X } from "lucide-react";
+import { Activity, ChevronDown, ChevronRight, Cpu, FolderOpen, Server, ShieldAlert, X } from "lucide-react";
 import { SentinelPanel, type SentinelIncident } from "../../components/SentinelPanel";
 import { SnapshotPanel, type GitSnapshotRecord } from "../../components/SnapshotPanel";
 import { getPtyKey, type ActivityLog, type TaskRecord } from "../../services/app-core";
@@ -8,7 +8,6 @@ interface AppSidebarProps {
   currentProject: string | null;
   onOpenProject: () => void;
   onInitialize: () => void;
-  onOpenSettings: () => void;
   sentinelEnabled: boolean;
   sentinelIncidents: SentinelIncident[];
   onToggleSentinel: () => void;
@@ -34,7 +33,6 @@ export function AppSidebar({
   currentProject,
   onOpenProject,
   onInitialize,
-  onOpenSettings,
   sentinelEnabled,
   sentinelIncidents,
   onToggleSentinel,
@@ -55,20 +53,7 @@ export function AppSidebar({
   activity,
 }: AppSidebarProps) {
   return (
-    <aside className="w-72 border-r border-app-border bg-app-panel flex flex-col shadow-md z-10 shrink-0">
-      <div className="p-4 border-b border-app-border flex justify-between items-start">
-        <div>
-          <div className="flex items-center gap-2 text-brand-primary mb-1">
-            <Terminal size={20} className="stroke-[2.5]" />
-            <h1 className="text-lg font-bold tracking-widest uppercase">DidiTerminal</h1>
-          </div>
-          <p className="text-xs text-slate-500 font-medium tracking-tight font-semibold">Orchestrator Node v2.0</p>
-        </div>
-        <button onClick={onOpenSettings} className="text-slate-500 hover:text-brand-primary transition-colors mt-1" title="Settings">
-          <Settings size={16} />
-        </button>
-      </div>
-
+    <aside className="w-72 border-l border-app-border bg-app-panel flex flex-col shadow-md z-10 shrink-0">
       <div className="flex-1 overflow-y-auto flex flex-col">
         <div className="shrink-0 p-4 border-b border-app-border space-y-4">
           <div className="flex justify-between items-center text-xs font-semibold text-zinc-400">

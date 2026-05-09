@@ -1,6 +1,22 @@
-import { Fragment, type DragEvent } from "react";
-import { Group, Panel, Separator } from "react-resizable-panels";
+import { Fragment } from "react";
 import { TerminalInstance } from "../../components/TerminalInstance";
+import { FolderOpen } from "lucide-react";
+import {
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  rectSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { useState } from "react";
 
 interface AppTerminalAreaProps {
   agents: string[];
@@ -8,10 +24,55 @@ interface AppTerminalAreaProps {
   layoutOrientation: "horizontal" | "vertical" | "grid";
   onRemoveAgent: (agent: string) => void;
   onDetachAgent: (agent: string) => void;
-  onDragStart: (e: DragEvent, index: number) => void;
-  onDrop: (e: DragEvent, index: number) => void;
-  onDragOver: (e: DragEvent) => void;
+  onReorderAgents: (oldIndex: number, newIndex: number) => void;
+  onSplit: (agent: string) => void;
+  onOpenDirectory?: () => void;
 }
+
+// ── Sortable terminal wrapper ──────────────────────────────────────────────
+
+interface SortableTerminalWrapperProps {
+  agent: string;
+  currentProject: string | null;
+  onRemove: () => void;
+  onDetach: () => void;
+  onSplit: () => void;
+  flexBasis?: string;
+  height?: string;
+}
+
+function SortableTerminalWrapper({ agent, currentProject, onRemove, onDetach, onSplit, flexBasis, height }: SortableTerminalWrapperProps) {
+  const { attributes, listeners, setNodeRef, isDragging, transform, transition } = useSortable({
+    id: agent,
+    data: { agentName: agent }
+  });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : 1,
+    position: 'relative' as const,
+    flexBasis,
+    flexGrow: flexBasis ? 1 : undefined,
+    height,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className={`min-h-0 min-w-0 flex-1 flex flex-col bg-[#020202] ${isDragging ? "shadow-2xl opacity-90 scale-[1.02] ring-1 ring-brand-accent/50 rounded-md overflow-hidden" : ""}`}>
+      <TerminalInstance
+        agentName={agent}
+        cwd={currentProject}
+        onRemove={onRemove}
+        onDetach={onDetach}
+        onSplit={onSplit}
+        dragAttributes={attributes}
+        dragListeners={listeners}
+      />
+    </div>
+  );
+}
+
+// ── Main terminal area ────────────────────────────────────────────────────────
 
 export function AppTerminalArea({
   agents,
@@ -19,70 +80,88 @@ export function AppTerminalArea({
   layoutOrientation,
   onRemoveAgent,
   onDetachAgent,
-  onDragStart,
-  onDrop,
-  onDragOver,
+  onReorderAgents,
+  onSplit,
+  onOpenDirectory,
 }: AppTerminalAreaProps) {
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveDragId(event.active.id as string);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    setActiveDragId(null);
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    
+    const oldIndex = agents.indexOf(active.id as string);
+    const newIndex = agents.indexOf(over.id as string);
+    if (oldIndex !== -1 && newIndex !== -1) {
+      onReorderAgents(oldIndex, newIndex);
+    }
+  };
+
   return (
-    <div className="flex-1 p-2 bg-[#020202]">
+    <div className="flex-1 p-2 bg-[#020202] flex flex-col min-h-0 min-w-0">
       {agents.length === 0 ? (
-        <div className="h-full flex items-center justify-center text-slate-600 text-sm font-mono border border-dashed border-app-border">
-          NO ACTIVE AGENTS
+        <div className="h-full flex flex-col items-center justify-center text-slate-500 gap-4 border border-dashed border-app-border rounded-lg">
+          <div className="text-sm font-mono">NO ACTIVE AGENTS</div>
+          {!currentProject && onOpenDirectory && (
+            <button
+              onClick={onOpenDirectory}
+              className="px-4 py-2 bg-zinc-900 text-zinc-300 border border-zinc-800 rounded-lg hover:bg-zinc-800 transition-colors text-xs font-bold flex items-center gap-2"
+            >
+              <FolderOpen size={14} /> Open Directory
+            </button>
+          )}
         </div>
       ) : (
-        layoutOrientation === "grid" ? (
-          <Group orientation="vertical" className="h-full w-full rounded-lg overflow-hidden border border-app-border">
-            {Array.from({ length: Math.ceil(agents.length / Math.ceil(Math.sqrt(agents.length))) }).map((_, rowIndex) => {
-              const cols = Math.ceil(Math.sqrt(agents.length));
-              const rowAgents = agents.slice(rowIndex * cols, rowIndex * cols + cols);
-              const rowsCount = Math.ceil(agents.length / cols);
-              return (
-                <Fragment key={`row-${rowIndex}`}>
-                  {rowIndex > 0 && <Separator className="bg-app-border transition-colors hover:bg-brand-accent focus:bg-brand-accent h-1 my-0.5" />}
-                  <Panel defaultSize={100 / rowsCount} minSize={10}>
-                    <Group orientation="horizontal" className="h-full w-full">
-                      {rowAgents.map((agent, colIndex) => (
-                        <Fragment key={agent}>
-                          {colIndex > 0 && <Separator className="bg-app-border transition-colors hover:bg-brand-accent focus:bg-brand-accent w-1 mx-0.5" />}
-                          <Panel defaultSize={100 / rowAgents.length} minSize={10}>
-                            <TerminalInstance
-                              agentName={agent}
-                              cwd={currentProject}
-                              onRemove={() => onRemoveAgent(agent)}
-                              onDetach={() => onDetachAgent(agent)}
-                              onDragStart={(e) => onDragStart(e, agents.indexOf(agent))}
-                              onDrop={(e) => onDrop(e, agents.indexOf(agent))}
-                              onDragOver={onDragOver}
-                            />
-                          </Panel>
-                        </Fragment>
-                      ))}
-                    </Group>
-                  </Panel>
-                </Fragment>
-              );
-            })}
-          </Group>
-        ) : (
-          <Group orientation={layoutOrientation} className="h-full w-full rounded-lg overflow-hidden border border-app-border">
-            {agents.map((agent, index) => (
-              <Fragment key={agent}>
-                {index > 0 && <Separator className={`bg-app-border transition-colors hover:bg-brand-accent focus:bg-brand-accent ${layoutOrientation === "horizontal" ? "w-1 mx-0.5" : "h-1 my-0.5"}`} />}
-                <Panel defaultSize={100 / agents.length} minSize={10}>
-                  <TerminalInstance
-                    agentName={agent}
-                    cwd={currentProject}
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+          <SortableContext items={agents} strategy={rectSortingStrategy}>
+            <div
+              className={`flex-1 min-h-0 min-w-0 rounded-lg overflow-hidden border border-app-border bg-app-border ${
+                layoutOrientation === "grid"
+                  ? "flex flex-row flex-wrap content-stretch gap-1"
+                  : `flex gap-1 ${layoutOrientation === "horizontal" ? "flex-row" : "flex-col"}`
+              }`}
+            >
+              {agents.map((agent) => {
+                const cols = Math.ceil(Math.sqrt(agents.length));
+                const rows = Math.ceil(agents.length / cols);
+                
+                // Calculate the exact mathematical flex-basis to fit `cols` items perfectly.
+                // gap-1 is 4px. A row of `cols` items has `cols - 1` gaps.
+                const gapTotal = (cols - 1) * 4;
+                const flexBasis = layoutOrientation === "grid" 
+                  ? `calc((100% - ${gapTotal}px) / ${cols})` 
+                  : undefined;
+                  
+                const gapRowsTotal = (rows - 1) * 4;
+                const height = layoutOrientation === "grid"
+                  ? `calc((100% - ${gapRowsTotal}px) / ${rows})`
+                  : undefined;
+                
+                return (
+                  <SortableTerminalWrapper
+                    key={agent}
+                    agent={agent}
+                    currentProject={currentProject}
                     onRemove={() => onRemoveAgent(agent)}
                     onDetach={() => onDetachAgent(agent)}
-                    onDragStart={(e: DragEvent) => onDragStart(e, index)}
-                    onDrop={(e: DragEvent) => onDrop(e, index)}
-                    onDragOver={onDragOver}
+                    onSplit={() => onSplit(agent)}
+                    flexBasis={flexBasis}
+                    height={height}
                   />
-                </Panel>
-              </Fragment>
-            ))}
-          </Group>
-        )
+                );
+              })}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
     </div>
   );

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type DragEvent, type FormEvent, lazy } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent, lazy } from "react";
 import { emit } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -28,8 +28,25 @@ import { AppGlobalSidebar } from "./app/components/AppGlobalSidebar";
 import { AppTopbar } from "./app/components/AppTopbar";
 import { AppTerminalArea } from "./app/components/AppTerminalArea";
 
+import { AppTerminalTabs } from "./app/components/AppTerminalTabs";
+
 const NetworkGraph = lazy(() => import("./components/NetworkGraph").then(module => ({ default: module.NetworkGraph })));
 const SettingsModal = lazy(() => import("./components/SettingsModal").then(module => ({ default: module.SettingsModal })));
+
+export interface TerminalTab {
+  id: string;
+  name: string;
+  agents: string[];
+  layoutOrientation: "horizontal" | "vertical" | "grid";
+}
+
+export interface WorkspaceState {
+  id: string;
+  name: string;
+  directory: string | null;
+  tabs: TerminalTab[];
+  activeTabId: string;
+}
 
 function App() {
   const params = new URLSearchParams(window.location.search);
@@ -47,15 +64,64 @@ function App() {
   const [appMode, setAppMode] = useState<"terminal" | "orchestrator">(() => {
     return (localStorage.getItem("didi_app_mode") as "terminal" | "orchestrator") || "orchestrator";
   });
-  const [agents, setAgents] = useState<string[]>(() => {
-    const saved = localStorage.getItem("didi_agents");
-    return saved ? getUniqueAgents(JSON.parse(saved)) : ["Main Terminal"];
+  
+  const [workspaces, setWorkspaces] = useState<WorkspaceState[]>(() => {
+    const saved = localStorage.getItem("didi_workspaces");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {
+        console.warn("Failed to parse saved workspaces", e);
+      }
+    }
+    // Fallback migration
+    const legacyTabs = localStorage.getItem("didi_tabs");
+    const legacyProject = localStorage.getItem("didi_project");
+    let initialTabs = [{ id: crypto.randomUUID(), name: "Workspace", agents: ["Terminal 1"], layoutOrientation: "horizontal" as const }];
+    if (legacyTabs) {
+      try {
+        const parsed = JSON.parse(legacyTabs);
+        if (Array.isArray(parsed) && parsed.length > 0) initialTabs = parsed;
+      } catch(e) {}
+    }
+    return [{
+      id: crypto.randomUUID(),
+      name: "Workspace 1",
+      directory: legacyProject || null,
+      tabs: initialTabs,
+      activeTabId: localStorage.getItem("didi_active_tab") || initialTabs[0].id
+    }];
   });
+
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string>(() => {
+    const saved = localStorage.getItem("didi_active_workspace");
+    return saved || (workspaces.length > 0 ? workspaces[0].id : "");
+  });
+
+  const activeWorkspace = workspaces.find(w => w.id === activeWorkspaceId) || workspaces[0];
+  const currentProject = activeWorkspace?.directory || null;
+  const tabs = activeWorkspace?.tabs || [];
+  const activeTabId = activeWorkspace?.activeTabId || "";
+
+  const setTabs = (val: TerminalTab[] | ((prev: TerminalTab[]) => TerminalTab[])) => {
+    setWorkspaces(prev => prev.map(w => {
+      if (w.id !== activeWorkspaceId) return w;
+      return { ...w, tabs: typeof val === "function" ? val(w.tabs) : val };
+    }));
+  };
+
+  const setActiveTabId = (val: string) => {
+    setWorkspaces(prev => prev.map(w => w.id === activeWorkspaceId ? { ...w, activeTabId: val } : w));
+  };
+
+  // Derived state for legacy compatibility
+  const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0];
+  const allAgents = getUniqueAgents(tabs.flatMap(t => t.agents));
+  const agents = activeTab ? activeTab.agents : [];
+  const layoutOrientation = activeTab ? activeTab.layoutOrientation : "horizontal";
+
   const [newAgentName, setNewAgentName] = useState("");
-  const [currentProject, setCurrentProject] = useState<string | null>(() => localStorage.getItem("didi_project"));
-  const [layoutOrientation, setLayoutOrientation] = useState<"horizontal" | "vertical" | "grid">(() => {
-    return (localStorage.getItem("didi_layout") as "horizontal" | "vertical" | "grid") || "horizontal";
-  });
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => localStorage.getItem("didi_sidebar") !== "false");
   const [showNetworkGraph, setShowNetworkGraph] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -81,7 +147,7 @@ function App() {
 
   const pendingHandoffs = useRef<Map<string, string[]>>(new Map());
   const readyAgents = useRef<Set<string>>(new Set());
-  const agentsRef = useRef(agents);
+  const agentsRef = useRef(allAgents);
   const currentProjectRef = useRef(currentProject);
   const logIdCounter = useRef(1);
   const sentinelEnabledRef = useRef(sentinelEnabled);
@@ -91,6 +157,10 @@ function App() {
   const activeMasterPlanTask = useRef<ActiveMasterPlanTask | null>(null);
   const queuedMasterPlanTasks = useRef<MasterPlanTaskDispatch[]>([]);
   const activeAgentPlanTasks = useRef<Map<string, string[]>>(new Map());
+
+  useEffect(() => {
+    agentsRef.current = allAgents;
+  }, [allAgents]);
 
   useEffect(() => {
     localStorage.setItem("didi_app_mode", appMode);
@@ -152,34 +222,6 @@ function App() {
   });
 
   useEffect(() => {
-    const uniqueAgents = getUniqueAgents(agents);
-    if (uniqueAgents.length !== agents.length) {
-      setAgents(uniqueAgents);
-      return;
-    }
-
-    agentsRef.current = uniqueAgents;
-    localStorage.setItem("didi_agents", JSON.stringify(uniqueAgents));
-  }, [agents]);
-
-  useEffect(() => {
-    sentinelEnabledRef.current = sentinelEnabled;
-    localStorage.setItem("didi_sentinel", String(sentinelEnabled));
-  }, [sentinelEnabled]);
-
-  useEffect(() => {
-    brainstormSessionsRef.current = brainstormSessions;
-  }, [brainstormSessions]);
-
-  useEffect(() => {
-    localStorage.setItem("didi_layout", layoutOrientation);
-  }, [layoutOrientation]);
-
-  useEffect(() => {
-    localStorage.setItem("didi_sidebar", String(isSidebarOpen));
-  }, [isSidebarOpen]);
-
-  useEffect(() => {
     if (currentProject) {
       localStorage.setItem("didi_project", currentProject);
     } else {
@@ -235,42 +277,67 @@ function App() {
     writeHandoff,
     queueHandoff,
     flushQueuedHandoff,
-  }), []);
+  }), [writeHandoff, queueHandoff, flushQueuedHandoff]);
 
-  const spawnAgent = (e: FormEvent) => {
-    e.preventDefault();
-    const name = newAgentName.trim();
-    if (name && !findMatchingAgent(agents, name)) {
-      setAgents([...agents, name]);
-      setNewAgentName("");
-      addLog(`Spawned agent: ${name}`, "system");
+  useEffect(() => {
+    localStorage.setItem("didi_tabs", JSON.stringify(tabs));
+    localStorage.setItem("didi_active_tab", activeTabId);
+  }, [tabs, activeTabId]);
+
+  const handleWorkspaceSelect = (id: string) => {
+    setActiveWorkspaceId(id);
+  };
+
+  const handleWorkspaceReorder = (dragIndex: number, dropIndex: number) => {
+    setWorkspaces(prev => {
+      const next = [...prev];
+      const [draggedWs] = next.splice(dragIndex, 1);
+      next.splice(dropIndex, 0, draggedWs);
+      return next;
+    });
+  };
+
+  const handleWorkspaceRename = (id: string, newName: string) => {
+    setWorkspaces(prev => prev.map(w => w.id === id ? { ...w, name: newName } : w));
+  };
+
+  const handleWorkspaceDelete = (id: string) => {
+    const newWs = workspaces.filter(w => w.id !== id);
+    if (newWs.length === 0) {
+      const defaultWs: WorkspaceState = {
+        id: crypto.randomUUID(),
+        name: `Workspace 1`,
+        directory: null,
+        tabs: [{ id: crypto.randomUUID(), name: "Tab 1", agents: ["Terminal 1"], layoutOrientation: "horizontal" }],
+        activeTabId: ""
+      };
+      defaultWs.activeTabId = defaultWs.tabs[0].id;
+      setWorkspaces([defaultWs]);
+      setActiveWorkspaceId(defaultWs.id);
+    } else {
+      setWorkspaces(newWs);
+      if (activeWorkspaceId === id) setActiveWorkspaceId(newWs[0].id);
     }
   };
 
-  const removeAgent = (agentToRemove: string) => {
-    const agentKey = getPtyKey(agentToRemove);
-    invoke("close_pty", { agent: agentKey }).catch(console.error);
-    pendingHandoffs.current.delete(agentKey);
-    readyAgents.current.delete(agentKey);
-    setAgentQueueCounts(prev => {
-      const next = { ...prev };
-      delete next[agentKey];
-      return next;
-    });
-    setAgents(agents.filter(a => a !== agentToRemove));
-    addLog(`Terminated agent: ${agentToRemove}`, "system");
+  const handleCreateWorkspace = () => {
+    const newWs: WorkspaceState = {
+      id: crypto.randomUUID(),
+      name: `Workspace ${workspaces.length + 1}`,
+      directory: null,
+      tabs: [{ id: crypto.randomUUID(), name: "Tab 1", agents: ["Terminal 1"], layoutOrientation: "horizontal" }],
+      activeTabId: ""
+    };
+    newWs.activeTabId = newWs.tabs[0].id;
+    setWorkspaces([...workspaces, newWs]);
+    setActiveWorkspaceId(newWs.id);
   };
 
-  const detachAgent = (agentToDetach: string) => {
-    setAgents(agents.filter(a => a !== agentToDetach));
-    addLog(`Detached agent: ${agentToDetach}`, "system");
-  };
-
-  const handleOpenProject = async () => {
+  const handleOpenDirectory = async (id: string) => {
     const selected = await open({ directory: true, multiple: false });
     if (selected) {
-      setCurrentProject(selected as string);
-      addLog(`Opened workspace: ${selected}`, "system");
+      setWorkspaces(prev => prev.map(w => w.id === id ? { ...w, directory: selected as string } : w));
+      addLog(`Opened workspace directory: ${selected}`, "system");
     }
   };
 
@@ -322,22 +389,114 @@ function App() {
     }
   };
 
-  const handleDragStart = (e: DragEvent, index: number) => {
-    e.dataTransfer.setData("agentIndex", index.toString());
+  const handleReorderAgents = (oldIndex: number, newIndex: number) => {
+    setTabs(prev => prev.map(t => {
+      if (t.id !== activeTabId) return t;
+      const newAgents = [...t.agents];
+      const [moved] = newAgents.splice(oldIndex, 1);
+      newAgents.splice(newIndex, 0, moved);
+      return { ...t, agents: newAgents };
+    }));
   };
 
-  const handleDrop = (e: DragEvent, dropIndex: number) => {
-    const dragIndex = parseInt(e.dataTransfer.getData("agentIndex"));
-    if (isNaN(dragIndex) || dragIndex === dropIndex) return;
-
-    const newAgents = [...agents];
-    const [draggedAgent] = newAgents.splice(dragIndex, 1);
-    newAgents.splice(dropIndex, 0, draggedAgent);
-    setAgents(newAgents);
+  const handleTabCreate = () => {
+    const newTab: TerminalTab = {
+      id: crypto.randomUUID(),
+      name: `Tab ${tabs.length + 1}`,
+      agents: ["Main Terminal"],
+      layoutOrientation: "horizontal",
+    };
+    setTabs([...tabs, newTab]);
+    setActiveTabId(newTab.id);
   };
 
-  const handleDragOver = (e: DragEvent) => {
+  const handleTabSelect = (id: string) => {
+    setActiveTabId(id);
+  };
+
+  const handleTabRename = (id: string, newName: string) => {
+    setTabs(prev => prev.map(t => t.id === id ? { ...t, name: newName } : t));
+  };
+
+  const handleTabClose = (id: string) => {
+    const newTabs = tabs.filter(t => t.id !== id);
+    if (newTabs.length === 0) {
+      const fallbackTab: TerminalTab = {
+        id: crypto.randomUUID(),
+        name: "Tab 1",
+        agents: ["Main Terminal"],
+        layoutOrientation: "horizontal",
+      };
+      setTabs([fallbackTab]);
+      setActiveTabId(fallbackTab.id);
+    } else {
+      setTabs(newTabs);
+      if (activeTabId === id) setActiveTabId(newTabs[newTabs.length - 1].id);
+    }
+  };
+
+  const spawnAgent = (e: FormEvent) => {
     e.preventDefault();
+    let name = newAgentName.trim();
+    if (!name) {
+      let counter = 1;
+      name = `Terminal ${counter}`;
+      while (allAgents.includes(name)) {
+        counter++;
+        name = `Terminal ${counter}`;
+      }
+    }
+    if (!findMatchingAgent(allAgents, name)) {
+      setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, agents: [...t.agents, name] } : t));
+      setNewAgentName("");
+      addLog(`Spawned terminal: ${name}`, "system");
+    }
+  };
+
+  const removeAgent = (agentToRemove: string) => {
+    const agentKey = getPtyKey(agentToRemove);
+    invoke("close_pty", { agent: agentKey }).catch(console.error);
+    pendingHandoffs.current.delete(agentKey);
+    readyAgents.current.delete(agentKey);
+    setAgentQueueCounts(prev => {
+      const next = { ...prev };
+      delete next[agentKey];
+      return next;
+    });
+    setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, agents: t.agents.filter(a => a !== agentToRemove) } : t));
+    addLog(`Terminated agent: ${agentToRemove}`, "system");
+  };
+
+  const detachAgent = (agentToDetach: string) => {
+    setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, agents: t.agents.filter(a => a !== agentToDetach) } : t));
+    addLog(`Detached agent: ${agentToDetach}`, "system");
+  };
+
+
+  const handleSetLayoutOrientation = (orientation: "horizontal" | "vertical" | "grid") => {
+    setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, layoutOrientation: orientation } : t));
+  };
+
+  const handleSplit = (agentToSplit: string) => {
+    // Generate a unique name for the split terminal
+    const baseName = agentToSplit.replace(/-\d+$/, "");
+    let counter = 1;
+    let newName = `${baseName}-${counter}`;
+    while (allAgents.includes(newName)) {
+      counter++;
+      newName = `${baseName}-${counter}`;
+    }
+    
+    setTabs(prev => prev.map(t => {
+      if (t.id !== activeTabId) return t;
+      const index = t.agents.indexOf(agentToSplit);
+      if (index === -1) return { ...t, agents: [...t.agents, newName] };
+      const newAgents = [...t.agents];
+      newAgents.splice(index + 1, 0, newName);
+      return { ...t, agents: newAgents };
+    }));
+    
+    addLog(`Split terminal: ${newName}`, "system");
   };
 
   const handleKillAgent = (agent: string) => {
@@ -393,9 +552,15 @@ function App() {
       <AppGlobalSidebar
         appMode={appMode}
         onSetAppMode={setAppMode}
-        currentProject={currentProject}
-        onOpenProject={handleOpenProject}
+        workspaces={workspaces}
+        activeWorkspaceId={activeWorkspaceId}
+        onWorkspaceSelect={handleWorkspaceSelect}
+        onCreateWorkspace={handleCreateWorkspace}
+        onOpenDirectory={handleOpenDirectory}
         onOpenSettings={() => setShowSettings(true)}
+        onWorkspaceReorder={handleWorkspaceReorder}
+        onWorkspaceRename={handleWorkspaceRename}
+        onWorkspaceDelete={handleWorkspaceDelete}
       />
 
       <AppOverlays
@@ -426,13 +591,48 @@ function App() {
         onRejectHitl={handleHitlReject}
       />
 
+      <section className="flex-1 flex flex-col min-w-0">
+        <AppTopbar
+          appMode={appMode}
+          onSpawnAgent={spawnAgent}
+          newAgentName={newAgentName}
+          onChangeNewAgentName={setNewAgentName}
+          onOpenBrainstorm={() => setShowBrainstorm(true)}
+          onOpenMasterPlan={() => setShowMasterPlan(true)}
+          onOpenNetworkGraph={() => setShowNetworkGraph(true)}
+          layoutOrientation={layoutOrientation}
+          onSetLayoutOrientation={handleSetLayoutOrientation}
+          isSidebarOpen={isSidebarOpen}
+          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+        />
+
+        <AppTerminalTabs
+          tabs={tabs}
+          activeTabId={activeTabId}
+          onTabSelect={handleTabSelect}
+          onTabClose={handleTabClose}
+          onTabCreate={handleTabCreate}
+          onTabRename={handleTabRename}
+        />
+
+        <AppTerminalArea
+          agents={agents}
+          currentProject={currentProject}
+          layoutOrientation={layoutOrientation}
+          onRemoveAgent={removeAgent}
+          onDetachAgent={detachAgent}
+          onReorderAgents={handleReorderAgents}
+          onSplit={handleSplit}
+          onOpenDirectory={() => handleOpenDirectory(activeWorkspaceId)}
+        />
+      </section>
+
       {isSidebarOpen && appMode === "orchestrator" && (
         <AppSidebar
           sidecarStatus={sidecarStatus}
           currentProject={currentProject}
-          onOpenProject={handleOpenProject}
+          onOpenProject={() => handleOpenDirectory(activeWorkspaceId)}
           onInitialize={handleInitialize}
-          onOpenSettings={() => setShowSettings(true)}
           sentinelEnabled={sentinelEnabled}
           sentinelIncidents={sentinelIncidents}
           onToggleSentinel={() => setSentinelEnabled(value => !value)}
@@ -453,33 +653,6 @@ function App() {
           activity={activity}
         />
       )}
-
-      <section className="flex-1 flex flex-col min-w-0">
-        <AppTopbar
-          appMode={appMode}
-          onSpawnAgent={spawnAgent}
-          newAgentName={newAgentName}
-          onChangeNewAgentName={setNewAgentName}
-          onOpenBrainstorm={() => setShowBrainstorm(true)}
-          onOpenMasterPlan={() => setShowMasterPlan(true)}
-          onOpenNetworkGraph={() => setShowNetworkGraph(true)}
-          layoutOrientation={layoutOrientation}
-          onSetLayoutOrientation={setLayoutOrientation}
-          isSidebarOpen={isSidebarOpen}
-          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-        />
-
-        <AppTerminalArea
-          agents={agents}
-          currentProject={currentProject}
-          layoutOrientation={layoutOrientation}
-          onRemoveAgent={removeAgent}
-          onDetachAgent={detachAgent}
-          onDragStart={handleDragStart}
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-        />
-      </section>
     </main>
   );
 }

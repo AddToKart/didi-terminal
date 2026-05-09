@@ -47,12 +47,12 @@ interface Props {
   cwd?: string | null;
   onRemove?: () => void;
   onDetach?: () => void;
-  onDragStart?: (e: React.DragEvent) => void;
-  onDrop?: (e: React.DragEvent) => void;
-  onDragOver?: (e: React.DragEvent) => void;
+  onSplit?: () => void;
+  dragAttributes?: any;
+  dragListeners?: any;
 }
 
-export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onDragStart, onDrop, onDragOver }: Props) {
+export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, dragAttributes, dragListeners }: Props) {
   const terminalRef = useRef<HTMLDivElement>(null);
   const term = useRef<Terminal | null>(null);
   const searchAddon = useRef<SearchAddon | null>(null);
@@ -63,6 +63,11 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onDragSta
   const [searchQuery, setSearchQuery] = useState("");
   const [stats, setStats] = useState({ cpu: 0, mem: 0 });
   const [sentinelPaused, setSentinelPaused] = useState(false);
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (onSplit) onSplit();
+  };
 
   const executeMacro = (command: string) => {
     const agent = agentName.toLowerCase();
@@ -285,11 +290,11 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onDragSta
       
       {/* Terminal Header & Macros */}
       <div 
-        className={`flex items-center justify-between px-3 py-1.5 border-b transition-colors duration-300 cursor-grab active:cursor-grabbing ${sentinelPaused ? 'bg-red-500/10 border-red-400/50' : isPulsing ? 'bg-brand-accent/10 border-brand-accent/50' : 'bg-[#080809] border-app-border'}`}
-        draggable
-        onDragStart={onDragStart}
-        onDrop={onDrop}
-        onDragOver={onDragOver}
+        className={`flex items-center justify-between px-3 py-1.5 border-b transition-colors duration-300 ${dragListeners ? 'cursor-grab active:cursor-grabbing' : ''} ${sentinelPaused ? 'bg-red-500/10 border-red-400/50' : isPulsing ? 'bg-brand-accent/10 border-brand-accent/50' : 'bg-[#080809] border-app-border'}`}
+        onContextMenu={handleContextMenu}
+        title={dragListeners ? "Drag to reorder • Right-click to split pane" : "Right-click to split pane"}
+        {...dragAttributes}
+        {...dragListeners}
       >
         <div className="flex items-center gap-2">
           <TerminalIcon size={12} className={sentinelPaused ? 'text-red-300' : isPulsing ? 'text-brand-primary' : 'text-slate-500'} />
