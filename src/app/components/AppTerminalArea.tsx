@@ -1,4 +1,5 @@
 import { TerminalInstance } from "../../components/TerminalInstance";
+import { BrowserInstance } from "../../components/BrowserInstance";
 import { FolderOpen } from "lucide-react";
 import {
   DndContext,
@@ -56,15 +57,25 @@ function SortableTerminalWrapper({ agent, currentProject, onRemove, onDetach, on
 
   return (
     <div ref={setNodeRef} style={style} className={`min-h-0 min-w-0 flex-1 flex flex-col bg-[#020202] ${isDragging ? "shadow-2xl opacity-90 scale-[1.02] ring-1 ring-brand-accent/50 rounded-md overflow-hidden" : ""}`}>
-      <TerminalInstance
-        agentName={agent}
-        cwd={currentProject}
-        onRemove={onRemove}
-        onDetach={onDetach}
-        onSplit={onSplit}
-        dragAttributes={attributes}
-        dragListeners={listeners}
-      />
+      {agent.startsWith("browser:") ? (
+        <BrowserInstance
+          id={agent}
+          url={agent.split(":").slice(2).join(":") || ""}
+          onRemove={onRemove}
+          dragAttributes={attributes}
+          dragListeners={listeners}
+        />
+      ) : (
+        <TerminalInstance
+          agentName={agent}
+          cwd={currentProject}
+          onRemove={onRemove}
+          onDetach={onDetach}
+          onSplit={onSplit}
+          dragAttributes={attributes}
+          dragListeners={listeners}
+        />
+      )}
     </div>
   );
 }

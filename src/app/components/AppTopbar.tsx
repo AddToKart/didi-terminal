@@ -1,5 +1,5 @@
 import type { FormEvent } from "react";
-import { Brain, ClipboardList, Columns, Grid2X2, Network, PanelLeft, PanelLeftClose, Plus, Rows } from "lucide-react";
+import { Brain, ClipboardList, Columns, Globe, Grid2X2, Network, PanelLeft, PanelLeftClose, Plus, Rows } from "lucide-react";
 
 interface AppTopbarProps {
   appMode: "terminal" | "orchestrator";
@@ -13,6 +13,7 @@ interface AppTopbarProps {
   onSetLayoutOrientation: (orientation: "horizontal" | "vertical" | "grid") => void;
   isSidebarOpen: boolean;
   onToggleSidebar: () => void;
+  onSpawnBrowser: () => void;
 }
 
 export function AppTopbar({
@@ -27,6 +28,7 @@ export function AppTopbar({
   onSetLayoutOrientation,
   isSidebarOpen,
   onToggleSidebar,
+  onSpawnBrowser,
 }: AppTopbarProps) {
   return (
     <div className="h-14 border-b border-app-border flex items-center justify-between px-4 bg-app-bg">
@@ -43,6 +45,14 @@ export function AppTopbar({
             className="bg-[#0a0a0c] border border-app-border focus:border-brand-accent text-slate-200 pl-8 pr-3 py-1.5 text-xs outline-none transition-colors w-64 placeholder:text-slate-600 rounded-lg"
           />
         </div>
+        <button
+          type="button"
+          onClick={onSpawnBrowser}
+          className="p-1.5 rounded-lg transition-colors text-slate-500 hover:text-brand-primary bg-[#0a0a0c] border border-app-border"
+          title="Open Browser Pane"
+        >
+          <Globe size={16} />
+        </button>
       </form>
 
       <div className="flex items-center gap-2">

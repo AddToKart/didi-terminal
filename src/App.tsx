@@ -498,6 +498,11 @@ function App() {
     addLog(`Detached agent: ${agentToDetach}`, "system");
   };
 
+  const handleSpawnBrowser = () => {
+    setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, agents: [...t.agents, `browser:${Date.now()}`] } : t));
+    addLog("Opened browser pane", "system");
+  };
+
 
   const handleSetLayoutOrientation = (orientation: "horizontal" | "vertical" | "grid") => {
     setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, layoutOrientation: orientation } : t));
@@ -630,6 +635,7 @@ function App() {
           onSetLayoutOrientation={handleSetLayoutOrientation}
           isSidebarOpen={isSidebarOpen}
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+          onSpawnBrowser={handleSpawnBrowser}
         />
 
         <AppTerminalTabs
