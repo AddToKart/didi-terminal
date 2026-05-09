@@ -32,16 +32,17 @@ export function AppTopbar({
     <div className="h-14 border-b border-app-border flex items-center justify-between px-4 bg-app-bg">
       <form onSubmit={onSpawnAgent} className="flex items-center gap-2">
         <div className="relative flex items-center">
-          <Plus size={14} className="absolute left-2 text-slate-500" />
+          <button type="submit" className="absolute left-1.5 text-slate-500 hover:text-brand-primary transition-colors p-1 z-10 rounded">
+            <Plus size={14} />
+          </button>
           <input
             type="text"
             value={newAgentName}
             onChange={e => onChangeNewAgentName(e.target.value)}
             placeholder={appMode === "terminal" ? "Spawn new terminal..." : "Spawn new agent..."}
-            className="bg-[#0a0a0c] border border-app-border focus:border-brand-accent text-slate-200 pl-7 pr-3 py-1.5 text-xs outline-none transition-colors w-64 placeholder:text-slate-600 rounded-lg"
+            className="bg-[#0a0a0c] border border-app-border focus:border-brand-accent text-slate-200 pl-8 pr-3 py-1.5 text-xs outline-none transition-colors w-64 placeholder:text-slate-600 rounded-lg"
           />
         </div>
-        <button type="submit" className="hidden" />
       </form>
 
       <div className="flex items-center gap-2">
