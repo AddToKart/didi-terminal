@@ -67,7 +67,7 @@ export function AppSidebar({
             </div>
             <button
               onClick={onOpenProject}
-              className="w-full bg-app-panel hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 px-3 py-2 text-xs font-medium text-zinc-300 flex items-center justify-between transition-colors group rounded-lg"
+              className="w-full bg-app-panel hover:bg-zinc-900/40 border border-zinc-800/50 hover:border-zinc-700/50 px-3 py-2 text-xs font-medium text-zinc-300 flex items-center justify-between transition-colors group rounded-lg"
             >
               <span className="truncate">{currentProject ? currentProject.split("\\").pop() : "Select Directory..."}</span>
               <FolderOpen size={14} className="text-zinc-500 group-hover:text-zinc-300 transition-colors" />
@@ -117,7 +117,7 @@ export function AppSidebar({
           </div>
           <div className="p-3 space-y-2">
             {agents.map(agent => (
-              <div key={agent} className="group flex items-center justify-between px-3 py-2 bg-app-panel border border-zinc-800/50 hover:border-zinc-700 transition-colors rounded-lg">
+              <div key={agent} className="group flex items-center justify-between px-3 py-2 bg-app-panel border border-zinc-800/50 hover:border-zinc-700/50 transition-colors rounded-lg">
                 <div className="flex items-center gap-2 truncate">
                   <div className="w-1.5 h-1.5 rounded-full bg-brand-accent animate-pulse" />
                   <span className="text-xs font-medium text-zinc-300 truncate">{agent}</span>

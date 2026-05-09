@@ -31,8 +31,8 @@ export function ApprovalModal({ agentName, currentProject, onApprove, onReject }
 
   return (
     <div className="fixed inset-0 z-[200] bg-app-panel/90 backdrop-blur-md flex items-center justify-center p-6">
-      <div className={`w-full ${showDiff ? 'max-w-5xl' : 'max-w-lg'} bg-app-panel border border-zinc-800 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col rounded-xl transition-all duration-300 max-h-[90vh]`}>
-        <div className="px-6 py-5 border-b border-zinc-800 bg-zinc-900/50 flex items-start justify-between gap-4 shrink-0">
+      <div className={`w-full ${showDiff ? 'max-w-5xl' : 'max-w-lg'} bg-app-panel border border-zinc-800/50 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col rounded-xl transition-all duration-300 max-h-[90vh]`}>
+        <div className="px-6 py-5 border-b border-zinc-800/50 bg-zinc-900/50 flex items-start justify-between gap-4 shrink-0">
           <div>
             <div className="text-[10px] uppercase font-bold tracking-widest text-amber-500 mb-1.5 flex items-center gap-2">
               <ShieldAlert size={14} /> HITL Approval Required
@@ -46,7 +46,7 @@ export function ApprovalModal({ agentName, currentProject, onApprove, onReject }
             <button 
               onClick={fetchDiff}
               disabled={loadingDiff || !currentProject}
-              className="px-3 py-1.5 text-xs font-semibold bg-zinc-900 border border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors flex items-center gap-2"
+              className="px-3 py-1.5 text-xs font-semibold bg-zinc-900/40 border border-zinc-700/50 text-zinc-300 hover:bg-zinc-800/40 hover:text-white transition-colors flex items-center gap-2"
             >
               {loadingDiff ? <Loader2 size={14} className="animate-spin" /> : <FileDiff size={14} />}
               Review Changes
@@ -56,8 +56,8 @@ export function ApprovalModal({ agentName, currentProject, onApprove, onReject }
         
         <div className={`flex flex-1 min-h-0 ${showDiff ? 'flex-row' : 'flex-col'}`}>
           {showDiff && (
-            <div className="flex-1 border-r border-zinc-800 flex flex-col min-w-0 bg-[#0d0d0f]">
-              <div className="px-4 py-2 border-b border-zinc-800 bg-zinc-900/30 text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center justify-between">
+            <div className="flex-1 border-r border-zinc-800/50 flex flex-col min-w-0 bg-zinc-950/40">
+              <div className="px-4 py-2 border-b border-zinc-800/50 bg-zinc-900/30 text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center justify-between">
                 Git Diff (HEAD)
                 <button onClick={() => setShowDiff(false)} className="hover:text-zinc-300"><X size={14} /></button>
               </div>
@@ -76,14 +76,14 @@ export function ApprovalModal({ agentName, currentProject, onApprove, onReject }
                 value={feedback}
                 onChange={e => setFeedback(e.target.value)}
                 placeholder={`Tell ${agentName} what to fix...`}
-                className="mt-2 w-full h-32 bg-zinc-900 border border-zinc-800 focus:border-brand-accent text-zinc-200 px-3 py-2 text-sm outline-none resize-none rounded-xl shadow-inner"
+                className="mt-2 w-full h-32 bg-zinc-900/40 border border-zinc-800/50 focus:border-brand-accent text-zinc-200 px-3 py-2 text-sm outline-none resize-none rounded-xl shadow-inner"
               />
             </div>
             
             <div className={`flex flex-col gap-3 pt-2`}>
               <button 
                 onClick={() => onReject(feedback)}
-                className="w-full px-5 py-2.5 text-xs font-bold bg-zinc-900 border border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors flex items-center justify-center gap-2"
+                className="w-full px-5 py-2.5 text-xs font-bold bg-zinc-900/40 border border-zinc-700/50 text-zinc-300 hover:bg-zinc-800/40 hover:text-white transition-colors flex items-center justify-center gap-2"
               >
                 <X size={16} /> Reject & Return
               </button>

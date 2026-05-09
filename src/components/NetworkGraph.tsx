@@ -29,7 +29,7 @@ function AgentNode({ data }: NodeProps) {
     <div className={`px-4 py-4 rounded-sm border bg-app-panel min-w-[220px] max-w-[260px] shadow-md transition-all duration-300
       ${isWorking ? 'border-amber-500/50 shadow-amber-500/10' : 
         isWaiting ? 'border-zinc-600 shadow-zinc-900/20' : 
-        isMain ? 'border-brand-accent/50 shadow-brand-accent/10' : 'border-zinc-800 shadow-zinc-900/10'}`}>
+        isMain ? 'border-brand-accent/50 shadow-brand-accent/10' : 'border-zinc-800/50 shadow-zinc-900/10'}`}>
       
       <Handle type="target" position={Position.Top} className="w-2 h-2 !bg-brand-accent opacity-0" />
       
@@ -55,7 +55,7 @@ function AgentNode({ data }: NodeProps) {
           </div>
         )}
         {isWaiting && (
-          <div className="flex items-start gap-2 text-zinc-400 bg-zinc-900 p-2 rounded-xl border border-zinc-800">
+          <div className="flex items-start gap-2 text-zinc-400 bg-zinc-900/40 p-2 rounded-xl border border-zinc-800/50">
             <Clock size={14} className="shrink-0 mt-0.5" />
             <span className="leading-tight break-words">Waiting on {waitingOn.join(', ')}</span>
           </div>
@@ -241,12 +241,12 @@ export function NetworkGraph({ agents, tasks = [], onClose, onKillAgent, onInter
           </h2>
           <p className="text-zinc-500 text-xs font-medium">Drag lines between agents to dispatch tasks. Right-click nodes for Command & Control.</p>
         </div>
-        <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200 p-2 border border-zinc-800 hover:border-zinc-600 rounded-xl bg-app-panel transition-colors shadow-sm">
+        <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200 p-2 border border-zinc-800/50 hover:border-zinc-600 rounded-xl bg-app-panel transition-colors shadow-sm">
           <X size={20} />
         </button>
       </div>
 
-      <div className="flex-1 border border-zinc-800 rounded-xl bg-app-bg overflow-hidden relative shadow-inner">
+      <div className="flex-1 border border-zinc-800/50 rounded-xl bg-app-bg overflow-hidden relative shadow-inner">
         <ReactFlow 
           nodes={nodes} 
           edges={edges} 
@@ -260,14 +260,14 @@ export function NetworkGraph({ agents, tasks = [], onClose, onKillAgent, onInter
           connectionLineStyle={{ stroke: '#00f0ff', strokeWidth: 2, strokeDasharray: '4 4' }}
         >
           <Background color="#27272a" gap={24} size={1.5} />
-          <Controls className="bg-app-panel text-brand-primary border border-zinc-800 shadow-md !rounded-xl" />
+          <Controls className="bg-app-panel text-brand-primary border border-zinc-800/50 shadow-md !rounded-xl" />
         </ReactFlow>
       </div>
 
       {/* Context Menu */}
       {contextMenu && (
         <div 
-          className="fixed z-[100] bg-app-panel border border-zinc-800 shadow-2xl py-1 flex flex-col w-48 animate-in fade-in zoom-in-95 duration-100"
+          className="fixed z-[100] bg-app-panel border border-zinc-800/50 shadow-2xl py-1 flex flex-col w-48 animate-in fade-in zoom-in-95 duration-100"
           style={{ top: contextMenu.y, left: contextMenu.x }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -277,7 +277,7 @@ export function NetworkGraph({ agents, tasks = [], onClose, onKillAgent, onInter
           </div>
           <button 
             onClick={() => { setHintModal({ agent: contextMenu.agent, text: "" }); setContextMenu(null); }}
-            className="px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-zinc-900 hover:text-brand-accent text-left flex items-center gap-2 transition-colors"
+            className="px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-zinc-900/40 hover:text-brand-accent text-left flex items-center gap-2 transition-colors"
           >
             <TerminalSquare size={14} /> Inject Hint / Message
           </button>
@@ -302,9 +302,9 @@ export function NetworkGraph({ agents, tasks = [], onClose, onKillAgent, onInter
           <form 
             onSubmit={handleInjectSubmit} 
             onClick={(e) => e.stopPropagation()} 
-            className="w-full max-w-md bg-app-panel border border-zinc-800 shadow-2xl flex flex-col rounded-xl"
+            className="w-full max-w-md bg-app-panel border border-zinc-800/50 shadow-2xl flex flex-col rounded-xl"
           >
-            <div className="px-4 py-3 border-b border-zinc-800 bg-zinc-900/50 flex justify-between items-center">
+            <div className="px-4 py-3 border-b border-zinc-800/50 bg-zinc-900/50 flex justify-between items-center">
               <span className="text-sm font-bold text-zinc-200 flex items-center gap-2">
                 <TerminalSquare size={16} className="text-brand-accent" /> Inject Hint to {hintModal.agent}
               </span>
@@ -315,7 +315,7 @@ export function NetworkGraph({ agents, tasks = [], onClose, onKillAgent, onInter
                 value={hintModal.text}
                 onChange={e => setHintModal(prev => prev ? { ...prev, text: e.target.value } : null)}
                 placeholder="Type your hint or override instruction..."
-                className="w-full h-24 bg-zinc-900 border border-zinc-800 focus:border-brand-accent text-zinc-200 px-3 py-2 text-sm outline-none rounded-xl resize-none"
+                className="w-full h-24 bg-zinc-900/40 border border-zinc-800/50 focus:border-brand-accent text-zinc-200 px-3 py-2 text-sm outline-none rounded-xl resize-none"
                 autoFocus
               />
               <div className="flex justify-end gap-2">
@@ -337,14 +337,14 @@ export function NetworkGraph({ agents, tasks = [], onClose, onKillAgent, onInter
             onClick={(e) => e.stopPropagation()} 
             className="w-full max-w-lg bg-app-panel border border-brand-accent/50 shadow-2xl flex flex-col rounded-xl"
           >
-            <div className="px-4 py-3 border-b border-zinc-800 bg-zinc-900/50 flex justify-between items-center">
+            <div className="px-4 py-3 border-b border-zinc-800/50 bg-zinc-900/50 flex justify-between items-center">
               <span className="text-sm font-bold text-zinc-200 flex items-center gap-2">
                 <Network size={16} className="text-brand-accent" /> Quick Dispatch
               </span>
               <button type="button" onClick={() => setDispatchModal(null)} className="text-zinc-500 hover:text-zinc-300"><X size={16}/></button>
             </div>
             <div className="p-4 space-y-4">
-              <div className="flex items-center gap-3 text-xs bg-zinc-900/50 border border-zinc-800 p-2 text-zinc-400">
+              <div className="flex items-center gap-3 text-xs bg-zinc-900/50 border border-zinc-800/50 p-2 text-zinc-400">
                 <span className="font-bold text-brand-primary">{dispatchModal.source}</span>
                 <span className="text-zinc-600">→</span>
                 <span className="font-bold text-amber-400">{dispatchModal.target}</span>
@@ -353,7 +353,7 @@ export function NetworkGraph({ agents, tasks = [], onClose, onKillAgent, onInter
                 value={dispatchModal.text}
                 onChange={e => setDispatchModal(prev => prev ? { ...prev, text: e.target.value } : null)}
                 placeholder={`What task should ${dispatchModal.target} do?`}
-                className="w-full h-24 bg-zinc-900 border border-zinc-800 focus:border-brand-accent text-zinc-200 px-3 py-2 text-sm outline-none rounded-xl resize-none"
+                className="w-full h-24 bg-zinc-900/40 border border-zinc-800/50 focus:border-brand-accent text-zinc-200 px-3 py-2 text-sm outline-none rounded-xl resize-none"
                 autoFocus
               />
               <div className="flex justify-end gap-2">

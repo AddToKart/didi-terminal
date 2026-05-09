@@ -87,7 +87,7 @@ export function AppTerminalTabs({
                   className={`p-1 rounded-md transition-colors ${
                     isActive 
                       ? "text-brand-primary/50 hover:text-brand-primary hover:bg-brand-accent/20" 
-                      : "opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800"
+                      : "opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800/40"
                   }`}
                 >
                   <X size={12} />

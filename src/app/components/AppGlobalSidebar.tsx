@@ -92,7 +92,7 @@ function SortableWorkspaceItem({
       className={containerClass}
     >
       <div className="flex items-center gap-3 truncate flex-1 min-w-0">
-        <div className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${isActive ? "bg-brand-accent/20 text-brand-accent" : "bg-zinc-800 text-zinc-400"}`}>
+        <div className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${isActive ? "bg-brand-accent/20 text-brand-accent" : "bg-zinc-800/40 text-zinc-400"}`}>
           <FolderOpen size={12} />
         </div>
         <div className="min-w-0 flex flex-col flex-1">
@@ -128,7 +128,7 @@ function SortableWorkspaceItem({
         <button
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => { e.stopPropagation(); onOpenMenu(e, ws.id); }}
-          className="p-1 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 rounded transition-colors opacity-0 group-hover:opacity-100"
+          className="p-1 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/40 rounded transition-colors opacity-0 group-hover:opacity-100"
           title="Workspace Options"
         >
           <MoreVertical size={14} />
@@ -209,7 +209,7 @@ export function AppGlobalSidebar({
           <>
             <div className="fixed inset-0 z-[90]" onClick={() => setMenuOpenId(null)} />
             <div
-              className="fixed w-44 bg-app-panel border border-zinc-700 rounded-lg shadow-2xl py-1 z-[91]"
+              className="fixed w-44 bg-app-panel border border-zinc-700/50 rounded-lg shadow-2xl py-1 z-[91]"
               style={{ top: menuPos.top, left: menuPos.left }}
             >
               {(() => {
@@ -217,13 +217,13 @@ export function AppGlobalSidebar({
                 if (!ws) return null;
                 return (
                   <>
-                    <button onClick={() => { onOpenDirectory(ws.id); setMenuOpenId(null); }} className="w-full px-3 py-2 text-left text-xs font-medium text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 flex items-center gap-2 transition-colors">
+                    <button onClick={() => { onOpenDirectory(ws.id); setMenuOpenId(null); }} className="w-full px-3 py-2 text-left text-xs font-medium text-zinc-300 hover:bg-zinc-800/40 hover:text-zinc-100 flex items-center gap-2 transition-colors">
                       <FolderOpen size={12} /> Open Directory
                     </button>
-                    <button onClick={() => { setEditingWsId(ws.id); setEditWsName(ws.name); setMenuOpenId(null); }} className="w-full px-3 py-2 text-left text-xs font-medium text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 flex items-center gap-2 transition-colors">
+                    <button onClick={() => { setEditingWsId(ws.id); setEditWsName(ws.name); setMenuOpenId(null); }} className="w-full px-3 py-2 text-left text-xs font-medium text-zinc-300 hover:bg-zinc-800/40 hover:text-zinc-100 flex items-center gap-2 transition-colors">
                       <Pencil size={12} /> Rename
                     </button>
-                    <div className="my-1 border-t border-zinc-800" />
+                    <div className="my-1 border-t border-zinc-800/50" />
                     <button onClick={() => { onWorkspaceDelete(ws.id); setMenuOpenId(null); }} className="w-full px-3 py-2 text-left text-xs font-medium text-red-400 hover:bg-red-500/10 hover:text-red-300 flex items-center gap-2 transition-colors">
                       <Trash2 size={12} /> Delete
                     </button>
@@ -296,9 +296,9 @@ export function AppGlobalSidebar({
 
               <button
                 onClick={onCreateWorkspace}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200 transition-all border border-transparent hover:border-zinc-800 mt-2"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200 transition-all border border-transparent hover:border-zinc-800/50 mt-2"
               >
-                <div className="w-5 h-5 rounded-md bg-zinc-800 flex items-center justify-center shrink-0">
+                <div className="w-5 h-5 rounded-md bg-zinc-800/40 flex items-center justify-center shrink-0">
                   <Plus size={12} />
                 </div>
                 New Workspace
@@ -311,7 +311,7 @@ export function AppGlobalSidebar({
           <div className="flex items-center justify-between bg-app-panel/50 p-1.5 rounded-xl border border-zinc-800/50">
             <button
               onClick={() => onSetAppMode("terminal")}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all ${appMode === "terminal" ? "bg-zinc-800 text-zinc-200 shadow-sm" : "text-zinc-500 hover:text-zinc-300"}`}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all ${appMode === "terminal" ? "bg-zinc-800/40 text-zinc-200 shadow-sm" : "text-zinc-500 hover:text-zinc-300"}`}
             >
               <TerminalSquare size={14} /> Terminal
             </button>

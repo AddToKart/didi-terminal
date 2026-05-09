@@ -16,7 +16,7 @@ interface Props {
 
 export const SentinelPanel = ({ enabled, incidents, onToggle }: Props) => (
   <div className="shrink-0 flex flex-col min-h-0 border-b border-app-border bg-zinc-900/10">
-    <div className="px-4 py-2.5 text-xs font-semibold text-zinc-400 bg-zinc-950 flex items-center justify-between border-b border-app-border">
+    <div className="px-4 py-2.5 text-xs font-semibold text-zinc-400 bg-zinc-950/40 flex items-center justify-between border-b border-app-border">
       <span className="flex items-center gap-2">
         {enabled ? <ShieldCheck size={14} /> : <PauseCircle size={14} />}
         Sentinel
@@ -27,7 +27,7 @@ export const SentinelPanel = ({ enabled, incidents, onToggle }: Props) => (
         className={`px-2 py-0.5 rounded-sm border text-[10px] font-medium transition-colors ${
           enabled
             ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
-            : "border-zinc-800 bg-zinc-900 text-zinc-500"
+            : "border-zinc-800/50 bg-zinc-900/40 text-zinc-500"
         }`}
       >
         {enabled ? "Armed" : "Off"}

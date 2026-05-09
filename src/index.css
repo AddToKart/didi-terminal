@@ -33,9 +33,14 @@
     transition: background-color 0.3s ease, color 0.3s ease;
   }
   
-  .glass .bg-app-panel {
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+  .glass button,
+  .glass input,
+  .glass textarea,
+  .glass select,
+  .glass .bg-app-panel,
+  .glass .bg-app-bg {
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
   }
 }
 

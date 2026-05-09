@@ -115,7 +115,7 @@ export function AppTerminalArea({
           {!currentProject && onOpenDirectory && (
             <button
               onClick={onOpenDirectory}
-              className="px-4 py-2 bg-zinc-900 text-zinc-300 border border-zinc-800 rounded-lg hover:bg-zinc-800 transition-colors text-xs font-bold flex items-center gap-2"
+              className="px-4 py-2 bg-zinc-900/40 text-zinc-300 border border-zinc-800/50 rounded-lg hover:bg-zinc-800/40 transition-colors text-xs font-bold flex items-center gap-2"
             >
               <FolderOpen size={14} /> Open Directory
             </button>

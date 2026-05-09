@@ -25,7 +25,7 @@ const formatSnapshotTime = (createdAt: number) => {
 
 export const SnapshotPanel = ({ currentProject, snapshots, isBusy, onSnapshot, onRewind }: Props) => (
   <div className="shrink-0 flex flex-col min-h-0 border-b border-app-border bg-zinc-900/10">
-    <div className="px-4 py-2.5 text-xs font-semibold text-zinc-400 bg-zinc-950 flex items-center justify-between border-b border-app-border">
+    <div className="px-4 py-2.5 text-xs font-semibold text-zinc-400 bg-zinc-950/40 flex items-center justify-between border-b border-app-border">
       <span className="flex items-center gap-2">
         <GitCommitHorizontal size={14} />
         Time Travel
