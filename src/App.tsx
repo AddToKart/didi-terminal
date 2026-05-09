@@ -62,19 +62,16 @@ function App() {
     );
   }
 
-  const [isDbLoaded, setIsDbLoaded] = useState(false);
-  
-  const [appMode, setAppMode] = useState<"terminal" | "orchestrator">("orchestrator");
-  
-  const [workspaces, setWorkspaces] = useState<WorkspaceState[]>([{
-    id: crypto.randomUUID(),
-    name: "Workspace 1",
-    directory: null,
-    tabs: [{ id: crypto.randomUUID(), name: "Workspace", agents: ["Terminal 1"], layoutOrientation: "horizontal" as const }],
-    activeTabId: ""
-  }]);
+  const [appMode, setAppMode] = useState<"terminal" | "orchestrator">("terminal");
 
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string>("");
+  const [workspaces, setWorkspaces] = useState<WorkspaceState[]>(() => {
+    const tab = { id: crypto.randomUUID(), name: "Workspace", agents: ["Terminal 1"], layoutOrientation: "horizontal" as const };
+    return [{ id: crypto.randomUUID(), name: "Workspace 1", directory: null, tabs: [tab], activeTabId: tab.id }];
+  });
+
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string>(() => "");
+
+  const [isDbLoaded, setIsDbLoaded] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -82,15 +79,16 @@ function App() {
         const dbWorkspaces = await loadWorkspaces();
         if (dbWorkspaces && dbWorkspaces.length > 0) {
           setWorkspaces(dbWorkspaces);
-        }
 
-        const savedActiveWs = await getSetting("activeWorkspaceId");
-        if (savedActiveWs) {
-          setActiveWorkspaceId(savedActiveWs);
-        } else if (dbWorkspaces && dbWorkspaces.length > 0) {
-          setActiveWorkspaceId(dbWorkspaces[0].id);
+          const savedActiveWs = await getSetting("activeWorkspaceId");
+          const validId = dbWorkspaces.find(w => w.id === savedActiveWs)?.id;
+          setActiveWorkspaceId(validId ?? dbWorkspaces[0].id);
         } else {
-          setActiveWorkspaceId(workspaces[0].id);
+          // First launch: no DB state. Set activeWorkspaceId to the default workspace already in state.
+          setWorkspaces(prev => {
+            setActiveWorkspaceId(prev[0].id);
+            return prev;
+          });
         }
 
         const savedMode = await getSetting("appMode");
@@ -107,7 +105,7 @@ function App() {
         
       } catch (err) {
         console.error("Failed to load initial data from DB", err);
-        setActiveWorkspaceId(workspaces[0].id);
+        // Defaults are already set above — nothing to do
       } finally {
         setIsDbLoaded(true);
       }
@@ -153,8 +151,8 @@ function App() {
   });
   const [isTasksCollapsed, setIsTasksCollapsed] = useState(false);
   const [isActivityCollapsed, setIsActivityCollapsed] = useState(false);
-  const [sentinelEnabled, setSentinelEnabled] = useState(true);
-  const [hitlEnabled, setHitlEnabled] = useState(true);
+  const [sentinelEnabled, setSentinelEnabled] = useState(false);
+  const [hitlEnabled, setHitlEnabled] = useState(false);
   const [approvalRequest, setApprovalRequest] = useState<HitlApprovalRequest | null>(null);
   const [sentinelIncidents, setSentinelIncidents] = useState<SentinelIncident[]>([]);
   const [snapshots, setSnapshots] = useState<GitSnapshotRecord[]>([]);
@@ -323,10 +321,6 @@ function App() {
     flushQueuedHandoff,
   }), [writeHandoff, queueHandoff, flushQueuedHandoff]);
 
-  useEffect(() => {
-    localStorage.setItem("didi_tabs", JSON.stringify(tabs));
-    localStorage.setItem("didi_active_tab", activeTabId);
-  }, [tabs, activeTabId]);
 
   const handleWorkspaceSelect = (id: string) => {
     setActiveWorkspaceId(id);

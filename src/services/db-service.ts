@@ -56,15 +56,11 @@ export async function loadWorkspaces(): Promise<WorkspaceState[]> {
 export async function saveWorkspaces(workspaces: WorkspaceState[]): Promise<void> {
   const db = await getDb();
   
-  // We'll perform a sync by replacing everything or upserting.
-  // For simplicity and to avoid complex diffing, we can clear and recreate or use a transaction.
-  // SQLite supports robust transactions.
-  
-  await db.execute("BEGIN TRANSACTION");
   try {
-    // Clear existing
+    // Clear existing explicitly to avoid foreign key issues since SQLite FKs are disabled by default
+    await db.execute("DELETE FROM agents");
+    await db.execute("DELETE FROM tabs");
     await db.execute("DELETE FROM workspaces");
-    // Cascading deletes will clear tabs and agents
     
     for (let wIndex = 0; wIndex < workspaces.length; wIndex++) {
       const ws = workspaces[wIndex];
@@ -89,10 +85,7 @@ export async function saveWorkspaces(workspaces: WorkspaceState[]): Promise<void
         }
       }
     }
-    
-    await db.execute("COMMIT");
   } catch (error) {
-    await db.execute("ROLLBACK");
     console.error("Failed to save workspaces to DB:", error);
     throw error;
   }
