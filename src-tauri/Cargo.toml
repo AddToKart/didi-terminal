@@ -30,3 +30,4 @@ tokio = { version = "1", features = ["full"] }
 sysinfo = "0.38.4"
 reqwest = { version = "0.13.3", features = ["json"] }
 ignore = "0.4.25"
+tauri-plugin-sql = { version = "2", features = ["sqlite"] }

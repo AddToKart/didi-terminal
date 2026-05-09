@@ -29,6 +29,7 @@ import { AppTopbar } from "./app/components/AppTopbar";
 import { AppTerminalArea } from "./app/components/AppTerminalArea";
 
 import { AppTerminalTabs } from "./app/components/AppTerminalTabs";
+import { loadWorkspaces, saveWorkspaces, getSetting, setSetting } from "./services/db-service";
 
 const NetworkGraph = lazy(() => import("./components/NetworkGraph").then(module => ({ default: module.NetworkGraph })));
 const SettingsModal = lazy(() => import("./components/SettingsModal").then(module => ({ default: module.SettingsModal })));
@@ -61,43 +62,58 @@ function App() {
     );
   }
 
-  const [appMode, setAppMode] = useState<"terminal" | "orchestrator">(() => {
-    return (localStorage.getItem("didi_app_mode") as "terminal" | "orchestrator") || "orchestrator";
-  });
+  const [isDbLoaded, setIsDbLoaded] = useState(false);
   
-  const [workspaces, setWorkspaces] = useState<WorkspaceState[]>(() => {
-    const saved = localStorage.getItem("didi_workspaces");
-    if (saved) {
+  const [appMode, setAppMode] = useState<"terminal" | "orchestrator">("orchestrator");
+  
+  const [workspaces, setWorkspaces] = useState<WorkspaceState[]>([{
+    id: crypto.randomUUID(),
+    name: "Workspace 1",
+    directory: null,
+    tabs: [{ id: crypto.randomUUID(), name: "Workspace", agents: ["Terminal 1"], layoutOrientation: "horizontal" as const }],
+    activeTabId: ""
+  }]);
+
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string>("");
+
+  useEffect(() => {
+    async function loadData() {
       try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      } catch (e) {
-        console.warn("Failed to parse saved workspaces", e);
+        const dbWorkspaces = await loadWorkspaces();
+        if (dbWorkspaces && dbWorkspaces.length > 0) {
+          setWorkspaces(dbWorkspaces);
+        }
+
+        const savedActiveWs = await getSetting("activeWorkspaceId");
+        if (savedActiveWs) {
+          setActiveWorkspaceId(savedActiveWs);
+        } else if (dbWorkspaces && dbWorkspaces.length > 0) {
+          setActiveWorkspaceId(dbWorkspaces[0].id);
+        } else {
+          setActiveWorkspaceId(workspaces[0].id);
+        }
+
+        const savedMode = await getSetting("appMode");
+        if (savedMode === "terminal" || savedMode === "orchestrator") setAppMode(savedMode);
+
+        const savedSidebar = await getSetting("isSidebarOpen");
+        if (savedSidebar !== null) setIsSidebarOpen(savedSidebar === "true");
+
+        const savedSentinel = await getSetting("sentinelEnabled");
+        if (savedSentinel !== null) setSentinelEnabled(savedSentinel === "true");
+
+        const savedHitl = await getSetting("hitlEnabled");
+        if (savedHitl !== null) setHitlEnabled(savedHitl === "true");
+        
+      } catch (err) {
+        console.error("Failed to load initial data from DB", err);
+        setActiveWorkspaceId(workspaces[0].id);
+      } finally {
+        setIsDbLoaded(true);
       }
     }
-    // Fallback migration
-    const legacyTabs = localStorage.getItem("didi_tabs");
-    const legacyProject = localStorage.getItem("didi_project");
-    let initialTabs = [{ id: crypto.randomUUID(), name: "Workspace", agents: ["Terminal 1"], layoutOrientation: "horizontal" as const }];
-    if (legacyTabs) {
-      try {
-        const parsed = JSON.parse(legacyTabs);
-        if (Array.isArray(parsed) && parsed.length > 0) initialTabs = parsed;
-      } catch(e) {}
-    }
-    return [{
-      id: crypto.randomUUID(),
-      name: "Workspace 1",
-      directory: legacyProject || null,
-      tabs: initialTabs,
-      activeTabId: localStorage.getItem("didi_active_tab") || initialTabs[0].id
-    }];
-  });
-
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string>(() => {
-    const saved = localStorage.getItem("didi_active_workspace");
-    return saved || (workspaces.length > 0 ? workspaces[0].id : "");
-  });
+    loadData();
+  }, []);
 
   const activeWorkspace = workspaces.find(w => w.id === activeWorkspaceId) || workspaces[0];
   const currentProject = activeWorkspace?.directory || null;
@@ -122,7 +138,7 @@ function App() {
   const layoutOrientation = activeTab ? activeTab.layoutOrientation : "horizontal";
 
   const [newAgentName, setNewAgentName] = useState("");
-  const [isSidebarOpen, setIsSidebarOpen] = useState(() => localStorage.getItem("didi_sidebar") !== "false");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showNetworkGraph, setShowNetworkGraph] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showBrainstorm, setShowBrainstorm] = useState(false);
@@ -137,8 +153,8 @@ function App() {
   });
   const [isTasksCollapsed, setIsTasksCollapsed] = useState(false);
   const [isActivityCollapsed, setIsActivityCollapsed] = useState(false);
-  const [sentinelEnabled, setSentinelEnabled] = useState(() => localStorage.getItem("didi_sentinel") !== "false");
-  const [hitlEnabled, setHitlEnabled] = useState(() => localStorage.getItem("didi_hitl") !== "false");
+  const [sentinelEnabled, setSentinelEnabled] = useState(true);
+  const [hitlEnabled, setHitlEnabled] = useState(true);
   const [approvalRequest, setApprovalRequest] = useState<HitlApprovalRequest | null>(null);
   const [sentinelIncidents, setSentinelIncidents] = useState<SentinelIncident[]>([]);
   const [snapshots, setSnapshots] = useState<GitSnapshotRecord[]>([]);
@@ -163,13 +179,41 @@ function App() {
   }, [allAgents]);
 
   useEffect(() => {
-    localStorage.setItem("didi_app_mode", appMode);
-  }, [appMode]);
+    if (!isDbLoaded) return;
+    setSetting("appMode", appMode).catch(console.error);
+  }, [appMode, isDbLoaded]);
+
+  useEffect(() => {
+    if (!isDbLoaded) return;
+    setSetting("isSidebarOpen", String(isSidebarOpen)).catch(console.error);
+  }, [isSidebarOpen, isDbLoaded]);
 
   useEffect(() => {
     hitlEnabledRef.current = hitlEnabled;
-    localStorage.setItem("didi_hitl", String(hitlEnabled));
-  }, [hitlEnabled]);
+    if (!isDbLoaded) return;
+    setSetting("hitlEnabled", String(hitlEnabled)).catch(console.error);
+  }, [hitlEnabled, isDbLoaded]);
+
+  useEffect(() => {
+    sentinelEnabledRef.current = sentinelEnabled;
+    if (!isDbLoaded) return;
+    setSetting("sentinelEnabled", String(sentinelEnabled)).catch(console.error);
+  }, [sentinelEnabled, isDbLoaded]);
+
+  useEffect(() => {
+    if (!isDbLoaded) return;
+    setSetting("activeWorkspaceId", activeWorkspaceId).catch(console.error);
+  }, [activeWorkspaceId, isDbLoaded]);
+
+  useEffect(() => {
+    if (!isDbLoaded) return;
+    
+    // Debounce save to avoid too many DB writes
+    const timeout = setTimeout(() => {
+      saveWorkspaces(workspaces).catch(console.error);
+    }, 500);
+    return () => clearTimeout(timeout);
+  }, [workspaces, isDbLoaded]);
 
   const addLog = (message: string, type: "system" | "handoff" = "system") => {
     setActivity(prev => {

@@ -11,6 +11,8 @@ use services::pty::PtyProcess;
 use services::bus::start_agent_bus;
 use scripts::templates;
 
+use tauri_plugin_sql::{Migration, MigrationKind};
+
 // ── Shared application state ──────────────────────────────────────────────────
 
 struct AppState {
@@ -55,11 +57,52 @@ fn initialize_project(cwd: String) -> Result<(), String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let migrations = vec![
+        Migration {
+            version: 1,
+            description: "create_initial_tables",
+            sql: "
+                CREATE TABLE IF NOT EXISTS workspaces (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    directory TEXT,
+                    activeTabId TEXT NOT NULL,
+                    order_index INTEGER NOT NULL DEFAULT 0
+                );
+                CREATE TABLE IF NOT EXISTS tabs (
+                    id TEXT PRIMARY KEY,
+                    workspace_id TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    layoutOrientation TEXT NOT NULL,
+                    order_index INTEGER NOT NULL DEFAULT 0,
+                    FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+                );
+                CREATE TABLE IF NOT EXISTS agents (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tab_id TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    order_index INTEGER NOT NULL DEFAULT 0,
+                    FOREIGN KEY (tab_id) REFERENCES tabs(id) ON DELETE CASCADE
+                );
+                CREATE TABLE IF NOT EXISTS settings (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                );
+            ",
+            kind: MigrationKind::Up,
+        }
+    ];
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(
+            tauri_plugin_sql::Builder::default()
+                .add_migrations("sqlite:didi.db", migrations)
+                .build()
+        )
         .invoke_handler(tauri::generate_handler![
             services::pty::spawn_pty,
             services::pty::write_pty,
