@@ -454,6 +454,32 @@ fn create_git_snapshot(
 }
 
 #[tauri::command]
+fn get_git_diff(cwd: String) -> Result<String, String> {
+    let cwd_path = Path::new(&cwd);
+    ensure_git_repo(cwd_path)?;
+    
+    let status = run_git(cwd_path, &["status", "--short"], None)?;
+    let diff = run_git(cwd_path, &["diff", "HEAD"], None)?;
+    
+    let mut result = String::new();
+    if !status.is_empty() {
+        result.push_str("### STATUS ###\n");
+        result.push_str(&status);
+        result.push_str("\n\n");
+    }
+    if !diff.is_empty() {
+        result.push_str("### DIFF ###\n");
+        result.push_str(&diff);
+    }
+    
+    if result.is_empty() {
+        Ok("No changes detected.".to_string())
+    } else {
+        Ok(result)
+    }
+}
+
+#[tauri::command]
 fn list_git_snapshots(cwd: String, app_handle: AppHandle) -> Result<Vec<GitSnapshot>, String> {
     Ok(read_snapshots(&app_handle, &cwd))
 }
@@ -773,7 +799,7 @@ if ($isCompletion) {
 } else {
     $kind = "task"
     $hint = if ($targetTaskLine) { "Your assignment line in MASTER_PLAN.md is: [$targetTaskLine]. Add YOUR subtasks in the '### Tasks' section below it." } else { "Find your assignment in '### Agent Queue' section of MASTER_PLAN.md." }
-    $payload = "[$sender DELEGATED A TASK]: $Task`n[SYSTEM RULE: You are a SPECIALIST. $hint You MUST NOT add any new entries to the '### Agent Queue' section — that is read-only for specialists. Write your own work checklist in '### Tasks' only. Do the work. When done: .didi\delegate $reportTarget `"Task complete: <summary>`". If chaining: .didi\delegate <Next> `"<task>`" -ReportTo $reportTarget then STOP — do NOT also send your own callback.]"
+    $payload = "[$sender DELEGATED A TASK]: $Task`n[SYSTEM RULE: You are a SPECIALIST. $hint You MUST NOT add any new entries to the '### Agent Queue' section — that is read-only for specialists. Write your own work checklist in '### Tasks' only. Do the work. When done, you MUST execute this exact shell command in your terminal (do NOT just print it in text): .didi\delegate $reportTarget `"Task complete: <summary>`". If chaining: execute shell command .didi\delegate <Next> `"<task>`" -ReportTo $reportTarget then STOP — do NOT also send your own callback.]"
 }
 
 $msgObj = @{
@@ -1095,7 +1121,7 @@ pub fn run() {
             get_project_context, get_config, set_config, get_sidecar_status, ask_llm,
             create_git_snapshot, list_git_snapshots, rewind_git_snapshot, append_master_plan_entry,
             read_master_plan, set_master_plan_task_status, set_master_plan_task_status_by_text,
-            append_master_plan_task
+            append_master_plan_task, get_git_diff
         ])
         .setup(|app| {
             start_agent_bus(app.handle().clone());

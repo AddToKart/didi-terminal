@@ -8,6 +8,7 @@ import { Terminal, FolderOpen, ShieldAlert, Cpu, Columns, Rows, Plus, X, Activit
 import { SentinelIncident, SentinelPanel } from "./components/SentinelPanel";
 import { GitSnapshotRecord, SnapshotPanel } from "./components/SnapshotPanel";
 import { BrainstormModal, BrainstormSession } from "./components/BrainstormModal";
+import { ApprovalModal } from "./components/ApprovalModal";
 import { MasterPlanPanel } from "./components/MasterPlanPanel";
 
 const NetworkGraph = lazy(() => import("./components/NetworkGraph").then(module => ({ default: module.NetworkGraph })));
@@ -134,13 +135,6 @@ interface ActiveMasterPlanTask extends MasterPlanTaskDispatch {
   dispatchedAt: number;
 }
 
-interface GraphHandoff {
-  id: string;
-  source: string;
-  target: string;
-  kind: string;
-}
-
 interface TerminalInputPayload {
   agent: string;
   data: string;
@@ -199,8 +193,9 @@ function App() {
   });
   const [isTasksCollapsed, setIsTasksCollapsed] = useState(false);
   const [isActivityCollapsed, setIsActivityCollapsed] = useState(false);
-  const [graphHandoffs, setGraphHandoffs] = useState<GraphHandoff[]>([]);
   const [sentinelEnabled, setSentinelEnabled] = useState(() => localStorage.getItem("didi_sentinel") !== "false");
+  const [hitlEnabled, setHitlEnabled] = useState(() => localStorage.getItem("didi_hitl") !== "false");
+  const [approvalRequest, setApprovalRequest] = useState<{ agent: string, target: string, payload: string, taskId: string } | null>(null);
   const [sentinelIncidents, setSentinelIncidents] = useState<SentinelIncident[]>([]);
   const [snapshots, setSnapshots] = useState<GitSnapshotRecord[]>([]);
   const [snapshotBusy, setSnapshotBusy] = useState(false);
@@ -212,10 +207,16 @@ function App() {
   const currentProjectRef = useRef(currentProject);
   const logIdCounter = useRef(1);
   const sentinelEnabledRef = useRef(sentinelEnabled);
+  const hitlEnabledRef = useRef(hitlEnabled);
   const sentinelStates = useRef<Map<string, SentinelAgentState>>(new Map());
   const brainstormSessionsRef = useRef<BrainstormSession[]>([]);
   const activeMasterPlanTask = useRef<ActiveMasterPlanTask | null>(null);
   const queuedMasterPlanTasks = useRef<MasterPlanTaskDispatch[]>([]);
+
+  useEffect(() => {
+    hitlEnabledRef.current = hitlEnabled;
+    localStorage.setItem("didi_hitl", String(hitlEnabled));
+  }, [hitlEnabled]);
   const activeAgentPlanTasks = useRef<Map<string, string[]>>(new Map());
 
   const addLog = (message: string, type: 'system' | 'handoff' = 'system') => {
@@ -628,61 +629,56 @@ function App() {
     await finishBrainstorm(nextSession);
   };
 
-  useEffect(() => {
-    const writeHandoff = (agentKey: string, payload: string) => {
-      console.log(`[JS] Injecting handoff into ${agentKey}`);
-      readyAgents.current.delete(agentKey);
-      invoke("write_pty", { agent: agentKey, data: payload }).catch(console.error);
-      setTimeout(() => {
-        invoke("write_pty", { agent: agentKey, data: "\r" }).catch(console.error);
-      }, HANDOFF_SUBMIT_DELAY_MS);
-    };
+  const writeHandoff = (agentKey: string, payload: string) => {
+    console.log(`[JS] Injecting handoff into ${agentKey}`);
+    readyAgents.current.delete(agentKey);
+    invoke("write_pty", { agent: agentKey, data: payload }).catch(console.error);
+    setTimeout(() => {
+      invoke("write_pty", { agent: agentKey, data: "\r" }).catch(console.error);
+    }, HANDOFF_SUBMIT_DELAY_MS);
+  };
 
-    const updateQueueCount = (agentKey: string) => {
-      const count = pendingHandoffs.current.get(agentKey)?.length ?? 0;
-      setAgentQueueCounts(prev => {
-        const next = { ...prev };
-        if (count > 0) {
-          next[agentKey] = count;
-        } else {
-          delete next[agentKey];
-        }
-        return next;
-      });
-    };
-
-    const flushQueuedHandoff = (agentKey: string) => {
-      const queue = pendingHandoffs.current.get(agentKey);
-      if (!queue || queue.length === 0) return;
-
-      const queued = queue.shift();
-      if (queue.length === 0) {
-        pendingHandoffs.current.delete(agentKey);
+  const updateQueueCount = (agentKey: string) => {
+    const count = pendingHandoffs.current.get(agentKey)?.length ?? 0;
+    setAgentQueueCounts(prev => {
+      const next = { ...prev };
+      if (count > 0) {
+        next[agentKey] = count;
       } else {
-        pendingHandoffs.current.set(agentKey, queue);
+        delete next[agentKey];
       }
-      updateQueueCount(agentKey);
-      if (!queued) return;
+      return next;
+    });
+  };
 
-      writeHandoff(agentKey, queued);
-    };
+  const flushQueuedHandoff = (agentKey: string) => {
+    const queue = pendingHandoffs.current.get(agentKey);
+    if (!queue || queue.length === 0) return;
 
-    const queueHandoff = (agentKey: string, payload: string) => {
-      const queue = pendingHandoffs.current.get(agentKey) ?? [];
-      queue.push(payload);
+    const queued = queue.shift();
+    if (queue.length === 0) {
+      pendingHandoffs.current.delete(agentKey);
+    } else {
       pendingHandoffs.current.set(agentKey, queue);
-      updateQueueCount(agentKey);
-    };
+    }
+    updateQueueCount(agentKey);
+    if (!queued) return;
 
+    writeHandoff(agentKey, queued);
+  };
+
+  const queueHandoff = (agentKey: string, payload: string) => {
+    const queue = pendingHandoffs.current.get(agentKey) ?? [];
+    queue.push(payload);
+    pendingHandoffs.current.set(agentKey, queue);
+    updateQueueCount(agentKey);
+  };
+
+  useEffect(() => {
     const registerTask = (handoff: HandoffPayload, targetName: string, kind: HandoffKind) => {
       const sender = handoff.sender?.trim() || "Main";
       const id = handoff.taskId || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
       const updatedAt = new Date().toLocaleTimeString();
-
-      setGraphHandoffs(prev => [
-        { id, source: sender, target: targetName, kind },
-        ...prev,
-      ].slice(0, 80));
 
       if (kind === "task") {
         const summary = getTaskSummary(handoff.payload);
@@ -777,7 +773,7 @@ function App() {
 
       try {
         const context = await invoke<string>("get_project_context", { cwd: workspace });
-        return `${safePayload} ACTIVE AGENTS: ${activeAgentList}. Delegate only to one of these active agents unless the human explicitly spawns another agent. WORKSPACE ROOT: ${workspace}. All file reads and writes must stay under this workspace root. Do not edit files in the DidiTerminal app directory unless it is the selected workspace. MASTER_PLAN RULE: specialists may add or check off indented subtasks under the assigned top-level task, but they must not mark the top-level task done; Orchestrator owns top-level completion. DELEGATION WAIT RULE: after delegating work to another agent, stop immediately and wait for that agent's completion callback; do not poll files, inspect progress, retry the task, or use internal subagent/Task tools to do the delegated work yourself. Default callback rule: when your assigned work is done, report completion to the agent that delegated it to you. Only delegate to another specialist if this task explicitly asks for review/docs/follow-up work, or if you are blocked and need that specialist. Do not ask the human whether to report back. WORKSPACE CONTEXT: ${context.replace(/\r?\n/g, " ").trim()}`;
+        return `${safePayload} ACTIVE AGENTS: ${activeAgentList}. Delegate only to one of these active agents unless the human explicitly spawns another agent. WORKSPACE ROOT: ${workspace}. All file reads and writes must stay under this workspace root. Do not edit files in the DidiTerminal app directory unless it is the selected workspace. MASTER_PLAN RULE: specialists may add or check off indented subtasks under the assigned top-level task, but they must not mark the top-level task done; Orchestrator owns top-level completion. DELEGATION WAIT RULE: after delegating work to another agent, stop immediately and wait for that agent's completion callback; do not poll files, inspect progress, retry the task, or use internal subagent/Task tools to do the delegated work yourself. Default callback rule: when your assigned work is done, you MUST execute the shell command (using your terminal execution tool, do NOT just print the command in text) to report completion to the agent that delegated it to you. Only delegate to another specialist if this task explicitly asks for review/docs/follow-up work, or if you are blocked and need that specialist. Do not ask the human whether to report back. WORKSPACE CONTEXT: ${context.replace(/\r?\n/g, " ").trim()}`;
       } catch (err) {
         console.warn("Failed to add workspace context", err);
         return safePayload;
@@ -838,6 +834,24 @@ function App() {
 
       if (kind === "task") {
         await createPlanSnapshot(taskId, resolvedAgentName, getTaskSummary(handoff.payload));
+      } else if (kind === "completion" && hitlEnabledRef.current && currentProjectRef.current) {
+        const senderName = getHandoffSender(handoff) || handoff.sender || "";
+        try {
+          const planContext = await invoke<string>("read_master_plan", { cwd: currentProjectRef.current });
+          const regex = new RegExp(`^\\s*-\\s*\\[[ xX]\\]\\s*${senderName}[:\\s].*<!--\\s*didi:requires_approval\\s*-->`, 'im');
+          if (regex.test(planContext) || new RegExp(`${senderName}.*requires_approval`, 'im').test(planContext)) {
+             setApprovalRequest({
+               agent: senderName,
+               target: agentKey,
+               payload: safePayload,
+               taskId: taskId,
+             });
+             addLog(`HITL Approval requested for ${senderName}`, "system");
+             return; // Intercepted, do not write to Orchestrator yet
+          }
+        } catch (e) {
+          console.warn("Failed to check HITL", e);
+        }
       }
 
       if (readyAgents.current.has(agentKey)) {
@@ -1005,12 +1019,68 @@ function App() {
     e.preventDefault(); // necessary to allow drop
   };
 
+  const handleKillAgent = (agent: string) => {
+    invoke("close_pty", { agent: getPtyKey(agent) }).catch(console.error);
+    addLog(`Sent kill signal to ${agent}`, "system");
+  };
+
+  const handleInterruptAgent = (agent: string) => {
+    invoke("write_pty", { agent: getPtyKey(agent), data: "\x03" }).catch(console.error);
+    addLog(`Sent SIGINT to ${agent}`, "system");
+  };
+
+  const handleInjectHint = (agent: string, hint: string) => {
+    invoke("write_pty", { agent: getPtyKey(agent), data: hint + "\r" }).catch(console.error);
+    addLog(`Injected hint to ${agent}`, "system");
+  };
+
+  const handleQuickDispatch = (target: string, task: string) => {
+    emit("agent-handoff", { sender: "Orchestrator", target, payload: task, kind: "task" });
+    addLog(`Quick dispatch from Orchestrator -> ${target}`, "handoff");
+  };
+
+  const handleHitlApprove = () => {
+    if (!approvalRequest) return;
+    if (readyAgents.current.has(approvalRequest.target)) {
+      writeHandoff(approvalRequest.target, approvalRequest.payload);
+    } else {
+      queueHandoff(approvalRequest.target, approvalRequest.payload);
+    }
+    setApprovalRequest(null);
+  };
+
+  const handleHitlReject = (feedback: string) => {
+    if (!approvalRequest) return;
+    const senderKey = getPtyKey(approvalRequest.agent);
+    let rejectionPayload = `[SYSTEM] The human rejected your completion. Please fix the issues and try again.`;
+    if (feedback.trim()) {
+      rejectionPayload = `[SYSTEM] The human rejected your completion with the following feedback:\n${feedback}\n\nPlease fix the issues and try again.`;
+    }
+    
+    if (readyAgents.current.has(senderKey)) {
+      writeHandoff(senderKey, rejectionPayload);
+    } else {
+      queueHandoff(senderKey, rejectionPayload);
+    }
+    
+    setTasks(prev => prev.map(t => t.id === approvalRequest.taskId ? { ...t, status: "in_progress" } : t));
+    setApprovalRequest(null);
+  };
+
   return (
     <main className="h-screen w-screen bg-app-bg text-slate-300 overflow-hidden flex selection:bg-brand-accent/20 relative">
       
       {showNetworkGraph && (
         <Suspense fallback={<div className="absolute inset-0 z-50 bg-zinc-950/80" />}>
-          <NetworkGraph agents={agents} handoffs={graphHandoffs} tasks={tasks} onClose={() => setShowNetworkGraph(false)} />
+          <NetworkGraph 
+            agents={agents} 
+            tasks={tasks} 
+            onClose={() => setShowNetworkGraph(false)} 
+            onKillAgent={handleKillAgent}
+            onInterruptAgent={handleInterruptAgent}
+            onInjectHint={handleInjectHint}
+            onQuickDispatch={handleQuickDispatch}
+          />
         </Suspense>
       )}
 
@@ -1036,6 +1106,15 @@ function App() {
           activeTaskLine={masterPlanQueueState.activeLine}
           queuedTaskLines={masterPlanQueueState.queuedLines}
           onClose={() => setShowMasterPlan(false)}
+        />
+      )}
+
+      {approvalRequest && (
+        <ApprovalModal
+          agentName={approvalRequest.agent}
+          currentProject={currentProject}
+          onApprove={handleHitlApprove}
+          onReject={handleHitlReject}
         />
       )}
 
@@ -1091,6 +1170,26 @@ function App() {
             incidents={sentinelIncidents}
             onToggle={() => setSentinelEnabled(value => !value)}
           />
+
+          <div className="shrink-0 border-b border-app-border bg-zinc-950 flex flex-col">
+            <div className="px-4 py-2.5 flex items-center justify-between text-xs font-semibold">
+              <div className="flex items-center gap-2 text-zinc-400">
+                <ShieldAlert size={14} className={hitlEnabled ? "text-amber-400" : "text-zinc-600"} />
+                HITL Approvals
+              </div>
+              <button 
+                onClick={() => setHitlEnabled(!hitlEnabled)}
+                className={`relative inline-flex h-4 w-8 items-center rounded-full transition-colors ${hitlEnabled ? 'bg-amber-500' : 'bg-zinc-700'}`}
+              >
+                <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${hitlEnabled ? 'translate-x-4' : 'translate-x-1'}`} />
+              </button>
+            </div>
+            {hitlEnabled && (
+              <div className="px-4 pb-3 text-[10px] text-zinc-500 leading-tight">
+                Intercepts task completions flagged with <code className="text-amber-400/70 font-mono">&lt;!-- didi:requires_approval --&gt;</code> in MASTER_PLAN.md.
+              </div>
+            )}
+          </div>
 
           {/* Agents List */}
           <div className="shrink-0 flex flex-col min-h-0 border-b border-app-border">
