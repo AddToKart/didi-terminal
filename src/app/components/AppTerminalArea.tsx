@@ -31,7 +31,7 @@ export function AppTerminalArea({
         </div>
       ) : (
         layoutOrientation === "grid" ? (
-          <Group orientation="vertical" className="h-full w-full rounded-sm overflow-hidden border border-app-border">
+          <Group orientation="vertical" className="h-full w-full rounded-lg overflow-hidden border border-app-border">
             {Array.from({ length: Math.ceil(agents.length / Math.ceil(Math.sqrt(agents.length))) }).map((_, rowIndex) => {
               const cols = Math.ceil(Math.sqrt(agents.length));
               const rowAgents = agents.slice(rowIndex * cols, rowIndex * cols + cols);
@@ -64,7 +64,7 @@ export function AppTerminalArea({
             })}
           </Group>
         ) : (
-          <Group orientation={layoutOrientation} className="h-full w-full rounded-sm overflow-hidden border border-app-border">
+          <Group orientation={layoutOrientation} className="h-full w-full rounded-lg overflow-hidden border border-app-border">
             {agents.map((agent, index) => (
               <Fragment key={agent}>
                 {index > 0 && <Separator className={`bg-app-border transition-colors hover:bg-brand-accent focus:bg-brand-accent ${layoutOrientation === "horizontal" ? "w-1 mx-0.5" : "h-1 my-0.5"}`} />}

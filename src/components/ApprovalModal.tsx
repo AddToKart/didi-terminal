@@ -31,7 +31,7 @@ export function ApprovalModal({ agentName, currentProject, onApprove, onReject }
 
   return (
     <div className="fixed inset-0 z-[200] bg-zinc-950/90 backdrop-blur-md flex items-center justify-center p-6">
-      <div className={`w-full ${showDiff ? 'max-w-5xl' : 'max-w-lg'} bg-zinc-950 border border-zinc-800 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col rounded-none transition-all duration-300 max-h-[90vh]`}>
+      <div className={`w-full ${showDiff ? 'max-w-5xl' : 'max-w-lg'} bg-zinc-950 border border-zinc-800 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col rounded-xl transition-all duration-300 max-h-[90vh]`}>
         <div className="px-6 py-5 border-b border-zinc-800 bg-zinc-900/50 flex items-start justify-between gap-4 shrink-0">
           <div>
             <div className="text-[10px] uppercase font-bold tracking-widest text-amber-500 mb-1.5 flex items-center gap-2">
@@ -76,7 +76,7 @@ export function ApprovalModal({ agentName, currentProject, onApprove, onReject }
                 value={feedback}
                 onChange={e => setFeedback(e.target.value)}
                 placeholder={`Tell ${agentName} what to fix...`}
-                className="mt-2 w-full h-32 bg-zinc-900 border border-zinc-800 focus:border-brand-accent text-zinc-200 px-3 py-2 text-sm outline-none resize-none rounded-none shadow-inner"
+                className="mt-2 w-full h-32 bg-zinc-900 border border-zinc-800 focus:border-brand-accent text-zinc-200 px-3 py-2 text-sm outline-none resize-none rounded-xl shadow-inner"
               />
             </div>
             

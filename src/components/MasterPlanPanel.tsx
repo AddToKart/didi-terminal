@@ -268,7 +268,7 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
             opacity: 0.95,
             transform: "rotate(2deg)",
           }}
-          className="bg-zinc-950 border border-brand-accent shadow-2xl px-4 py-3 rounded-none"
+          className="bg-zinc-950 border border-brand-accent shadow-2xl px-4 py-3 rounded-xl"
         >
           <div className="text-[10px] uppercase font-bold tracking-widest text-zinc-500 mb-1">{dragState.task.section}</div>
           <div className="text-sm font-medium text-zinc-200 leading-snug line-clamp-2">{dragState.task.text}</div>
@@ -278,7 +278,7 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
 
       {selectedTask && createPortal(
         <div className="fixed inset-0 z-[100000] bg-zinc-950/90 backdrop-blur-sm flex items-center justify-center p-6">
-          <div className="w-full max-w-2xl max-h-[85vh] bg-zinc-950 border border-zinc-800 shadow-2xl overflow-hidden flex flex-col rounded-none">
+          <div className="w-full max-w-2xl max-h-[85vh] bg-zinc-950 border border-zinc-800 shadow-2xl overflow-hidden flex flex-col rounded-xl">
             <div className="px-6 py-5 border-b border-zinc-800 bg-zinc-900/50 flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <div className="text-[10px] uppercase font-bold tracking-widest text-zinc-500 mb-1.5">{selectedTask.section}</div>
@@ -287,7 +287,7 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
               <button
                 type="button"
                 onClick={() => setSelectedTask(null)}
-                className="p-2 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 rounded-none transition-colors shrink-0"
+                className="p-2 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 rounded-xl transition-colors shrink-0"
                 title="Close details"
               >
                 <X size={18} />
@@ -295,15 +295,15 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
             </div>
             <div className="p-6 overflow-y-auto min-h-0 space-y-6 bg-app-bg">
               <div className="grid grid-cols-3 gap-3 text-xs">
-                <div className="border border-zinc-800 bg-zinc-950 rounded-none p-3 shadow-sm">
+                <div className="border border-zinc-800 bg-zinc-950 rounded-xl p-3 shadow-sm">
                   <div className="text-zinc-500 font-bold uppercase tracking-wider text-[10px]">Status</div>
                   <div className="text-zinc-200 capitalize font-medium mt-1.5">{selectedTask.status.replace("_", " ")}</div>
                 </div>
-                <div className="border border-zinc-800 bg-zinc-950 rounded-none p-3 shadow-sm">
+                <div className="border border-zinc-800 bg-zinc-950 rounded-xl p-3 shadow-sm">
                   <div className="text-zinc-500 font-bold uppercase tracking-wider text-[10px]">Line Number</div>
                   <div className="text-zinc-200 font-medium mt-1.5">{selectedTask.line + 1}</div>
                 </div>
-                <div className="border border-zinc-800 bg-zinc-950 rounded-none p-3 shadow-sm">
+                <div className="border border-zinc-800 bg-zinc-950 rounded-xl p-3 shadow-sm">
                   <div className="text-zinc-500 font-bold uppercase tracking-wider text-[10px]">Subtasks</div>
                   <div className="text-zinc-200 font-medium mt-1.5">{selectedTask.children.filter(child => child.status).length}</div>
                 </div>
@@ -312,7 +312,7 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
               <div>
                 <div className="text-[11px] uppercase tracking-widest text-zinc-500 font-bold mb-3">Subtasks & Notes</div>
                 {selectedTask.children.length === 0 ? (
-                  <div className="text-sm text-zinc-600 border border-dashed border-zinc-800 bg-zinc-950/50 rounded-none py-8 text-center font-medium">
+                  <div className="text-sm text-zinc-600 border border-dashed border-zinc-800 bg-zinc-950/50 rounded-xl py-8 text-center font-medium">
                     No subtasks or notes under this task.
                   </div>
                 ) : (
@@ -320,7 +320,7 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
                     {selectedTask.children.map(child => (
                       <div
                         key={child.id}
-                        className="border border-zinc-800 bg-zinc-950 rounded-none px-3 py-2 shadow-sm"
+                        className="border border-zinc-800 bg-zinc-950 rounded-xl px-3 py-2 shadow-sm"
                         style={{ marginLeft: Math.min(child.depth, 24) }}
                       >
                         <div className="flex items-start gap-2.5">
@@ -335,7 +335,7 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
                           ) : child.status === "todo" ? (
                             <Circle size={14} className="text-zinc-500 mt-0.5 shrink-0" />
                           ) : (
-                            <div className="w-1.5 h-1.5 rounded-none bg-zinc-600 mt-2 shrink-0" />
+                            <div className="w-1.5 h-1.5 rounded-xl bg-zinc-600 mt-2 shrink-0" />
                           )}
                           <div className="text-sm text-zinc-300 leading-snug break-words font-medium">{child.text}</div>
                         </div>
@@ -351,7 +351,7 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
       )}
 
       <div
-        className="w-full max-w-[98vw] xl:max-w-[1800px] h-[92vh] border border-zinc-800 bg-zinc-950 shadow-2xl flex flex-col rounded-none overflow-hidden"
+        className="w-full max-w-[98vw] xl:max-w-[1800px] h-[92vh] border border-zinc-800 bg-zinc-950 shadow-2xl flex flex-col rounded-xl overflow-hidden"
         style={{ cursor: dragState ? "grabbing" : "default", userSelect: dragState ? "none" : "auto" }}
       >
         {/* Header */}
@@ -370,7 +370,7 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
               type="button"
               disabled={!currentProject || isBusy}
               onClick={() => refreshPlan().catch(console.error)}
-              className="p-1.5 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 disabled:opacity-40 rounded-none transition-all"
+              className="p-1.5 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 disabled:opacity-40 rounded-xl transition-all"
               title="Refresh MASTER_PLAN.md"
             >
               <RefreshCw size={16} className={isBusy ? "animate-spin" : ""} />
@@ -378,7 +378,7 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-none transition-all"
+              className="p-1.5 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-xl transition-all"
               title="Close"
             >
               <X size={16} />
@@ -389,11 +389,11 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
         {/* Body */}
         <div className="p-6 space-y-6 min-h-0 flex-1 overflow-hidden flex flex-col bg-app-bg">
           {!currentProject ? (
-            <div className="h-full border border-dashed border-zinc-800 rounded-none flex items-center justify-center text-sm text-zinc-500 font-medium">
+            <div className="h-full border border-dashed border-zinc-800 rounded-xl flex items-center justify-center text-sm text-zinc-500 font-medium">
               Select a workspace to load MASTER_PLAN.md
             </div>
           ) : tasks.length === 0 ? (
-            <div className="h-full border border-dashed border-zinc-800 rounded-none flex items-center justify-center text-sm text-zinc-500 font-medium">
+            <div className="h-full border border-dashed border-zinc-800 rounded-xl flex items-center justify-center text-sm text-zinc-500 font-medium">
               No markdown tasks found
             </div>
           ) : (
@@ -405,7 +405,7 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
                     <span>{doneCount} of {tasks.length} tasks complete</span>
                     <span>{progress}%</span>
                   </div>
-                  <div className="h-2 bg-zinc-900 border border-zinc-800 overflow-hidden rounded-none">
+                  <div className="h-2 bg-zinc-900 border border-zinc-800 overflow-hidden rounded-xl">
                     <div className="h-full bg-brand-accent transition-all duration-500 ease-out" style={{ width: `${progress}%` }} />
                   </div>
                 </div>
@@ -415,7 +415,7 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
                     value={newTask}
                     onChange={e => setNewTask(e.target.value)}
                     placeholder="Add a new task..."
-                    className="w-full bg-zinc-950 border border-zinc-800 focus:border-brand-accent text-zinc-200 px-4 py-2 text-sm outline-none rounded-none transition-all placeholder:text-zinc-600 font-medium shadow-inner"
+                    className="w-full bg-zinc-950 border border-zinc-800 focus:border-brand-accent text-zinc-200 px-4 py-2 text-sm outline-none rounded-xl transition-all placeholder:text-zinc-600 font-medium shadow-inner"
                   />
                   <button
                     type="submit"
@@ -430,26 +430,26 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
 
               {/* Active tasks banner */}
               {(activeQueueTask || queuedTasks.length > 0 || activeTasks.length > 0) && (
-                <div className="border border-amber-500/30 bg-amber-500/5 px-5 py-3 rounded-none shrink-0 shadow-sm">
+                <div className="border border-amber-500/30 bg-amber-500/5 px-5 py-3 rounded-xl shrink-0 shadow-sm">
                   <div className="flex items-center justify-between gap-3 mb-2">
                     <div className="text-[10px] uppercase tracking-widest text-amber-500 font-bold">Pipeline Status</div>
                     {queuedTasks.length > 0 && <div className="text-[10px] text-amber-500/70 font-bold tracking-wider">{queuedTasks.length} waiting</div>}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     {activeQueueTask && (
-                      <div className="text-xs text-zinc-200 truncate border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 rounded-none shadow-sm font-medium">
+                      <div className="text-xs text-zinc-200 truncate border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 rounded-xl shadow-sm font-medium">
                         <span className="text-emerald-400 font-bold mr-2 uppercase tracking-wide text-[10px]">Active</span>
                         {activeQueueTask.text}
                       </div>
                     )}
                     {queuedTasks.slice(0, 5).map((task, index) => (
-                      <div key={task.id} className="text-xs text-zinc-300 truncate border border-amber-500/20 bg-zinc-950 px-3 py-2 rounded-none font-medium">
+                      <div key={task.id} className="text-xs text-zinc-300 truncate border border-amber-500/20 bg-zinc-950 px-3 py-2 rounded-xl font-medium">
                         <span className="text-amber-500 font-bold mr-2 uppercase tracking-wide text-[10px]">Q#{index + 1}</span>
                         {task.text}
                       </div>
                     ))}
                     {!activeQueueTask && queuedTasks.length === 0 && activeTasks.slice(0, 6).map(task => (
-                      <div key={task.id} className="text-xs text-zinc-300 truncate border border-amber-500/20 bg-zinc-950 px-3 py-2 rounded-none font-medium">
+                      <div key={task.id} className="text-xs text-zinc-300 truncate border border-amber-500/20 bg-zinc-950 px-3 py-2 rounded-xl font-medium">
                         {task.text}
                       </div>
                     ))}
@@ -468,7 +468,7 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
                     <div
                       key={column.status}
                       ref={el => { columnRefs.current.set(column.status, el); }}
-                      className={`flex-1 flex flex-col border rounded-none transition-all duration-300 min-w-[200px] ${
+                      className={`flex-1 flex flex-col border rounded-xl transition-all duration-300 min-w-[200px] ${
                         isDropTarget
                           ? "border-brand-accent/50 bg-brand-accent/5 shadow-inner"
                           : "border-zinc-800 bg-zinc-900/30"
@@ -485,7 +485,7 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
                           } />
                           <span className="text-xs font-bold uppercase tracking-wider text-zinc-300">{column.label}</span>
                         </div>
-                        <span className="text-[10px] font-mono font-bold text-zinc-500 bg-zinc-950 px-2 py-0.5 rounded-none border border-zinc-800">
+                        <span className="text-[10px] font-mono font-bold text-zinc-500 bg-zinc-950 px-2 py-0.5 rounded-xl border border-zinc-800">
                           {columnTasks.length}
                         </span>
                       </div>
@@ -497,7 +497,7 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
                             <div
                               key={task.id}
                               onPointerDown={e => handlePointerDown(e, task)}
-                              className={`group bg-zinc-950 hover:bg-zinc-900 border px-3 py-3 rounded-none shadow-sm hover:shadow-md transition-all select-none ${
+                              className={`group bg-zinc-950 hover:bg-zinc-900 border px-3 py-3 rounded-xl shadow-sm hover:shadow-md transition-all select-none ${
                                 dragState?.task.id === task.id
                                   ? "opacity-30 cursor-grabbing"
                                   : task.status === "done"
@@ -509,7 +509,7 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
                                 <div className="flex items-start justify-between gap-2 mb-2">
                                   <div className="text-[9px] uppercase tracking-widest font-bold text-zinc-500 truncate">{task.section}</div>
                                   {queueLabel && (
-                                    <div className={`text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded-none border shrink-0 uppercase ${
+                                    <div className={`text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded-xl border shrink-0 uppercase ${
                                       task.line === activeTaskLine
                                         ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
                                         : "border-amber-500/30 bg-amber-500/10 text-amber-400"
@@ -540,7 +540,7 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
                                         disabled={isBusy}
                                         onPointerDown={e => e.stopPropagation()}
                                         onClick={() => setTaskStatus(task, c.status)}
-                                        className="p-1.5 rounded-none bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-zinc-200 hover:border-zinc-500 disabled:opacity-40 transition-colors shadow-sm"
+                                        className="p-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-zinc-200 hover:border-zinc-500 disabled:opacity-40 transition-colors shadow-sm"
                                         title={`Move to ${c.label}`}
                                       >
                                         <CIcon size={12} />
@@ -554,7 +554,7 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
                         })}
 
                         {columnTasks.length === 0 && (
-                          <div className={`text-[10px] font-bold uppercase tracking-wider px-1 py-8 text-center rounded-none transition-all border border-dashed ${
+                          <div className={`text-[10px] font-bold uppercase tracking-wider px-1 py-8 text-center rounded-xl transition-all border border-dashed ${
                             isDropTarget
                               ? "text-brand-accent border-brand-accent/40 bg-brand-accent/5"
                               : "text-zinc-600 border-zinc-800/50"

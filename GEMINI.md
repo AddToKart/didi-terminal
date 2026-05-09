@@ -1,43 +1,55 @@
 # Project Overview
 
-This project is "DidiTerminal", an autonomous multi-agent orchestrator desktop application built with Tauri, React, TypeScript, and Vite. 
+DidiTerminal is an autonomous multi-agent orchestrator desktop application built with Tauri, React, TypeScript, and Vite. 
 
-The application creates multiple native pseudo-terminals (PTYs) running PowerShell, rendered via `xterm.js` in a React frontend. It features an inter-process communication (IPC) bus via a Windows named pipe (`\\.\pipe\agentbus`), allowing agents (CLI applications or AI agents) running in different terminal instances to delegate tasks to one another asynchronously. It also automatically spawns a `llama-server` sidecar binary for local AI inference.
+The application manages multiple native pseudo-terminals (PTYs) running PowerShell, rendered via `xterm.js`. It enables asynchronous multi-agent collaboration via a Windows named pipe IPC bus (`\\.\pipe\agentbus`), allowing agents to delegate tasks to one another.
 
 ## Key Technologies
-- **Frontend:** React 19, TypeScript, Vite, Tailwind CSS, `xterm.js` (for terminal rendering), `react-resizable-panels`.
-- **Backend:** Tauri 2.0 (Rust), `portable-pty` (for native terminal spawning), `tokio` (for async named pipe IPC).
+- **Frontend:** React 19, TypeScript, Vite, Tailwind CSS, `xterm.js`, `react-resizable-panels`, `@xyflow/react` (for agent network visualization).
+- **Backend:** Tauri 2.0 (Rust), `portable-pty`, `tokio` (for async named pipe IPC and sidecar management).
+- **Inference:** Local AI inference via a bundled `llama-server` sidecar binary.
+
+# Key Features
+
+- **Master Plan Kanban:** An interactive board synchronized with `MASTER_PLAN.md`. Supports automated task dispatching, drag-and-drop status updates, and subtask tracking.
+- **Dynamic Layout Engine:** Supports Vertical, Horizontal, and Grid tiling (automatically calculating 2x2, 3x2, etc.) for multiple terminal instances.
+- **Agent Network Graph:** Real-time visualization of agent relationships and handoff flows using `@xyflow/react`.
+- **Sentinel Monitoring:** An autonomous watchdog service that monitors agent PTYs for loops and repeated failures, intervening by pausing agents to prevent resource waste.
+- **Multi-Agent Brainstorming:** A specialized workflow for parallel agent deliberation with automated consensus synthesis using the local LLM sidecar.
+- **Git Snapshots:** Automatic, non-invasive git snapshots (using a separate index) created before each task delegation, providing a "time machine" for the workspace.
+- **Human-In-The-Loop (HITL):** Optional human approval for task completions triggered by specific markdown markers in the Master Plan.
 
 # Building and Running
 
-The project relies on standard Vite and Tauri development commands, managed via `package.json` scripts:
+Managed via `package.json` scripts:
 
-- **Development Mode:** Start the Vite dev server and the Tauri desktop window:
-  ```bash
-  npm run tauri dev
-  ```
-  *(Note: `npm run dev` starts only the Vite server. The Tauri backend is required for PTY and IPC features).*
-
-- **Production Build:** Build the compiled application for release:
-  ```bash
-  npm run tauri build
-  ```
+- **Development Mode:** `npm run tauri dev` (starts Vite dev server and Tauri backend).
+- **Production Build:** `npm run tauri build` (compiles the application and sidecars).
 
 # Architecture & Development Conventions
 
 ## Multi-Agent Collaboration Protocol
 
-The core innovation of this application is the autonomous agent collaboration mechanism:
-
-1.  **Project Initialization:** When a workspace is opened, the user can click "Init Didi", triggering the Rust `initialize_project` command.
-2.  **Scaffolding:** This scaffolds a `.didi/` directory in the target workspace containing delegation scripts (`delegate.ps1`, `delegate.cmd`, `context.ps1`, `context.cmd`) and an `AGENTS.md` instruction file.
-3.  **IPC Bus:** A Rust background Tokio task listens on a Windows named pipe (`\\.\pipe\agentbus`).
-4.  **Delegation:** When an agent runs `.didi\delegate <TargetAgent> "<Task>"`, the PowerShell script writes a JSON payload to the named pipe.
-5.  **Event Dispatch:** Rust reads the named pipe, logs the event to a global `session.json` history (in `AppData`), and emits an `"agent-handoff"` event to the React frontend.
-6.  **Frontend Injection:** `App.tsx` listens for the handoff event. If the target agent exists and its prompt is ready, the frontend immediately writes the delegated task into the agent's PTY. If the prompt isn't ready or the agent doesn't exist yet, it queues the payload and spawns the new agent.
+1.  **Initialization:** `initialize_project` scaffolds a `.didi/` directory with delegation scripts and `AGENTS.md`.
+2.  **IPC Bus:** A Rust background task listens on `\\.\pipe\agentbus` for JSON payloads.
+3.  **Delegation:** Scripts like `.didi\delegate` write to the pipe. Rust logs the event to `session.json` and emits `agent-handoff` to the frontend.
+4.  **Context Enrichment:** The frontend `handoff-service` automatically injects workspace context and collaboration rules into delegated tasks.
+5.  **Execution:** The frontend writes the task to the target agent's PTY once it detects a shell prompt.
 
 ## Code Conventions
 
-- **Rust Backend:** The Tauri backend logic is contained in `src-tauri/src/lib.rs` and `src-tauri/src/main.rs`. Application state is handled using Tauri's `State` with `Mutex` wrapping HashMaps for PTY writers and resizers. Ensure all blocking I/O (like reading the PTY stdout) is moved to separate threads or async tasks.
-- **React Frontend:** State relies on React hooks. `App.tsx` uses `useRef` heavily to maintain fresh state across async Tauri event listeners to avoid stale closure bugs.
-- **Terminal Parsing:** `TerminalInstance.tsx` strips ANSI terminal controls from the stream and uses basic string matching to detect when an agent is ready for input by scanning the output buffer for common shell prompts (e.g., `PS `, `$ `, `Ask anything`, `>>> `). Ensure any new CLI tools integrated use recognizable prompt indicators.
+- **Frontend Services:**
+    - `sentinel-service.ts`: Implements the autonomous monitoring and intervention logic.
+    - `handoff-service.ts`: Manages the handoff lifecycle, including snapshotting and HITL.
+    - `app-core.ts`: Shared utilities for terminal parsing, ID generation, and payload matching.
+- **Rust Backend:**
+    - `src-tauri/src/services/llm.rs`: Interface for the `llama-server` sidecar.
+    - `src-tauri/src/services/master_plan.rs`: Procedural markdown parsing and state management for the Master Plan.
+    - `src-tauri/src/services/git.rs`: Non-destructive git snapshot implementation.
+- **State Management:** `App.tsx` uses `useRef` to maintain fresh state for async event listeners. Components communicate via Tauri events (`emit`/`listen`).
+
+## MASTER_PLAN.md Conventions
+
+- **Status Markers:** Tasks use `<!-- didi:status=... -->` comments (todo, in_queue, in_progress, waiting_completion, done).
+- **HITL Marker:** Adding `<!-- didi:requires_approval -->` to a task line requires human confirmation before a completion callback is processed.
+- **Agent Queue:** Top-level tasks in the `### Agent Queue` section are visible to the Kanban board.

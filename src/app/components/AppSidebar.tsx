@@ -82,7 +82,7 @@ export function AppSidebar({
             </div>
             <button
               onClick={onOpenProject}
-              className="w-full bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 px-3 py-2 text-xs font-medium text-zinc-300 flex items-center justify-between transition-colors group rounded-sm"
+              className="w-full bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 px-3 py-2 text-xs font-medium text-zinc-300 flex items-center justify-between transition-colors group rounded-lg"
             >
               <span className="truncate">{currentProject ? currentProject.split("\\").pop() : "Select Directory..."}</span>
               <FolderOpen size={14} className="text-zinc-500 group-hover:text-zinc-300 transition-colors" />
@@ -92,7 +92,7 @@ export function AppSidebar({
           {currentProject && (
             <button
               onClick={onInitialize}
-              className="w-full bg-brand-accent/10 hover:bg-brand-accent/20 text-brand-primary border border-brand-accent/30 hover:border-brand-accent/50 px-3 py-2 text-xs font-bold uppercase transition-colors flex items-center justify-center gap-2 rounded-sm"
+              className="w-full bg-brand-accent/10 hover:bg-brand-accent/20 text-brand-primary border border-brand-accent/30 hover:border-brand-accent/50 px-3 py-2 text-xs font-bold uppercase transition-colors flex items-center justify-center gap-2 rounded-lg"
             >
               <ShieldAlert size={14} /> Initialize Didi Protocol
             </button>
@@ -132,13 +132,13 @@ export function AppSidebar({
           </div>
           <div className="p-3 space-y-2">
             {agents.map(agent => (
-              <div key={agent} className="group flex items-center justify-between px-3 py-2 bg-zinc-950 border border-zinc-800/50 hover:border-zinc-700 transition-colors rounded-sm">
+              <div key={agent} className="group flex items-center justify-between px-3 py-2 bg-zinc-950 border border-zinc-800/50 hover:border-zinc-700 transition-colors rounded-lg">
                 <div className="flex items-center gap-2 truncate">
                   <div className="w-1.5 h-1.5 rounded-full bg-brand-accent animate-pulse" />
                   <span className="text-xs font-medium text-zinc-300 truncate">{agent}</span>
                 </div>
                 {agentQueueCounts[getPtyKey(agent)] ? (
-                  <span className="text-[10px] text-amber-400 border border-amber-500/20 bg-amber-500/10 px-1.5 py-0.5 rounded-sm">
+                  <span className="text-[10px] text-amber-400 border border-amber-500/20 bg-amber-500/10 px-1.5 py-0.5 rounded-lg">
                     {agentQueueCounts[getPtyKey(agent)]} queued
                   </span>
                 ) : null}
@@ -178,7 +178,7 @@ export function AppSidebar({
                 <div className="text-xs text-zinc-500">No tracked tasks</div>
               ) : (
                 tasks.slice(0, 8).map(task => (
-                  <div key={task.id} className="border border-zinc-800/50 bg-zinc-950/50 px-3 py-2 rounded-sm">
+                  <div key={task.id} className="border border-zinc-800/50 bg-zinc-950/50 px-3 py-2 rounded-lg">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-xs font-medium text-brand-primary truncate">{task.target}</span>
                       <span className={`text-[10px] uppercase ${task.status === "complete" ? "text-emerald-400" : "text-amber-400"}`}>

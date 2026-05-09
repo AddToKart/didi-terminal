@@ -44,24 +44,24 @@ function AgentNode({ data }: NodeProps) {
             {label}
           </span>
         </div>
-        {isMain && <span className="text-[9px] uppercase font-bold tracking-widest text-brand-accent/80 bg-brand-accent/10 px-1.5 py-0.5 rounded-none">ROOT</span>}
+        {isMain && <span className="text-[9px] uppercase font-bold tracking-widest text-brand-accent/80 bg-brand-accent/10 px-1.5 py-0.5 rounded-xl">ROOT</span>}
       </div>
       
       <div className="text-xs space-y-2">
         {isWorking && (
-          <div className="flex items-start gap-2 text-amber-400 bg-amber-400/10 p-2 rounded-none border border-amber-400/20">
+          <div className="flex items-start gap-2 text-amber-400 bg-amber-400/10 p-2 rounded-xl border border-amber-400/20">
             <Clock size={14} className="animate-spin-slow shrink-0 mt-0.5" />
             <span className="font-medium leading-tight">Working...</span>
           </div>
         )}
         {isWaiting && (
-          <div className="flex items-start gap-2 text-zinc-400 bg-zinc-900 p-2 rounded-none border border-zinc-800">
+          <div className="flex items-start gap-2 text-zinc-400 bg-zinc-900 p-2 rounded-xl border border-zinc-800">
             <Clock size={14} className="shrink-0 mt-0.5" />
             <span className="leading-tight break-words">Waiting on {waitingOn.join(', ')}</span>
           </div>
         )}
         {!isWorking && !isWaiting && (
-          <div className="flex items-start gap-2 text-emerald-400 bg-emerald-400/10 p-2 rounded-none border border-emerald-400/20">
+          <div className="flex items-start gap-2 text-emerald-400 bg-emerald-400/10 p-2 rounded-xl border border-emerald-400/20">
             <CheckCircle2 size={14} className="shrink-0 mt-0.5" />
             <span className="font-medium">Idle / Ready</span>
           </div>
@@ -241,12 +241,12 @@ export function NetworkGraph({ agents, tasks = [], onClose, onKillAgent, onInter
           </h2>
           <p className="text-zinc-500 text-xs font-medium">Drag lines between agents to dispatch tasks. Right-click nodes for Command & Control.</p>
         </div>
-        <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200 p-2 border border-zinc-800 hover:border-zinc-600 rounded-none bg-zinc-950 transition-colors shadow-sm">
+        <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200 p-2 border border-zinc-800 hover:border-zinc-600 rounded-xl bg-zinc-950 transition-colors shadow-sm">
           <X size={20} />
         </button>
       </div>
 
-      <div className="flex-1 border border-zinc-800 rounded-none bg-app-bg overflow-hidden relative shadow-inner">
+      <div className="flex-1 border border-zinc-800 rounded-xl bg-app-bg overflow-hidden relative shadow-inner">
         <ReactFlow 
           nodes={nodes} 
           edges={edges} 
@@ -260,7 +260,7 @@ export function NetworkGraph({ agents, tasks = [], onClose, onKillAgent, onInter
           connectionLineStyle={{ stroke: '#00f0ff', strokeWidth: 2, strokeDasharray: '4 4' }}
         >
           <Background color="#27272a" gap={24} size={1.5} />
-          <Controls className="bg-zinc-950 text-brand-primary border border-zinc-800 shadow-md !rounded-none" />
+          <Controls className="bg-zinc-950 text-brand-primary border border-zinc-800 shadow-md !rounded-xl" />
         </ReactFlow>
       </div>
 
@@ -302,7 +302,7 @@ export function NetworkGraph({ agents, tasks = [], onClose, onKillAgent, onInter
           <form 
             onSubmit={handleInjectSubmit} 
             onClick={(e) => e.stopPropagation()} 
-            className="w-full max-w-md bg-zinc-950 border border-zinc-800 shadow-2xl flex flex-col rounded-none"
+            className="w-full max-w-md bg-zinc-950 border border-zinc-800 shadow-2xl flex flex-col rounded-xl"
           >
             <div className="px-4 py-3 border-b border-zinc-800 bg-zinc-900/50 flex justify-between items-center">
               <span className="text-sm font-bold text-zinc-200 flex items-center gap-2">
@@ -315,7 +315,7 @@ export function NetworkGraph({ agents, tasks = [], onClose, onKillAgent, onInter
                 value={hintModal.text}
                 onChange={e => setHintModal(prev => prev ? { ...prev, text: e.target.value } : null)}
                 placeholder="Type your hint or override instruction..."
-                className="w-full h-24 bg-zinc-900 border border-zinc-800 focus:border-brand-accent text-zinc-200 px-3 py-2 text-sm outline-none rounded-none resize-none"
+                className="w-full h-24 bg-zinc-900 border border-zinc-800 focus:border-brand-accent text-zinc-200 px-3 py-2 text-sm outline-none rounded-xl resize-none"
                 autoFocus
               />
               <div className="flex justify-end gap-2">
@@ -335,7 +335,7 @@ export function NetworkGraph({ agents, tasks = [], onClose, onKillAgent, onInter
           <form 
             onSubmit={handleDispatchSubmit} 
             onClick={(e) => e.stopPropagation()} 
-            className="w-full max-w-lg bg-zinc-950 border border-brand-accent/50 shadow-2xl flex flex-col rounded-none"
+            className="w-full max-w-lg bg-zinc-950 border border-brand-accent/50 shadow-2xl flex flex-col rounded-xl"
           >
             <div className="px-4 py-3 border-b border-zinc-800 bg-zinc-900/50 flex justify-between items-center">
               <span className="text-sm font-bold text-zinc-200 flex items-center gap-2">
@@ -353,7 +353,7 @@ export function NetworkGraph({ agents, tasks = [], onClose, onKillAgent, onInter
                 value={dispatchModal.text}
                 onChange={e => setDispatchModal(prev => prev ? { ...prev, text: e.target.value } : null)}
                 placeholder={`What task should ${dispatchModal.target} do?`}
-                className="w-full h-24 bg-zinc-900 border border-zinc-800 focus:border-brand-accent text-zinc-200 px-3 py-2 text-sm outline-none rounded-none resize-none"
+                className="w-full h-24 bg-zinc-900 border border-zinc-800 focus:border-brand-accent text-zinc-200 px-3 py-2 text-sm outline-none rounded-xl resize-none"
                 autoFocus
               />
               <div className="flex justify-end gap-2">

@@ -24,6 +24,7 @@ import { createMasterPlanWorkflow } from "./app/workflows/master-plan-workflow";
 import { createBrainstormWorkflow } from "./app/workflows/brainstorm-workflow";
 import { AppOverlays } from "./app/components/AppOverlays";
 import { AppSidebar } from "./app/components/AppSidebar";
+import { AppGlobalSidebar } from "./app/components/AppGlobalSidebar";
 import { AppTopbar } from "./app/components/AppTopbar";
 import { AppTerminalArea } from "./app/components/AppTerminalArea";
 
@@ -43,6 +44,9 @@ function App() {
     );
   }
 
+  const [appMode, setAppMode] = useState<"terminal" | "orchestrator">(() => {
+    return (localStorage.getItem("didi_app_mode") as "terminal" | "orchestrator") || "orchestrator";
+  });
   const [agents, setAgents] = useState<string[]>(() => {
     const saved = localStorage.getItem("didi_agents");
     return saved ? getUniqueAgents(JSON.parse(saved)) : ["Main Terminal"];
@@ -87,6 +91,10 @@ function App() {
   const activeMasterPlanTask = useRef<ActiveMasterPlanTask | null>(null);
   const queuedMasterPlanTasks = useRef<MasterPlanTaskDispatch[]>([]);
   const activeAgentPlanTasks = useRef<Map<string, string[]>>(new Map());
+
+  useEffect(() => {
+    localStorage.setItem("didi_app_mode", appMode);
+  }, [appMode]);
 
   useEffect(() => {
     hitlEnabledRef.current = hitlEnabled;
@@ -382,6 +390,14 @@ function App() {
 
   return (
     <main className="h-screen w-screen bg-app-bg text-slate-300 overflow-hidden flex selection:bg-brand-accent/20 relative">
+      <AppGlobalSidebar
+        appMode={appMode}
+        onSetAppMode={setAppMode}
+        currentProject={currentProject}
+        onOpenProject={handleOpenProject}
+        onOpenSettings={() => setShowSettings(true)}
+      />
+
       <AppOverlays
         showNetworkGraph={showNetworkGraph}
         NetworkGraphComponent={NetworkGraph}
@@ -410,7 +426,7 @@ function App() {
         onRejectHitl={handleHitlReject}
       />
 
-      {isSidebarOpen && (
+      {isSidebarOpen && appMode === "orchestrator" && (
         <AppSidebar
           sidecarStatus={sidecarStatus}
           currentProject={currentProject}
@@ -440,6 +456,7 @@ function App() {
 
       <section className="flex-1 flex flex-col min-w-0">
         <AppTopbar
+          appMode={appMode}
           onSpawnAgent={spawnAgent}
           newAgentName={newAgentName}
           onChangeNewAgentName={setNewAgentName}
