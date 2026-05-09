@@ -1,4 +1,3 @@
-import { Fragment } from "react";
 import { TerminalInstance } from "../../components/TerminalInstance";
 import { FolderOpen } from "lucide-react";
 import {
@@ -84,18 +83,11 @@ export function AppTerminalArea({
   onSplit,
   onOpenDirectory,
 }: AppTerminalAreaProps) {
-  const [activeDragId, setActiveDragId] = useState<string | null>(null);
-
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
 
-  const handleDragStart = (event: DragStartEvent) => {
-    setActiveDragId(event.active.id as string);
-  };
-
   const handleDragEnd = (event: DragEndEvent) => {
-    setActiveDragId(null);
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     
@@ -121,7 +113,7 @@ export function AppTerminalArea({
           )}
         </div>
       ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={agents} strategy={rectSortingStrategy}>
             <div
               className={`flex-1 min-h-0 min-w-0 rounded-lg overflow-hidden border border-app-border bg-app-border ${
