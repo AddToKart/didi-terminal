@@ -65,8 +65,7 @@ function App() {
   const [appMode, setAppMode] = useState<"terminal" | "orchestrator">("terminal");
 
   const [workspaces, setWorkspaces] = useState<WorkspaceState[]>(() => {
-    const tab = { id: crypto.randomUUID(), name: "Workspace", agents: ["Terminal 1"], layoutOrientation: "horizontal" as const };
-    return [{ id: crypto.randomUUID(), name: "Workspace 1", directory: null, tabs: [tab], activeTabId: tab.id }];
+    return [{ id: crypto.randomUUID(), name: "Workspace 1", directory: null, tabs: [], activeTabId: "" }];
   });
 
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string>(() => "");
@@ -79,33 +78,26 @@ function App() {
         const dbWorkspaces = await loadWorkspaces();
         if (dbWorkspaces && dbWorkspaces.length > 0) {
           setWorkspaces(dbWorkspaces);
-
           const savedActiveWs = await getSetting("activeWorkspaceId");
           const validId = dbWorkspaces.find(w => w.id === savedActiveWs)?.id;
           setActiveWorkspaceId(validId ?? dbWorkspaces[0].id);
         } else {
-          // First launch: no DB state. Set activeWorkspaceId to the default workspace already in state.
+          // First launch: set activeWorkspaceId to the default workspace already in state.
           setWorkspaces(prev => {
             setActiveWorkspaceId(prev[0].id);
             return prev;
           });
         }
-
         const savedMode = await getSetting("appMode");
         if (savedMode === "terminal" || savedMode === "orchestrator") setAppMode(savedMode);
-
         const savedSidebar = await getSetting("isSidebarOpen");
         if (savedSidebar !== null) setIsSidebarOpen(savedSidebar === "true");
-
         const savedSentinel = await getSetting("sentinelEnabled");
         if (savedSentinel !== null) setSentinelEnabled(savedSentinel === "true");
-
         const savedHitl = await getSetting("hitlEnabled");
         if (savedHitl !== null) setHitlEnabled(savedHitl === "true");
-        
       } catch (err) {
-        console.error("Failed to load initial data from DB", err);
-        // Defaults are already set above — nothing to do
+        console.error("[didi] Failed to load data from DB:", err);
       } finally {
         setIsDbLoaded(true);
       }
@@ -205,10 +197,8 @@ function App() {
 
   useEffect(() => {
     if (!isDbLoaded) return;
-    
-    // Debounce save to avoid too many DB writes
     const timeout = setTimeout(() => {
-      saveWorkspaces(workspaces).catch(console.error);
+      saveWorkspaces(workspaces).catch(e => console.error("[didi] Save failed:", e));
     }, 500);
     return () => clearTimeout(timeout);
   }, [workspaces, isDbLoaded]);
@@ -342,16 +332,15 @@ function App() {
   const handleWorkspaceDelete = (id: string) => {
     const newWs = workspaces.filter(w => w.id !== id);
     if (newWs.length === 0) {
-      const defaultWs: WorkspaceState = {
+      const emptyWs: WorkspaceState = {
         id: crypto.randomUUID(),
         name: `Workspace 1`,
         directory: null,
-        tabs: [{ id: crypto.randomUUID(), name: "Tab 1", agents: ["Terminal 1"], layoutOrientation: "horizontal" }],
-        activeTabId: ""
+        tabs: [],
+        activeTabId: "",
       };
-      defaultWs.activeTabId = defaultWs.tabs[0].id;
-      setWorkspaces([defaultWs]);
-      setActiveWorkspaceId(defaultWs.id);
+      setWorkspaces([emptyWs]);
+      setActiveWorkspaceId(emptyWs.id);
     } else {
       setWorkspaces(newWs);
       if (activeWorkspaceId === id) setActiveWorkspaceId(newWs[0].id);
@@ -363,10 +352,9 @@ function App() {
       id: crypto.randomUUID(),
       name: `Workspace ${workspaces.length + 1}`,
       directory: null,
-      tabs: [{ id: crypto.randomUUID(), name: "Tab 1", agents: ["Terminal 1"], layoutOrientation: "horizontal" }],
-      activeTabId: ""
+      tabs: [],
+      activeTabId: "",
     };
-    newWs.activeTabId = newWs.tabs[0].id;
     setWorkspaces([...workspaces, newWs]);
     setActiveWorkspaceId(newWs.id);
   };
@@ -441,7 +429,7 @@ function App() {
     const newTab: TerminalTab = {
       id: crypto.randomUUID(),
       name: `Tab ${tabs.length + 1}`,
-      agents: ["Main Terminal"],
+      agents: [],
       layoutOrientation: "horizontal",
     };
     setTabs([...tabs, newTab]);
@@ -462,7 +450,7 @@ function App() {
       const fallbackTab: TerminalTab = {
         id: crypto.randomUUID(),
         name: "Tab 1",
-        agents: ["Main Terminal"],
+        agents: [],
         layoutOrientation: "horizontal",
       };
       setTabs([fallbackTab]);
