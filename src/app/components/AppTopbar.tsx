@@ -42,13 +42,13 @@ export function AppTopbar({
             value={newAgentName}
             onChange={e => onChangeNewAgentName(e.target.value)}
             placeholder={appMode === "terminal" ? "Spawn new terminal..." : "Spawn new agent..."}
-            className="bg-[#0a0a0c] border border-app-border focus:border-brand-accent text-slate-200 pl-8 pr-3 py-1.5 text-xs outline-none transition-colors w-64 placeholder:text-slate-600 rounded-lg"
+            className="bg-app-panel border border-app-border focus:border-brand-accent text-slate-200 pl-8 pr-3 py-1.5 text-xs outline-none transition-colors w-64 placeholder:text-slate-600 rounded-lg"
           />
         </div>
         <button
           type="button"
           onClick={onSpawnBrowser}
-          className="p-1.5 rounded-lg transition-colors text-slate-500 hover:text-brand-primary bg-[#0a0a0c] border border-app-border"
+          className="p-1.5 rounded-lg transition-colors text-slate-500 hover:text-brand-primary bg-app-panel border border-app-border"
           title="Open Browser Pane"
         >
           <Globe size={16} />
@@ -60,21 +60,21 @@ export function AppTopbar({
           <>
             <button
               onClick={onOpenBrainstorm}
-              className="p-1.5 rounded-lg transition-colors text-slate-500 hover:text-brand-primary bg-[#0a0a0c] border border-app-border"
+              className="p-1.5 rounded-lg transition-colors text-slate-500 hover:text-brand-primary bg-app-panel border border-app-border"
               title="Brainstorm Mode"
             >
               <Brain size={16} />
             </button>
             <button
               onClick={onOpenMasterPlan}
-              className="p-1.5 rounded-lg transition-colors text-slate-500 hover:text-brand-primary bg-[#0a0a0c] border border-app-border"
+              className="p-1.5 rounded-lg transition-colors text-slate-500 hover:text-brand-primary bg-app-panel border border-app-border"
               title="Master Plan Board"
             >
               <ClipboardList size={16} />
             </button>
             <button
               onClick={onOpenNetworkGraph}
-              className="p-1.5 rounded-lg transition-colors text-slate-500 hover:text-brand-primary bg-[#0a0a0c] border border-app-border"
+              className="p-1.5 rounded-lg transition-colors text-slate-500 hover:text-brand-primary bg-app-panel border border-app-border"
               title="Collaboration Graph"
             >
               <Network size={16} />
@@ -82,7 +82,7 @@ export function AppTopbar({
           </>
         )}
 
-        <div className="flex items-center gap-1 bg-[#0a0a0c] p-1 border border-app-border rounded-lg">
+        <div className="flex items-center gap-1 bg-app-panel p-1 border border-app-border rounded-lg">
           <button
             onClick={() => onSetLayoutOrientation("horizontal")}
             className={`p-1.5 rounded-lg transition-colors ${layoutOrientation === "horizontal" ? "bg-brand-accent/20 text-brand-primary" : "text-slate-500 hover:text-slate-300"}`}
@@ -109,7 +109,7 @@ export function AppTopbar({
         {appMode === "orchestrator" && (
           <button
             onClick={onToggleSidebar}
-            className="p-1.5 rounded-lg transition-colors text-slate-500 hover:text-brand-primary bg-[#0a0a0c] border border-app-border"
+            className="p-1.5 rounded-lg transition-colors text-slate-500 hover:text-brand-primary bg-app-panel border border-app-border"
             title="Toggle Sidebar"
           >
             {isSidebarOpen ? <PanelLeftClose size={16} /> : <PanelLeft size={16} />}

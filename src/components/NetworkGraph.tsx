@@ -26,7 +26,7 @@ function AgentNode({ data }: NodeProps) {
   const { label, isWorking, isWaiting, waitingOn, isMain } = data as any;
   
   return (
-    <div className={`px-4 py-4 rounded-sm border bg-zinc-950 min-w-[220px] max-w-[260px] shadow-md transition-all duration-300
+    <div className={`px-4 py-4 rounded-sm border bg-app-panel min-w-[220px] max-w-[260px] shadow-md transition-all duration-300
       ${isWorking ? 'border-amber-500/50 shadow-amber-500/10' : 
         isWaiting ? 'border-zinc-600 shadow-zinc-900/20' : 
         isMain ? 'border-brand-accent/50 shadow-brand-accent/10' : 'border-zinc-800 shadow-zinc-900/10'}`}>
@@ -241,7 +241,7 @@ export function NetworkGraph({ agents, tasks = [], onClose, onKillAgent, onInter
           </h2>
           <p className="text-zinc-500 text-xs font-medium">Drag lines between agents to dispatch tasks. Right-click nodes for Command & Control.</p>
         </div>
-        <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200 p-2 border border-zinc-800 hover:border-zinc-600 rounded-xl bg-zinc-950 transition-colors shadow-sm">
+        <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200 p-2 border border-zinc-800 hover:border-zinc-600 rounded-xl bg-app-panel transition-colors shadow-sm">
           <X size={20} />
         </button>
       </div>
@@ -260,14 +260,14 @@ export function NetworkGraph({ agents, tasks = [], onClose, onKillAgent, onInter
           connectionLineStyle={{ stroke: '#00f0ff', strokeWidth: 2, strokeDasharray: '4 4' }}
         >
           <Background color="#27272a" gap={24} size={1.5} />
-          <Controls className="bg-zinc-950 text-brand-primary border border-zinc-800 shadow-md !rounded-xl" />
+          <Controls className="bg-app-panel text-brand-primary border border-zinc-800 shadow-md !rounded-xl" />
         </ReactFlow>
       </div>
 
       {/* Context Menu */}
       {contextMenu && (
         <div 
-          className="fixed z-[100] bg-zinc-950 border border-zinc-800 shadow-2xl py-1 flex flex-col w-48 animate-in fade-in zoom-in-95 duration-100"
+          className="fixed z-[100] bg-app-panel border border-zinc-800 shadow-2xl py-1 flex flex-col w-48 animate-in fade-in zoom-in-95 duration-100"
           style={{ top: contextMenu.y, left: contextMenu.x }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -298,11 +298,11 @@ export function NetworkGraph({ agents, tasks = [], onClose, onKillAgent, onInter
 
       {/* Inject Hint Modal */}
       {hintModal && (
-        <div className="fixed inset-0 z-[110] bg-zinc-950/80 backdrop-blur-sm flex items-center justify-center p-6" onClick={() => setHintModal(null)}>
+        <div className="fixed inset-0 z-[110] bg-app-panel/80 backdrop-blur-sm flex items-center justify-center p-6" onClick={() => setHintModal(null)}>
           <form 
             onSubmit={handleInjectSubmit} 
             onClick={(e) => e.stopPropagation()} 
-            className="w-full max-w-md bg-zinc-950 border border-zinc-800 shadow-2xl flex flex-col rounded-xl"
+            className="w-full max-w-md bg-app-panel border border-zinc-800 shadow-2xl flex flex-col rounded-xl"
           >
             <div className="px-4 py-3 border-b border-zinc-800 bg-zinc-900/50 flex justify-between items-center">
               <span className="text-sm font-bold text-zinc-200 flex items-center gap-2">
@@ -331,11 +331,11 @@ export function NetworkGraph({ agents, tasks = [], onClose, onKillAgent, onInter
 
       {/* Quick Dispatch Modal */}
       {dispatchModal && (
-        <div className="fixed inset-0 z-[110] bg-zinc-950/80 backdrop-blur-sm flex items-center justify-center p-6" onClick={() => setDispatchModal(null)}>
+        <div className="fixed inset-0 z-[110] bg-app-panel/80 backdrop-blur-sm flex items-center justify-center p-6" onClick={() => setDispatchModal(null)}>
           <form 
             onSubmit={handleDispatchSubmit} 
             onClick={(e) => e.stopPropagation()} 
-            className="w-full max-w-lg bg-zinc-950 border border-brand-accent/50 shadow-2xl flex flex-col rounded-xl"
+            className="w-full max-w-lg bg-app-panel border border-brand-accent/50 shadow-2xl flex flex-col rounded-xl"
           >
             <div className="px-4 py-3 border-b border-zinc-800 bg-zinc-900/50 flex justify-between items-center">
               <span className="text-sm font-bold text-zinc-200 flex items-center gap-2">

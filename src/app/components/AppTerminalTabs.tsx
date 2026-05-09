@@ -51,7 +51,7 @@ export function AppTerminalTabs({
   };
 
   return (
-    <div className="h-9 flex items-center bg-[#0d0d0f] border-b border-app-border shrink-0 overflow-x-auto custom-scrollbar">
+    <div className="h-9 flex items-center bg-app-bg border-b border-app-border shrink-0 overflow-x-auto custom-scrollbar">
       <div className="flex items-center h-full">
         {tabs.map((tab) => {
           const isActive = tab.id === activeTabId;
@@ -62,12 +62,11 @@ export function AppTerminalTabs({
               onClick={() => { if (!isEditing) onTabSelect(tab.id); }}
               onDoubleClick={() => handleDoubleClick(tab.id, tab.name)}
               className={`group flex items-center gap-2 px-4 h-full border-r border-app-border cursor-pointer select-none min-w-[120px] max-w-[200px] transition-colors ${
-                isActive 
-                  ? "bg-[#020202] text-brand-primary" 
-                  : "bg-[#0d0d0f] text-zinc-500 hover:bg-[#151518] hover:text-zinc-300"
+                isActive
+                  ? "bg-app-panel text-brand-primary"
+                  : "bg-transparent text-zinc-500 hover:bg-zinc-800/50 hover:text-zinc-300"
               }`}
-            >
-              {isEditing ? (
+            >              {isEditing ? (
                 <input
                   ref={inputRef}
                   value={editValue}

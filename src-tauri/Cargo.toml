@@ -32,3 +32,4 @@ reqwest = { version = "0.13", features = ["json"] }
 ignore = "0.4.25"
 tauri-plugin-sql = { version = "2", features = ["sqlite"] }
 url = "2"
+window-vibrancy = "0.6.0"

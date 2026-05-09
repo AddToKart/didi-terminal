@@ -268,6 +268,18 @@ function App() {
     invoke<any>("get_config").then(config => {
       document.documentElement.style.setProperty("--tw-colors-brand-accent", config.theme_cyan);
       document.documentElement.style.setProperty("--tw-colors-brand-warn", config.theme_amber);
+      
+      if (config.theme_mode === "dark") {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+      
+      if (config.glassmorphism) {
+        document.documentElement.classList.add("glass");
+      } else {
+        document.documentElement.classList.remove("glass");
+      }
     }).catch(console.error);
 
     const interval = setInterval(() => {

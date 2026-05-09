@@ -125,6 +125,31 @@ async fn close_browser_view(
     Ok(())
 }
 
+#[tauri::command]
+fn update_vibrancy(window: tauri::Window, enable: bool, theme: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        if enable {
+            let is_dark = theme == "dark";
+            let _ = window_vibrancy::apply_acrylic(&window, Some((18, 18, 18, if is_dark { 125 } else { 50 })));
+            // Optionally try mica: let _ = window_vibrancy::apply_mica(&window, Some(is_dark));
+        } else {
+            let _ = window_vibrancy::clear_acrylic(&window);
+            let _ = window_vibrancy::clear_mica(&window);
+        }
+    }
+    #[cfg(target_os = "macos")]
+    {
+        if enable {
+            let _ = window_vibrancy::apply_vibrancy(&window, window_vibrancy::NSVisualEffectMaterial::HudWindow, None, None);
+        } else {
+            // macOS clear vibrancy might require different handling, or there's clear_vibrancy
+            // let _ = window_vibrancy::clear_vibrancy(&window);
+        }
+    }
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let migrations = vec![
@@ -198,15 +223,23 @@ pub fn run() {
             update_browser_bounds,
             navigate_browser_view,
             close_browser_view,
+            update_vibrancy,
         ])
         .setup(|app| {
+            let loaded_config = load_config(app.handle());
+            
+            // Apply initial vibrancy based on config
+            if let Some(window) = app.get_window("main") {
+                let _ = update_vibrancy(window, loaded_config.glassmorphism, loaded_config.theme_mode.clone());
+            }
+
             start_agent_bus(app.handle().clone());
             app.manage(AppState {
                 pty_writers: Mutex::new(HashMap::new()),
                 pty_resizers: Mutex::new(HashMap::new()),
                 pty_processes: Mutex::new(HashMap::new()),
                 sys: Mutex::new(sysinfo::System::new_all()),
-                config: Mutex::new(load_config(app.handle())),
+                config: Mutex::new(loaded_config),
                 browser_views: Mutex::new(HashMap::new()),
             });
             use tauri_plugin_shell::ShellExt;

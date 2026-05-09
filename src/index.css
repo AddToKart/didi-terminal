@@ -5,9 +5,37 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --app-bg: #f4f4f5; /* zinc-100 */
+    --app-panel: #ffffff;
+    --app-border: #e4e4e7; /* zinc-200 */
+  }
+
+  .dark {
+    --app-bg: #09090b; /* zinc-950 */
+    --app-panel: #18181b; /* zinc-900 */
+    --app-border: #27272a; /* zinc-800 */
+  }
+
+  .glass {
+    --app-bg: rgba(244, 244, 245, 0.1);
+    --app-panel: rgba(255, 255, 255, 0.2);
+  }
+
+  .dark.glass {
+    --app-bg: rgba(9, 9, 11, 0.1);
+    --app-panel: rgba(24, 24, 27, 0.2);
+  }
+
   body {
-    @apply bg-app-bg text-zinc-300 font-sans overflow-hidden antialiased;
+    @apply bg-app-bg text-zinc-800 dark:text-zinc-300 font-sans overflow-hidden antialiased;
     margin: 0;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  
+  .glass .bg-app-panel {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
   }
 }
 

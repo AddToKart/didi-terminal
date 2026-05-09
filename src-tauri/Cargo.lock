@@ -5042,6 +5042,7 @@ dependencies = [
  "tauri-plugin-sql",
  "tokio",
  "url",
+ "window-vibrancy",
 ]
 
 [[package]]

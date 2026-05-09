@@ -4,6 +4,7 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  darkMode: 'class',
   theme: {
     extend: {
       fontFamily: {
@@ -13,9 +14,9 @@ export default {
       },
       colors: {
         app: {
-          bg: '#09090b', // zinc-950
-          panel: '#18181b', // zinc-900
-          border: '#27272a', // zinc-800
+          bg: 'var(--app-bg)',
+          panel: 'var(--app-panel)',
+          border: 'var(--app-border)',
         },
         brand: {
           primary: '#e4e4e7', // zinc-200 (sharp white/gray contrast)

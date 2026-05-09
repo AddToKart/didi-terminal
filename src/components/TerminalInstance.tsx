@@ -151,7 +151,7 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
 
     term.current = new Terminal({
       theme: {
-        background: '#020202',
+        background: '#00000000',
         foreground: '#e2e8f0',
         cursor: '#00f0ff',
         selectionBackground: "#00f0ff40",
@@ -286,11 +286,11 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
   };
 
   return (
-    <div className={`flex flex-col h-full w-full bg-[#020202] border transition-colors duration-300 ${sentinelPaused ? 'border-red-400 shadow-sm z-10 relative' : isPulsing ? 'border-brand-accent animate-pulse-border shadow-sm z-10 relative' : 'border-app-border z-0'}`}>
+    <div className={`flex flex-col h-full w-full bg-transparent border transition-colors duration-300 ${sentinelPaused ? 'border-red-400 shadow-sm z-10 relative' : isPulsing ? 'border-brand-accent animate-pulse-border shadow-sm z-10 relative' : 'border-app-border z-0'}`}>
       
       {/* Terminal Header & Macros */}
       <div 
-        className={`flex items-center justify-between px-3 py-1.5 border-b transition-colors duration-300 ${dragListeners ? 'cursor-grab active:cursor-grabbing' : ''} ${sentinelPaused ? 'bg-red-500/10 border-red-400/50' : isPulsing ? 'bg-brand-accent/10 border-brand-accent/50' : 'bg-[#080809] border-app-border'}`}
+        className={`flex items-center justify-between px-3 py-1.5 border-b transition-colors duration-300 ${dragListeners ? 'cursor-grab active:cursor-grabbing' : ''} ${sentinelPaused ? 'bg-red-500/10 border-red-400/50' : isPulsing ? 'bg-brand-accent/10 border-brand-accent/50' : 'bg-app-panel border-app-border'}`}
         onContextMenu={handleContextMenu}
         title={dragListeners ? "Drag to reorder • Right-click to split pane" : "Right-click to split pane"}
         {...dragAttributes}
@@ -360,10 +360,10 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder="Search..." 
-                className="bg-zinc-950 border border-app-border text-slate-200 px-2 py-0.5 outline-none focus:border-brand-accent w-32"
+                className="bg-app-panel border border-app-border text-slate-200 px-2 py-0.5 outline-none focus:border-brand-accent w-32"
               />
-              <button type="button" onClick={(e) => handleSearch(e, 'prev')} className="p-1 text-slate-500 hover:text-slate-200 bg-zinc-950 border border-app-border hover:border-slate-500"><ChevronUp size={12}/></button>
-              <button type="submit" className="p-1 text-slate-500 hover:text-slate-200 bg-zinc-950 border border-app-border hover:border-slate-500"><ChevronDown size={12}/></button>
+              <button type="button" onClick={(e) => handleSearch(e, 'prev')} className="p-1 text-slate-500 hover:text-slate-200 bg-app-panel border border-app-border hover:border-slate-500"><ChevronUp size={12}/></button>
+              <button type="submit" className="p-1 text-slate-500 hover:text-slate-200 bg-app-panel border border-app-border hover:border-slate-500"><ChevronDown size={12}/></button>
             </form>
             <button onClick={() => { setShowSearch(false); searchAddon.current?.clearDecorations(); }} className="p-1 text-slate-500 hover:text-red-400 ml-1"><X size={12}/></button>
           </div>

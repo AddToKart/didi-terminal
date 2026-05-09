@@ -73,13 +73,13 @@ function SortableWorkspaceItem({
   };
 
   const containerClass = isDragOverlay
-    ? `flex items-center justify-between px-3 py-2.5 rounded-lg shadow-2xl border border-brand-accent/50 bg-zinc-900 ring-1 ring-brand-accent/30 cursor-grabbing select-none`
+    ? `flex items-center justify-between px-3 py-2.5 rounded-lg shadow-2xl border border-brand-accent/50 bg-app-panel ring-1 ring-brand-accent/30 cursor-grabbing select-none`
     : `group relative flex items-center justify-between px-3 py-2.5 rounded-lg shadow-sm cursor-grab active:cursor-grabbing transition-all select-none ${
         isDragging
           ? "border border-transparent bg-transparent"
           : isActive
           ? "bg-brand-accent/5 border border-brand-accent/20"
-          : "hover:bg-zinc-900/50 border border-transparent"
+          : "hover:bg-app-panel/50 border border-transparent"
       }`;
 
   return (
@@ -108,7 +108,7 @@ function SortableWorkspaceItem({
               }}
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => e.stopPropagation()}
-              className="text-xs font-bold bg-zinc-950 border border-brand-accent/50 rounded px-1 outline-none text-brand-accent w-full"
+              className="text-xs font-bold bg-app-panel border border-brand-accent/50 rounded px-1 outline-none text-brand-accent w-full"
             />
           ) : (
             <div className={`text-xs font-bold truncate transition-colors ${isActive ? "text-brand-accent" : "text-zinc-400 group-hover:text-zinc-300"}`}>
@@ -209,7 +209,7 @@ export function AppGlobalSidebar({
           <>
             <div className="fixed inset-0 z-[90]" onClick={() => setMenuOpenId(null)} />
             <div
-              className="fixed w-44 bg-zinc-900 border border-zinc-700 rounded-lg shadow-2xl py-1 z-[91]"
+              className="fixed w-44 bg-app-panel border border-zinc-700 rounded-lg shadow-2xl py-1 z-[91]"
               style={{ top: menuPos.top, left: menuPos.left }}
             >
               {(() => {
@@ -235,7 +235,7 @@ export function AppGlobalSidebar({
           document.body
         )}
 
-      <aside className="w-64 border-r border-app-border bg-[#0d0d0f] flex flex-col shadow-xl z-20 shrink-0">
+      <aside className="w-64 border-r border-app-border bg-app-panel flex flex-col shadow-xl z-20 shrink-0">
         <div className="p-4 border-b border-app-border/50">
           <div className="flex items-center gap-2.5 text-zinc-200 font-bold tracking-wide">
             <Code2 className="text-brand-accent" size={22} />
@@ -308,7 +308,7 @@ export function AppGlobalSidebar({
         </div>
 
         <div className="p-3 border-t border-app-border/50 flex flex-col gap-3">
-          <div className="flex items-center justify-between bg-zinc-950/50 p-1.5 rounded-xl border border-zinc-800/50">
+          <div className="flex items-center justify-between bg-app-panel/50 p-1.5 rounded-xl border border-zinc-800/50">
             <button
               onClick={() => onSetAppMode("terminal")}
               className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all ${appMode === "terminal" ? "bg-zinc-800 text-zinc-200 shadow-sm" : "text-zinc-500 hover:text-zinc-300"}`}

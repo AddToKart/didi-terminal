@@ -253,7 +253,7 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
   };
 
   return (
-    <div className="absolute inset-0 z-50 bg-zinc-950/90 backdrop-blur-md flex items-center justify-center p-6">
+    <div className="absolute inset-0 z-50 bg-app-panel/90 backdrop-blur-md flex items-center justify-center p-6">
 
       {/* Floating ghost card rendered outside any overflow:hidden ancestor */}
       {dragState && createPortal(
@@ -268,7 +268,7 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
             opacity: 0.95,
             transform: "rotate(2deg)",
           }}
-          className="bg-zinc-950 border border-brand-accent shadow-2xl px-4 py-3 rounded-xl"
+          className="bg-app-panel border border-brand-accent shadow-2xl px-4 py-3 rounded-xl"
         >
           <div className="text-[10px] uppercase font-bold tracking-widest text-zinc-500 mb-1">{dragState.task.section}</div>
           <div className="text-sm font-medium text-zinc-200 leading-snug line-clamp-2">{dragState.task.text}</div>
@@ -277,8 +277,8 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
       )}
 
       {selectedTask && createPortal(
-        <div className="fixed inset-0 z-[100000] bg-zinc-950/90 backdrop-blur-sm flex items-center justify-center p-6">
-          <div className="w-full max-w-2xl max-h-[85vh] bg-zinc-950 border border-zinc-800 shadow-2xl overflow-hidden flex flex-col rounded-xl">
+        <div className="fixed inset-0 z-[100000] bg-app-panel/90 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="w-full max-w-2xl max-h-[85vh] bg-app-panel border border-zinc-800 shadow-2xl overflow-hidden flex flex-col rounded-xl">
             <div className="px-6 py-5 border-b border-zinc-800 bg-zinc-900/50 flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <div className="text-[10px] uppercase font-bold tracking-widest text-zinc-500 mb-1.5">{selectedTask.section}</div>
@@ -295,15 +295,15 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
             </div>
             <div className="p-6 overflow-y-auto min-h-0 space-y-6 bg-app-bg">
               <div className="grid grid-cols-3 gap-3 text-xs">
-                <div className="border border-zinc-800 bg-zinc-950 rounded-xl p-3 shadow-sm">
+                <div className="border border-zinc-800 bg-app-panel rounded-xl p-3 shadow-sm">
                   <div className="text-zinc-500 font-bold uppercase tracking-wider text-[10px]">Status</div>
                   <div className="text-zinc-200 capitalize font-medium mt-1.5">{selectedTask.status.replace("_", " ")}</div>
                 </div>
-                <div className="border border-zinc-800 bg-zinc-950 rounded-xl p-3 shadow-sm">
+                <div className="border border-zinc-800 bg-app-panel rounded-xl p-3 shadow-sm">
                   <div className="text-zinc-500 font-bold uppercase tracking-wider text-[10px]">Line Number</div>
                   <div className="text-zinc-200 font-medium mt-1.5">{selectedTask.line + 1}</div>
                 </div>
-                <div className="border border-zinc-800 bg-zinc-950 rounded-xl p-3 shadow-sm">
+                <div className="border border-zinc-800 bg-app-panel rounded-xl p-3 shadow-sm">
                   <div className="text-zinc-500 font-bold uppercase tracking-wider text-[10px]">Subtasks</div>
                   <div className="text-zinc-200 font-medium mt-1.5">{selectedTask.children.filter(child => child.status).length}</div>
                 </div>
@@ -312,7 +312,7 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
               <div>
                 <div className="text-[11px] uppercase tracking-widest text-zinc-500 font-bold mb-3">Subtasks & Notes</div>
                 {selectedTask.children.length === 0 ? (
-                  <div className="text-sm text-zinc-600 border border-dashed border-zinc-800 bg-zinc-950/50 rounded-xl py-8 text-center font-medium">
+                  <div className="text-sm text-zinc-600 border border-dashed border-zinc-800 bg-app-panel/50 rounded-xl py-8 text-center font-medium">
                     No subtasks or notes under this task.
                   </div>
                 ) : (
@@ -320,7 +320,7 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
                     {selectedTask.children.map(child => (
                       <div
                         key={child.id}
-                        className="border border-zinc-800 bg-zinc-950 rounded-xl px-3 py-2 shadow-sm"
+                        className="border border-zinc-800 bg-app-panel rounded-xl px-3 py-2 shadow-sm"
                         style={{ marginLeft: Math.min(child.depth, 24) }}
                       >
                         <div className="flex items-start gap-2.5">
@@ -351,7 +351,7 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
       )}
 
       <div
-        className="w-full max-w-[98vw] xl:max-w-[1800px] h-[92vh] border border-zinc-800 bg-zinc-950 shadow-2xl flex flex-col rounded-xl overflow-hidden"
+        className="w-full max-w-[98vw] xl:max-w-[1800px] h-[92vh] border border-zinc-800 bg-app-panel shadow-2xl flex flex-col rounded-xl overflow-hidden"
         style={{ cursor: dragState ? "grabbing" : "default", userSelect: dragState ? "none" : "auto" }}
       >
         {/* Header */}
@@ -415,7 +415,7 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
                     value={newTask}
                     onChange={e => setNewTask(e.target.value)}
                     placeholder="Add a new task..."
-                    className="w-full bg-zinc-950 border border-zinc-800 focus:border-brand-accent text-zinc-200 px-4 py-2 text-sm outline-none rounded-xl transition-all placeholder:text-zinc-600 font-medium shadow-inner"
+                    className="w-full bg-app-panel border border-zinc-800 focus:border-brand-accent text-zinc-200 px-4 py-2 text-sm outline-none rounded-xl transition-all placeholder:text-zinc-600 font-medium shadow-inner"
                   />
                   <button
                     type="submit"
@@ -443,13 +443,13 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
                       </div>
                     )}
                     {queuedTasks.slice(0, 5).map((task, index) => (
-                      <div key={task.id} className="text-xs text-zinc-300 truncate border border-amber-500/20 bg-zinc-950 px-3 py-2 rounded-xl font-medium">
+                      <div key={task.id} className="text-xs text-zinc-300 truncate border border-amber-500/20 bg-app-panel px-3 py-2 rounded-xl font-medium">
                         <span className="text-amber-500 font-bold mr-2 uppercase tracking-wide text-[10px]">Q#{index + 1}</span>
                         {task.text}
                       </div>
                     ))}
                     {!activeQueueTask && queuedTasks.length === 0 && activeTasks.slice(0, 6).map(task => (
-                      <div key={task.id} className="text-xs text-zinc-300 truncate border border-amber-500/20 bg-zinc-950 px-3 py-2 rounded-xl font-medium">
+                      <div key={task.id} className="text-xs text-zinc-300 truncate border border-amber-500/20 bg-app-panel px-3 py-2 rounded-xl font-medium">
                         {task.text}
                       </div>
                     ))}
@@ -474,7 +474,7 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
                           : "border-zinc-800 bg-zinc-900/30"
                       }`}
                     >
-                      <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/50">
+                      <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between bg-app-panel/50">
                         <div className="flex items-center gap-2">
                           <Icon size={14} className={
                               column.status === "in_progress" ? "text-amber-500" :
@@ -485,7 +485,7 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
                           } />
                           <span className="text-xs font-bold uppercase tracking-wider text-zinc-300">{column.label}</span>
                         </div>
-                        <span className="text-[10px] font-mono font-bold text-zinc-500 bg-zinc-950 px-2 py-0.5 rounded-xl border border-zinc-800">
+                        <span className="text-[10px] font-mono font-bold text-zinc-500 bg-app-panel px-2 py-0.5 rounded-xl border border-zinc-800">
                           {columnTasks.length}
                         </span>
                       </div>
@@ -497,7 +497,7 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
                             <div
                               key={task.id}
                               onPointerDown={e => handlePointerDown(e, task)}
-                              className={`group bg-zinc-950 hover:bg-zinc-900 border px-3 py-3 rounded-xl shadow-sm hover:shadow-md transition-all select-none ${
+                              className={`group bg-app-panel hover:bg-zinc-900 border px-3 py-3 rounded-xl shadow-sm hover:shadow-md transition-all select-none ${
                                 dragState?.task.id === task.id
                                   ? "opacity-30 cursor-grabbing"
                                   : task.status === "done"

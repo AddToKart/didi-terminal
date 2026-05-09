@@ -67,7 +67,7 @@ export function AppSidebar({
             </div>
             <button
               onClick={onOpenProject}
-              className="w-full bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 px-3 py-2 text-xs font-medium text-zinc-300 flex items-center justify-between transition-colors group rounded-lg"
+              className="w-full bg-app-panel hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 px-3 py-2 text-xs font-medium text-zinc-300 flex items-center justify-between transition-colors group rounded-lg"
             >
               <span className="truncate">{currentProject ? currentProject.split("\\").pop() : "Select Directory..."}</span>
               <FolderOpen size={14} className="text-zinc-500 group-hover:text-zinc-300 transition-colors" />
@@ -90,7 +90,7 @@ export function AppSidebar({
           onToggle={onToggleSentinel}
         />
 
-        <div className="shrink-0 border-b border-app-border bg-zinc-950 flex flex-col">
+        <div className="shrink-0 border-b border-app-border bg-app-panel flex flex-col">
           <div className="px-4 py-2.5 flex items-center justify-between text-xs font-semibold">
             <div className="flex items-center gap-2 text-zinc-400">
               <ShieldAlert size={14} className={hitlEnabled ? "text-amber-400" : "text-zinc-600"} />
@@ -111,13 +111,13 @@ export function AppSidebar({
         </div>
 
         <div className="shrink-0 flex flex-col min-h-0 border-b border-app-border">
-          <div className="px-4 py-2.5 text-xs font-semibold text-zinc-400 bg-zinc-950 flex items-center justify-between border-b border-app-border">
+          <div className="px-4 py-2.5 text-xs font-semibold text-zinc-400 bg-app-panel flex items-center justify-between border-b border-app-border">
             <span className="flex items-center gap-2"><Cpu size={14} /> Active Agents</span>
             <span>{agents.length}</span>
           </div>
           <div className="p-3 space-y-2">
             {agents.map(agent => (
-              <div key={agent} className="group flex items-center justify-between px-3 py-2 bg-zinc-950 border border-zinc-800/50 hover:border-zinc-700 transition-colors rounded-lg">
+              <div key={agent} className="group flex items-center justify-between px-3 py-2 bg-app-panel border border-zinc-800/50 hover:border-zinc-700 transition-colors rounded-lg">
                 <div className="flex items-center gap-2 truncate">
                   <div className="w-1.5 h-1.5 rounded-full bg-brand-accent animate-pulse" />
                   <span className="text-xs font-medium text-zinc-300 truncate">{agent}</span>
@@ -148,7 +148,7 @@ export function AppSidebar({
         />
 
         <div className="shrink-0 flex flex-col min-h-0 border-b border-app-border bg-zinc-900/10">
-          <div className="px-4 py-2.5 text-xs font-semibold text-zinc-400 bg-zinc-950 flex items-center justify-between border-b border-app-border">
+          <div className="px-4 py-2.5 text-xs font-semibold text-zinc-400 bg-app-panel flex items-center justify-between border-b border-app-border">
             <div className="flex items-center gap-2">
               <button onClick={onToggleTasksCollapsed} className="text-zinc-500 hover:text-zinc-300 transition-colors">
                 {isTasksCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
@@ -163,7 +163,7 @@ export function AppSidebar({
                 <div className="text-xs text-zinc-500">No tracked tasks</div>
               ) : (
                 tasks.slice(0, 8).map(task => (
-                  <div key={task.id} className="border border-zinc-800/50 bg-zinc-950/50 px-3 py-2 rounded-lg">
+                  <div key={task.id} className="border border-zinc-800/50 bg-app-panel/50 px-3 py-2 rounded-lg">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-xs font-medium text-brand-primary truncate">{task.target}</span>
                       <span className={`text-[10px] uppercase ${task.status === "complete" ? "text-emerald-400" : "text-amber-400"}`}>
@@ -179,7 +179,7 @@ export function AppSidebar({
         </div>
 
         <div className="shrink-0 flex flex-col min-h-0 bg-zinc-900/10 pb-4">
-          <div className="px-4 py-2.5 text-xs font-semibold text-zinc-400 bg-zinc-950 flex items-center gap-2 border-b border-app-border">
+          <div className="px-4 py-2.5 text-xs font-semibold text-zinc-400 bg-app-panel flex items-center gap-2 border-b border-app-border">
             <button onClick={onToggleActivityCollapsed} className="text-zinc-500 hover:text-zinc-300 transition-colors">
               {isActivityCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
             </button>

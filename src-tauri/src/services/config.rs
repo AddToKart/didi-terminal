@@ -12,6 +12,8 @@ pub struct AppConfig {
     pub llm_api_key: String,
     pub theme_cyan: String,
     pub theme_amber: String,
+    pub theme_mode: String,
+    pub glassmorphism: bool,
 }
 
 impl Default for AppConfig {
@@ -23,6 +25,8 @@ impl Default for AppConfig {
             llm_api_key: String::new(),
             theme_cyan: "#00f0ff".to_string(),
             theme_amber: "#ffb000".to_string(),
+            theme_mode: "dark".to_string(),
+            glassmorphism: false,
         }
     }
 }
