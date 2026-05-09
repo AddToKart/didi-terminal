@@ -1,165 +1,39 @@
-import { Panel, Group, Separator } from "react-resizable-panels";
-import { TerminalInstance } from "./components/TerminalInstance";
-import { useCallback, useEffect, useState, useRef, FormEvent, Fragment, lazy, Suspense } from "react";
-import { emit, listen } from "@tauri-apps/api/event";
+import { useCallback, useEffect, useRef, useState, type DragEvent, type FormEvent, lazy } from "react";
+import { emit } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { Terminal, FolderOpen, ShieldAlert, Cpu, Columns, Rows, Plus, X, Activity, Grid2X2, PanelLeftClose, PanelLeft, Network, Settings, Server, Brain, ChevronDown, ChevronRight, ClipboardList } from "lucide-react";
-import { SentinelIncident, SentinelPanel } from "./components/SentinelPanel";
-import { GitSnapshotRecord, SnapshotPanel } from "./components/SnapshotPanel";
-import { BrainstormModal, BrainstormSession } from "./components/BrainstormModal";
-import { ApprovalModal } from "./components/ApprovalModal";
-import { MasterPlanPanel } from "./components/MasterPlanPanel";
+import { TerminalInstance } from "./components/TerminalInstance";
+import { type SentinelIncident } from "./components/SentinelPanel";
+import { type GitSnapshotRecord } from "./components/SnapshotPanel";
+import { type BrainstormSession } from "./components/BrainstormModal";
+import {
+  findMatchingAgent,
+  getPtyKey,
+  getUniqueAgents,
+  type ActiveMasterPlanTask,
+  type ActivityLog,
+  type HitlApprovalRequest,
+  type MasterPlanTaskDispatch,
+  type SentinelAgentState,
+  type TaskRecord,
+} from "./services/app-core";
+import { registerSentinelMonitoring } from "./services/sentinel-service";
+import { registerHandoffListeners } from "./services/handoff-service";
+import { createHandoffQueueService } from "./services/handoff-queue-service";
+import { createMasterPlanWorkflow } from "./app/workflows/master-plan-workflow";
+import { createBrainstormWorkflow } from "./app/workflows/brainstorm-workflow";
+import { AppOverlays } from "./app/components/AppOverlays";
+import { AppSidebar } from "./app/components/AppSidebar";
+import { AppTopbar } from "./app/components/AppTopbar";
+import { AppTerminalArea } from "./app/components/AppTerminalArea";
 
 const NetworkGraph = lazy(() => import("./components/NetworkGraph").then(module => ({ default: module.NetworkGraph })));
 const SettingsModal = lazy(() => import("./components/SettingsModal").then(module => ({ default: module.SettingsModal })));
 
-const HANDOFF_SUBMIT_DELAY_MS = 400;
-const BRAINSTORM_CALLBACK_TARGET = "Brainstorm";
-
-const getPtyKey = (agentName: string) => agentName.trim().toLowerCase();
-
-const getAgentId = (agentName: string) =>
-  getPtyKey(agentName).replace(/[^a-z0-9]/g, "");
-
-const getUniqueAgents = (agentNames: string[]) => {
-  const seen = new Set<string>();
-
-  return agentNames.filter(agentName => {
-    const id = getAgentId(agentName);
-    if (!id || seen.has(id)) return false;
-
-    seen.add(id);
-    return true;
-  });
-};
-
-const findMatchingAgent = (agentNames: string[], targetName: string) => {
-  const targetPtyKey = getPtyKey(targetName);
-  const targetId = getAgentId(targetName);
-
-  return agentNames.find(agentName =>
-    getPtyKey(agentName) === targetPtyKey || getAgentId(agentName) === targetId
-  );
-};
-
-const isCompletionMessage = (payload: string) =>
-  /^\s*(Task complete|Done|Completed|Finished|Status|FYI|Ack|Acknowledged)\b/i.test(payload) ||
-  /\bCOMPLETED TASK\b/i.test(payload) ||
-  /completion callback/i.test(payload);
-
-const getHandoffKind = (handoff: HandoffPayload): HandoffKind => {
-  if (handoff.kind) return handoff.kind;
-  return isCompletionMessage(handoff.payload) ? "completion" : "task";
-};
-
-const getTaskSummary = (payload: string) =>
-  payload
-    .replace(/\[[^\]]+\]\s*:\s*/g, "")
-    .replace(/\[SYSTEM RULE:[\s\S]*$/i, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 140);
-
-const isMasterPlanManagedHandoff = (handoff: HandoffPayload) =>
-  getAgentId(handoff.sender || "") === "masterplan" ||
-  /Queue this MASTER_PLAN\.md task/i.test(handoff.payload);
-
-const stripTerminalControls = (value: string) =>
-  value
-    .replace(/\x1B\][^\x07]*(?:\x07|\x1B\\)/g, "")
-    .replace(/\x1B\[[0-?]*[ -/]*[@-~]/g, "")
-    .replace(/\x1B[@-_][0-?]*[ -/]*[@-~]/g, "");
-
-const isFailureOutput = (value: string) =>
-  /(error|failed|exception|traceback|cannot find|not recognized|command not found|permission denied|access is denied|tests? failed|build failed|compilation failed|panic|fatal:)/i.test(value);
-
-const normalizeLoopSignature = (value: string) =>
-  stripTerminalControls(value)
-    .replace(/\s+/g, " ")
-    .replace(/\d{2,}/g, "#")
-    .trim()
-    .slice(0, 220);
-
-const getBrainstormResponse = (payload: string) => {
-  const match = payload.match(/^\s*(?:\[[^\]]+\]\s*:\s*)?brainstorm\s+response\s+([a-z0-9-]+)\s+round\s+(\d+)\s*:\s*([\s\S]+)/i);
-  if (!match) return null;
-
-  return {
-    sessionId: match[1],
-    round: Number(match[2]),
-    text: match[3].replace(/\[SYSTEM RULE:[\s\S]*$/i, "").trim(),
-  };
-};
-
-const getHandoffSender = (handoff: HandoffPayload) => {
-  const bracketSender = handoff.payload.match(/^\s*\[([^\]]+?)\s+(?:DELEGATED A TASK|COMPLETED TASK)\]/i)?.[1];
-  return bracketSender?.trim() || handoff.sender?.trim() || "";
-};
-
-interface ActivityLog {
-  id: number;
-  time: string;
-  message: string;
-  type: "system" | "handoff";
-}
-
-type HandoffKind = "task" | "completion" | "status";
-type TaskStatus = "pending" | "in_progress" | "complete";
-
-interface HandoffPayload {
-  target: string;
-  payload: string;
-  kind?: HandoffKind;
-  sender?: string;
-  taskId?: string;
-  parentTaskId?: string;
-}
-
-interface TaskRecord {
-  id: string;
-  sender: string;
-  target: string;
-  summary: string;
-  status: TaskStatus;
-  updatedAt: string;
-}
-
-interface MasterPlanTaskDispatch {
-  line: number;
-  text: string;
-  section: string;
-}
-
-interface ActiveMasterPlanTask extends MasterPlanTaskDispatch {
-  dispatchedAt: number;
-}
-
-interface TerminalInputPayload {
-  agent: string;
-  data: string;
-}
-
-interface TerminalOutputPayload {
-  agent: string;
-  data: string;
-}
-
-interface SentinelAgentState {
-  inputBuffer: string;
-  lastCommand: string;
-  lastFailureCommand: string;
-  failureCount: number;
-  lastFailureAt: number;
-  lastSignature: string;
-  signatureCount: number;
-  lastInterventionAt: number;
-}
-
 function App() {
   const params = new URLSearchParams(window.location.search);
-  const standaloneAgent = params.get('agent');
-  const standaloneCwd = params.get('cwd') || localStorage.getItem("didi_project");
+  const standaloneAgent = params.get("agent");
+  const standaloneCwd = params.get("cwd") || localStorage.getItem("didi_project");
 
   if (standaloneAgent) {
     return (
@@ -176,7 +50,7 @@ function App() {
   const [newAgentName, setNewAgentName] = useState("");
   const [currentProject, setCurrentProject] = useState<string | null>(() => localStorage.getItem("didi_project"));
   const [layoutOrientation, setLayoutOrientation] = useState<"horizontal" | "vertical" | "grid">(() => {
-    return (localStorage.getItem("didi_layout") as any) || "horizontal";
+    return (localStorage.getItem("didi_layout") as "horizontal" | "vertical" | "grid") || "horizontal";
   });
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => localStorage.getItem("didi_sidebar") !== "false");
   const [showNetworkGraph, setShowNetworkGraph] = useState(false);
@@ -184,7 +58,7 @@ function App() {
   const [showBrainstorm, setShowBrainstorm] = useState(false);
   const [showMasterPlan, setShowMasterPlan] = useState(false);
   const [sidecarStatus, setSidecarStatus] = useState("Checking...");
-  const [activity, setActivity] = useState<ActivityLog[]>([{ id: 0, time: new Date().toLocaleTimeString(), message: "System initialized", type: 'system' }]);
+  const [activity, setActivity] = useState<ActivityLog[]>([{ id: 0, time: new Date().toLocaleTimeString(), message: "System initialized", type: "system" }]);
   const [tasks, setTasks] = useState<TaskRecord[]>([]);
   const [agentQueueCounts, setAgentQueueCounts] = useState<Record<string, number>>({});
   const [masterPlanQueueState, setMasterPlanQueueState] = useState<{ activeLine: number | null; queuedLines: number[] }>({
@@ -195,7 +69,7 @@ function App() {
   const [isActivityCollapsed, setIsActivityCollapsed] = useState(false);
   const [sentinelEnabled, setSentinelEnabled] = useState(() => localStorage.getItem("didi_sentinel") !== "false");
   const [hitlEnabled, setHitlEnabled] = useState(() => localStorage.getItem("didi_hitl") !== "false");
-  const [approvalRequest, setApprovalRequest] = useState<{ agent: string, target: string, payload: string, taskId: string } | null>(null);
+  const [approvalRequest, setApprovalRequest] = useState<HitlApprovalRequest | null>(null);
   const [sentinelIncidents, setSentinelIncidents] = useState<SentinelIncident[]>([]);
   const [snapshots, setSnapshots] = useState<GitSnapshotRecord[]>([]);
   const [snapshotBusy, setSnapshotBusy] = useState(false);
@@ -212,17 +86,17 @@ function App() {
   const brainstormSessionsRef = useRef<BrainstormSession[]>([]);
   const activeMasterPlanTask = useRef<ActiveMasterPlanTask | null>(null);
   const queuedMasterPlanTasks = useRef<MasterPlanTaskDispatch[]>([]);
+  const activeAgentPlanTasks = useRef<Map<string, string[]>>(new Map());
 
   useEffect(() => {
     hitlEnabledRef.current = hitlEnabled;
     localStorage.setItem("didi_hitl", String(hitlEnabled));
   }, [hitlEnabled]);
-  const activeAgentPlanTasks = useRef<Map<string, string[]>>(new Map());
 
-  const addLog = (message: string, type: 'system' | 'handoff' = 'system') => {
+  const addLog = (message: string, type: "system" | "handoff" = "system") => {
     setActivity(prev => {
       const newLog = { id: logIdCounter.current++, time: new Date().toLocaleTimeString(), message, type };
-      return [newLog, ...prev].slice(0, 50); // Keep last 50
+      return [newLog, ...prev].slice(0, 50);
     });
   };
 
@@ -241,98 +115,33 @@ function App() {
     }
   }, []);
 
-  const syncMasterPlanQueueState = () => {
-    setMasterPlanQueueState({
-      activeLine: activeMasterPlanTask.current?.line ?? null,
-      queuedLines: queuedMasterPlanTasks.current.map(task => task.line),
-    });
-  };
+  const {
+    syncMasterPlanQueueState,
+    dispatchNextMasterPlanTask,
+    syncPlanTaskStatusByText,
+    trackAgentPlanTask,
+    popAgentPlanTask,
+    handleDispatchMasterPlanTask,
+    resetMasterPlanWorkflow,
+  } = createMasterPlanWorkflow({
+    currentProjectRef,
+    agentsRef,
+    activeMasterPlanTask,
+    queuedMasterPlanTasks,
+    activeAgentPlanTasks,
+    setMasterPlanQueueState,
+    addLog,
+  });
 
-  const dispatchMasterPlanTaskToOrchestrator = async (task: MasterPlanTaskDispatch) => {
-    if (!currentProjectRef.current) return;
-    const activeAgentList = agentsRef.current.join(", ") || "none";
-    activeMasterPlanTask.current = { ...task, dispatchedAt: Date.now() };
-    syncMasterPlanQueueState();
-
-    await emit("agent-handoff", {
-      target: "Orchestrator",
-      sender: "MasterPlan",
-      kind: "task",
-      taskId: `master-plan-${task.line}-${Date.now()}`,
-      payload: [
-        `Queue this MASTER_PLAN.md task and delegate it to the right specialist when you are ready: ${task.text}`,
-        `Section: ${task.section}.`,
-        `Active agents available now: ${activeAgentList}. Delegate only to one of these active agents.`,
-        `Workspace: ${currentProjectRef.current}.`,
-        `MASTER_PLAN.md line ${task.line + 1} is already marked in progress. Do not mark it done when you delegate it.`,
-        `Specialists may create and complete indented subtasks under that line, but only Orchestrator may send the final completion callback that closes the top-level task.`,
-        `Unless this task explicitly asks for code review, documentation, or another follow-up specialist step, instruct the assigned specialist to finish the work and report completion back to Orchestrator.`,
-        `After Orchestrator delegates this task to a specialist, Orchestrator must stop immediately and wait for the completion callback. Do not poll files, check whether files were created, retry the task, or do the specialist's work.`,
-        `Only after the assigned specialist reports completion should Orchestrator send one completion callback to MasterPlan.`,
-      ].join(" "),
-    });
-    addLog(`Started Master Plan task: ${task.text}`, "handoff");
-  };
-
-  const dispatchNextMasterPlanTask = () => {
-    if (activeMasterPlanTask.current || queuedMasterPlanTasks.current.length === 0) return;
-    const nextTask = queuedMasterPlanTasks.current.shift();
-    syncMasterPlanQueueState();
-    if (!nextTask) return;
-    dispatchMasterPlanTaskToOrchestrator(nextTask).catch(err => {
-      addLog(`Master Plan queue dispatch failed: ${err}`, "system");
-    });
-  };
-
-  const syncPlanTaskStatusByText = async (text: string, status: "in_progress" | "done") => {
-    const project = currentProjectRef.current;
-    const cleanText = text.trim();
-    if (!project || !cleanText) return;
-
-    try {
-      await invoke("set_master_plan_task_status_by_text", {
-        cwd: project,
-        text: cleanText,
-        status,
-      });
-    } catch (err) {
-      if (status === "done") {
-        throw err;
-      }
-
-      await invoke("append_master_plan_task", {
-        cwd: project,
-        text: cleanText,
-        status,
-      });
-    }
-  };
-
-  const trackAgentPlanTask = (agentName: string, text: string) => {
-    const agentId = getAgentId(agentName);
-    const cleanText = text.trim();
-    if (!agentId || !cleanText) return;
-
-    const queue = activeAgentPlanTasks.current.get(agentId) ?? [];
-    if (!queue.includes(cleanText)) {
-      queue.push(cleanText);
-    }
-    activeAgentPlanTasks.current.set(agentId, queue);
-  };
-
-  const popAgentPlanTask = (agentName: string) => {
-    const agentId = getAgentId(agentName);
-    const queue = activeAgentPlanTasks.current.get(agentId);
-    if (!queue || queue.length === 0) return null;
-
-    const text = queue.shift() ?? null;
-    if (queue.length === 0) {
-      activeAgentPlanTasks.current.delete(agentId);
-    } else {
-      activeAgentPlanTasks.current.set(agentId, queue);
-    }
-    return text;
-  };
+  const {
+    recordBrainstormResponse,
+    handleStartBrainstorm,
+  } = createBrainstormWorkflow({
+    currentProjectRef,
+    brainstormSessionsRef,
+    setBrainstormSessions,
+    addLog,
+  });
 
   useEffect(() => {
     const uniqueAgents = getUniqueAgents(agents);
@@ -369,18 +178,14 @@ function App() {
       localStorage.removeItem("didi_project");
     }
     currentProjectRef.current = currentProject;
-    activeMasterPlanTask.current = null;
-    queuedMasterPlanTasks.current = [];
-    activeAgentPlanTasks.current.clear();
-    syncMasterPlanQueueState();
+    resetMasterPlanWorkflow();
     refreshSnapshots(currentProject);
-  }, [currentProject]);
+  }, [currentProject, refreshSnapshots]);
 
   useEffect(() => {
-    // Initial config load for theme
     invoke<any>("get_config").then(config => {
-      document.documentElement.style.setProperty('--tw-colors-brand-accent', config.theme_cyan);
-      document.documentElement.style.setProperty('--tw-colors-brand-warn', config.theme_amber);
+      document.documentElement.style.setProperty("--tw-colors-brand-accent", config.theme_cyan);
+      document.documentElement.style.setProperty("--tw-colors-brand-warn", config.theme_amber);
     }).catch(console.error);
 
     const interval = setInterval(() => {
@@ -389,496 +194,40 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    const getState = (agent: string): SentinelAgentState => {
-      const key = getPtyKey(agent);
-      const existing = sentinelStates.current.get(key);
-      if (existing) return existing;
+  useEffect(() => registerSentinelMonitoring({
+    sentinelEnabledRef,
+    sentinelStates,
+    setSentinelIncidents,
+    addLog,
+  }), []);
 
-      const next: SentinelAgentState = {
-        inputBuffer: "",
-        lastCommand: "",
-        lastFailureCommand: "",
-        failureCount: 0,
-        lastFailureAt: 0,
-        lastSignature: "",
-        signatureCount: 0,
-        lastInterventionAt: 0,
-      };
-      sentinelStates.current.set(key, next);
-      return next;
-    };
+  const { writeHandoff, queueHandoff, flushQueuedHandoff } = createHandoffQueueService({
+    pendingHandoffs,
+    readyAgents,
+    setAgentQueueCounts,
+  });
 
-    const intervene = (agent: string, reason: string, command?: string) => {
-      const key = getPtyKey(agent);
-      const state = getState(key);
-      const now = Date.now();
-      if (now - state.lastInterventionAt < 45000) return;
-
-      state.lastInterventionAt = now;
-      state.failureCount = 0;
-      state.signatureCount = 0;
-
-      const prompt = `You are stuck in a loop. Sentinel paused you because ${reason}. Try a different approach, inspect the actual error, or ask another agent for help. Do not retry the same command again unchanged.`;
-      // Use Escape (\u001b) 4 times to reliably interrupt the agent's internal process
-      invoke("write_pty", { agent: key, data: "\u001b\u001b\u001b\u001b" }).catch(console.error);
-      setTimeout(() => {
-        invoke("write_pty", { agent: key, data: prompt }).catch(console.error);
-      }, 300);
-      setTimeout(() => {
-        invoke("write_pty", { agent: key, data: "\r" }).catch(console.error);
-      }, 700);
-
-      const incident: SentinelIncident = {
-        id: `${now}-${key}`,
-        agent,
-        reason,
-        command,
-        at: new Date().toLocaleTimeString(),
-      };
-      setSentinelIncidents(prev => [incident, ...prev].slice(0, 20));
-      addLog(`Sentinel paused ${agent}: ${reason}`, "system");
-      emit("sentinel-intervention", incident).catch(console.error);
-    };
-
-    const unlistenInput = listen<TerminalInputPayload>("agent-input", (event) => {
-      if (!sentinelEnabledRef.current) return;
-
-      const key = getPtyKey(event.payload.agent);
-      const state = getState(key);
-      for (const char of event.payload.data) {
-        if (char === "\r" || char === "\n") {
-          const command = stripTerminalControls(state.inputBuffer).trim();
-          if (command) state.lastCommand = command.slice(-240);
-          state.inputBuffer = "";
-          continue;
-        }
-
-        if (char === "\u007f" || char === "\b") {
-          state.inputBuffer = state.inputBuffer.slice(0, -1);
-          continue;
-        }
-
-        if (char >= " " && char !== "\u001b") {
-          state.inputBuffer = `${state.inputBuffer}${char}`.slice(-400);
-        }
-      }
-    });
-
-    const unlistenOutput = listen<TerminalOutputPayload>("pty-output", (event) => {
-      if (!sentinelEnabledRef.current) return;
-
-      const key = getPtyKey(event.payload.agent);
-      const state = getState(key);
-      const text = stripTerminalControls(event.payload.data);
-      const signature = normalizeLoopSignature(text);
-      if (signature.length > 40 && signature === state.lastSignature) {
-        state.signatureCount += 1;
-      } else if (signature.length > 40) {
-        state.lastSignature = signature;
-        state.signatureCount = 1;
-      }
-
-      if (state.signatureCount >= 4) {
-        intervene(key, "the same terminal output repeated several times", state.lastCommand);
-        return;
-      }
-
-      if (!state.lastCommand || !isFailureOutput(text)) return;
-
-      const now = Date.now();
-      const sameCommand = state.lastFailureCommand === state.lastCommand && now - state.lastFailureAt < 180000;
-      state.failureCount = sameCommand ? state.failureCount + 1 : 1;
-      state.lastFailureCommand = state.lastCommand;
-      state.lastFailureAt = now;
-
-      if (state.failureCount >= 3) {
-        intervene(key, "the same command appears to have failed 3 times", state.lastCommand);
-      }
-    });
-
-    return () => {
-      unlistenInput.then(f => f());
-      unlistenOutput.then(f => f());
-    };
-  }, []);
-
-  const sendBrainstormRound = async (session: BrainstormSession, round: number) => {
-    const previousResponses = session.responses
-      .filter(response => response.round < round)
-      .map(response => `${response.agent}: ${response.text}`)
-      .join(" ");
-
-    await Promise.all(session.participants.map(participant => emit("agent-handoff", {
-      target: participant,
-      sender: "Brainstorm",
-      kind: "task",
-      taskId: `${session.id}-r${round}-${getAgentId(participant)}`,
-      payload: [
-        `[Brainstorm round ${round}/${session.turns}] ${session.prompt}`,
-        previousResponses ? `Previous responses: ${previousResponses}` : "",
-        `Respond with your position and one concrete recommendation, then run exactly: .didi\\delegate ${BRAINSTORM_CALLBACK_TARGET} "Brainstorm response ${session.id} round ${round}: <your concise response without quotation marks>"`,
-      ].filter(Boolean).join(" "),
-    })));
-  };
-
-  const finishBrainstorm = async (session: BrainstormSession) => {
-    const transcript = session.responses
-      .map(response => `- ${response.agent} (round ${response.round}): ${response.text}`)
-      .join("\n");
-
-    let consensus = transcript;
-    try {
-      consensus = await invoke<string>("ask_llm", {
-        system: "You convert multi-agent debate notes into a concise implementation plan. Return bullets only.",
-        prompt: `Problem: ${session.prompt}\n\nResponses:\n${transcript}`,
-      });
-    } catch (err) {
-      console.warn("Consensus synthesis failed; using raw brainstorm transcript", err);
-    }
-
-    const body = [
-      `Prompt: ${session.prompt}`,
-      "",
-      "### Consensus",
-      consensus,
-      "",
-      "### Participants",
-      session.participants.map(agent => `- ${agent}`).join("\n"),
-    ].join("\n");
-
-    if (currentProjectRef.current) {
-      try {
-        await invoke("append_master_plan_entry", {
-          cwd: currentProjectRef.current,
-          title: `Brainstorm Consensus ${new Date().toLocaleString()}`,
-          body,
-        });
-        addLog("Brainstorm consensus appended to MASTER_PLAN.md", "system");
-      } catch (err) {
-        addLog(`Brainstorm consensus save failed: ${err}`, "system");
-      }
-    } else {
-      addLog("Brainstorm consensus ready; select a workspace to write MASTER_PLAN.md", "system");
-    }
-
-    const completedSessions: BrainstormSession[] = brainstormSessionsRef.current.map(item => (
-      item.id === session.id ? { ...item, status: "complete" as const } : item
-    ));
-    brainstormSessionsRef.current = completedSessions;
-    setBrainstormSessions(completedSessions);
-  };
-
-  const recordBrainstormResponse = async (
-    agent: string,
-    response: { sessionId: string; round: number; text: string }
-  ) => {
-    const session = brainstormSessionsRef.current.find(item => item.id === response.sessionId);
-    if (!session || session.status === "complete") return;
-
-    const cleanAgent = agent.trim() || "Agent";
-    const isParticipant = session.participants.some(participant => getAgentId(participant) === getAgentId(cleanAgent));
-    if (!isParticipant) return;
-
-    const alreadyRecorded = session.responses.some(item =>
-      getAgentId(item.agent) === getAgentId(cleanAgent) && item.round === response.round
-    );
-    if (alreadyRecorded) return;
-
-    const nextSession: BrainstormSession = {
-      ...session,
-      responses: [
-        ...session.responses,
-        {
-          agent: cleanAgent,
-          round: response.round,
-          text: response.text,
-          at: new Date().toLocaleTimeString(),
-        },
-      ],
-    };
-
-    const nextSessions = brainstormSessionsRef.current.map(item =>
-      item.id === nextSession.id ? nextSession : item
-    );
-    brainstormSessionsRef.current = nextSessions;
-    setBrainstormSessions(nextSessions);
-    addLog(`Brainstorm response from ${cleanAgent}`, "handoff");
-
-    const roundResponders = new Set(
-      nextSession.responses
-        .filter(item => item.round === nextSession.round)
-        .map(item => getAgentId(item.agent))
-    );
-    const participantIds = nextSession.participants.map(getAgentId);
-    const roundComplete = participantIds.every(id => roundResponders.has(id));
-    if (!roundComplete) return;
-
-    if (nextSession.round < nextSession.turns) {
-      const advancedSession = { ...nextSession, round: nextSession.round + 1 };
-      const advancedSessions = brainstormSessionsRef.current.map(item =>
-        item.id === advancedSession.id ? advancedSession : item
-      );
-      brainstormSessionsRef.current = advancedSessions;
-      setBrainstormSessions(advancedSessions);
-      addLog(`Brainstorm advancing to round ${advancedSession.round}`, "system");
-      await sendBrainstormRound(advancedSession, advancedSession.round);
-      return;
-    }
-
-    await finishBrainstorm(nextSession);
-  };
-
-  const writeHandoff = (agentKey: string, payload: string) => {
-    console.log(`[JS] Injecting handoff into ${agentKey}`);
-    readyAgents.current.delete(agentKey);
-    invoke("write_pty", { agent: agentKey, data: payload }).catch(console.error);
-    setTimeout(() => {
-      invoke("write_pty", { agent: agentKey, data: "\r" }).catch(console.error);
-    }, HANDOFF_SUBMIT_DELAY_MS);
-  };
-
-  const updateQueueCount = (agentKey: string) => {
-    const count = pendingHandoffs.current.get(agentKey)?.length ?? 0;
-    setAgentQueueCounts(prev => {
-      const next = { ...prev };
-      if (count > 0) {
-        next[agentKey] = count;
-      } else {
-        delete next[agentKey];
-      }
-      return next;
-    });
-  };
-
-  const flushQueuedHandoff = (agentKey: string) => {
-    const queue = pendingHandoffs.current.get(agentKey);
-    if (!queue || queue.length === 0) return;
-
-    const queued = queue.shift();
-    if (queue.length === 0) {
-      pendingHandoffs.current.delete(agentKey);
-    } else {
-      pendingHandoffs.current.set(agentKey, queue);
-    }
-    updateQueueCount(agentKey);
-    if (!queued) return;
-
-    writeHandoff(agentKey, queued);
-  };
-
-  const queueHandoff = (agentKey: string, payload: string) => {
-    const queue = pendingHandoffs.current.get(agentKey) ?? [];
-    queue.push(payload);
-    pendingHandoffs.current.set(agentKey, queue);
-    updateQueueCount(agentKey);
-  };
-
-  useEffect(() => {
-    const registerTask = (handoff: HandoffPayload, targetName: string, kind: HandoffKind) => {
-      const sender = handoff.sender?.trim() || "Main";
-      const id = handoff.taskId || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-      const updatedAt = new Date().toLocaleTimeString();
-
-      if (kind === "task") {
-        const summary = getTaskSummary(handoff.payload);
-        const record: TaskRecord = {
-          id,
-          sender,
-          target: targetName,
-          summary,
-          status: "in_progress",
-          updatedAt,
-        };
-        setTasks(prev => [record, ...prev.filter(task => task.id !== id)].slice(0, 30));
-
-        if (!isMasterPlanManagedHandoff(handoff)) {
-          const completionOwner = getAgentId(sender) === "orchestrator" ? sender : targetName;
-          trackAgentPlanTask(completionOwner, summary);
-          syncPlanTaskStatusByText(summary, "in_progress").catch(err => {
-            addLog(`Master Plan task sync failed: ${err}`, "system");
-          });
-        }
-        return id;
-      }
-
-      if (kind === "completion") {
-        const completedAgentId = getAgentId(sender);
-        setTasks(prev => prev.map(task => {
-          if (task.status !== "in_progress" || getAgentId(task.target) !== completedAgentId) return task;
-          return { ...task, status: "complete", updatedAt };
-        }));
-
-        const completionTargetId = getAgentId(targetName);
-        if (completionTargetId === "masterplan" && currentProjectRef.current && activeMasterPlanTask.current) {
-          const completedPlanTask = activeMasterPlanTask.current;
-          activeMasterPlanTask.current = null;
-          syncMasterPlanQueueState();
-          invoke("set_master_plan_task_status", {
-            cwd: currentProjectRef.current,
-            line: completedPlanTask.line,
-            status: "done",
-          }).then(() => {
-            addLog(`Master Plan completed: ${completedPlanTask.text}`, "system");
-            dispatchNextMasterPlanTask();
-          }).catch(err => {
-            invoke("set_master_plan_task_status_by_text", {
-              cwd: currentProjectRef.current,
-              text: completedPlanTask.text,
-              status: "done",
-            }).then(() => {
-              addLog(`Master Plan completed: ${completedPlanTask.text}`, "system");
-              dispatchNextMasterPlanTask();
-            }).catch(() => {
-              addLog(`Master Plan completion sync failed: ${err}`, "system");
-              dispatchNextMasterPlanTask();
-            });
-          });
-        } else {
-          const completedTaskText = popAgentPlanTask(sender);
-          if (completedTaskText) {
-            syncPlanTaskStatusByText(completedTaskText, "done").catch(err => {
-              addLog(`Master Plan completion sync failed: ${err}`, "system");
-            });
-          }
-        }
-      }
-
-      return id;
-    };
-
-    const createPlanSnapshot = async (taskId: string, targetName: string, summary: string) => {
-      const project = currentProjectRef.current;
-      if (!project) return;
-
-      try {
-        const snapshot = await invoke<GitSnapshotRecord>("create_git_snapshot", {
-          cwd: project,
-          taskId,
-          label: summary || `Task for ${targetName}`,
-          agent: targetName,
-        });
-        setSnapshots(prev => [snapshot, ...prev.filter(item => item.id !== snapshot.id)].slice(0, 40));
-        addLog(`Snapshot ${snapshot.commit.slice(0, 8)} before ${targetName}`, "system");
-      } catch (err) {
-        addLog(`Snapshot skipped: ${err}`, "system");
-      }
-    };
-
-    const enrichPayload = async (handoff: HandoffPayload, kind: HandoffKind) => {
-      const safePayload = handoff.payload.replace(/\r?\n/g, " ").trim();
-      const workspace = currentProjectRef.current;
-      if (kind !== "task" || !workspace) return safePayload;
-      const activeAgentList = agentsRef.current.join(", ") || "none";
-
-      try {
-        const context = await invoke<string>("get_project_context", { cwd: workspace });
-        return `${safePayload} ACTIVE AGENTS: ${activeAgentList}. Delegate only to one of these active agents unless the human explicitly spawns another agent. WORKSPACE ROOT: ${workspace}. All file reads and writes must stay under this workspace root. Do not edit files in the DidiTerminal app directory unless it is the selected workspace. MASTER_PLAN RULE: specialists may add or check off indented subtasks under the assigned top-level task, but they must not mark the top-level task done; Orchestrator owns top-level completion. DELEGATION WAIT RULE: after delegating work to another agent, stop immediately and wait for that agent's completion callback; do not poll files, inspect progress, retry the task, or use internal subagent/Task tools to do the delegated work yourself. Default callback rule: when your assigned work is done, you MUST execute the shell command (using your terminal execution tool, do NOT just print the command in text) to report completion to the agent that delegated it to you. Only delegate to another specialist if this task explicitly asks for review/docs/follow-up work, or if you are blocked and need that specialist. Do not ask the human whether to report back. WORKSPACE CONTEXT: ${context.replace(/\r?\n/g, " ").trim()}`;
-      } catch (err) {
-        console.warn("Failed to add workspace context", err);
-        return safePayload;
-      }
-    };
-
-    const handleHandoff = async (handoff: HandoffPayload) => {
-      const { target } = handoff;
-      const targetName = target.trim();
-      const kind = getHandoffKind(handoff);
-      const brainstormResponse = getBrainstormResponse(handoff.payload);
-
-      if (getAgentId(targetName) === "masterplan" && kind === "completion") {
-        addLog("completion to Master Plan", "handoff");
-        registerTask(handoff, targetName, kind);
-        return;
-      }
-
-      if (brainstormResponse) {
-        const senderAgent = getHandoffSender(handoff) || targetName;
-        await recordBrainstormResponse(senderAgent, brainstormResponse);
-        // Treat brainstorm response as a task completion
-        registerTask(handoff, targetName, "completion");
-        return;
-      }
-
-      const matchingAgent = findMatchingAgent(agentsRef.current, targetName);
-      if (!matchingAgent) {
-        const senderName = getHandoffSender(handoff) || handoff.sender || "Orchestrator";
-        const senderAgent = findMatchingAgent(agentsRef.current, senderName);
-        const available = agentsRef.current.join(", ") || "none";
-        const notice = `Target agent "${targetName}" is not active, so DidiTerminal did not create a new agent. Active agents: ${available}. Delegate to one of the active agents, or ask the human to spawn "${targetName}" first.`;
-        addLog(`Blocked handoff to inactive agent: ${targetName}`, "system");
-
-        if (senderAgent) {
-          const senderKey = getPtyKey(senderAgent);
-          if (readyAgents.current.has(senderKey)) {
-            writeHandoff(senderKey, notice);
-          } else {
-            queueHandoff(senderKey, notice);
-          }
-        }
-        return;
-      }
-
-      const resolvedAgentName = matchingAgent;
-      const agentKey = getPtyKey(resolvedAgentName);
-
-      addLog(
-        matchingAgent && matchingAgent !== targetName
-          ? `${kind} to ${matchingAgent} (${targetName})`
-          : `${kind} to ${targetName}`,
-        "handoff"
-      );
-      const taskId = registerTask(handoff, resolvedAgentName, kind);
-
-      const safePayload = await enrichPayload(handoff, kind);
-
-      if (kind === "task") {
-        await createPlanSnapshot(taskId, resolvedAgentName, getTaskSummary(handoff.payload));
-      } else if (kind === "completion" && hitlEnabledRef.current && currentProjectRef.current) {
-        const senderName = getHandoffSender(handoff) || handoff.sender || "";
-        try {
-          const planContext = await invoke<string>("read_master_plan", { cwd: currentProjectRef.current });
-          const regex = new RegExp(`^\\s*-\\s*\\[[ xX]\\]\\s*${senderName}[:\\s].*<!--\\s*didi:requires_approval\\s*-->`, 'im');
-          if (regex.test(planContext) || new RegExp(`${senderName}.*requires_approval`, 'im').test(planContext)) {
-             setApprovalRequest({
-               agent: senderName,
-               target: agentKey,
-               payload: safePayload,
-               taskId: taskId,
-             });
-             addLog(`HITL Approval requested for ${senderName}`, "system");
-             return; // Intercepted, do not write to Orchestrator yet
-          }
-        } catch (e) {
-          console.warn("Failed to check HITL", e);
-        }
-      }
-
-      if (readyAgents.current.has(agentKey)) {
-        writeHandoff(agentKey, safePayload);
-      } else {
-        queueHandoff(agentKey, safePayload);
-      }
-    };
-
-    const unlistenHandoff = listen<HandoffPayload>("agent-handoff", (event) => {
-      handleHandoff(event.payload).catch(console.error);
-    });
-
-    const unlistenReady = listen<{ agent: string }>("agent-prompt-ready", (event) => {
-      const agentKey = event.payload.agent.toLowerCase();
-      readyAgents.current.add(agentKey);
-
-      if (pendingHandoffs.current.has(agentKey)) {
-        setTimeout(() => flushQueuedHandoff(agentKey), 500);
-      }
-    });
-
-    return () => {
-      unlistenHandoff.then(f => f());
-      unlistenReady.then(f => f());
-    };
-  }, []);
+  useEffect(() => registerHandoffListeners({
+    currentProjectRef,
+    agentsRef,
+    pendingHandoffs,
+    readyAgents,
+    hitlEnabledRef,
+    activeMasterPlanTask,
+    setTasks,
+    setSnapshots,
+    setApprovalRequest,
+    addLog,
+    trackAgentPlanTask,
+    popAgentPlanTask,
+    syncPlanTaskStatusByText,
+    syncMasterPlanQueueState,
+    dispatchNextMasterPlanTask,
+    recordBrainstormResponse,
+    writeHandoff,
+    queueHandoff,
+    flushQueuedHandoff,
+  }), []);
 
   const spawnAgent = (e: FormEvent) => {
     e.preventDefault();
@@ -886,7 +235,7 @@ function App() {
     if (name && !findMatchingAgent(agents, name)) {
       setAgents([...agents, name]);
       setNewAgentName("");
-      addLog(`Spawned agent: ${name}`, 'system');
+      addLog(`Spawned agent: ${name}`, "system");
     }
   };
 
@@ -901,7 +250,7 @@ function App() {
       return next;
     });
     setAgents(agents.filter(a => a !== agentToRemove));
-    addLog(`Terminated agent: ${agentToRemove}`, 'system');
+    addLog(`Terminated agent: ${agentToRemove}`, "system");
   };
 
   const detachAgent = (agentToDetach: string) => {
@@ -913,18 +262,18 @@ function App() {
     const selected = await open({ directory: true, multiple: false });
     if (selected) {
       setCurrentProject(selected as string);
-      addLog(`Opened workspace: ${selected}`, 'system');
+      addLog(`Opened workspace: ${selected}`, "system");
     }
   };
 
   const handleInitialize = async () => {
-    if (currentProject) {
-      try {
-        await invoke("initialize_project", { cwd: currentProject });
-        addLog("Project initialized for Didi orchestration.", 'system');
-      } catch (err) {
-        addLog(`Init failed: ${err}`, 'system');
-      }
+    if (!currentProject) return;
+
+    try {
+      await invoke("initialize_project", { cwd: currentProject });
+      addLog("Project initialized for Didi orchestration.", "system");
+    } catch (err) {
+      addLog(`Init failed: ${err}`, "system");
     }
   };
 
@@ -965,48 +314,12 @@ function App() {
     }
   };
 
-  const handleStartBrainstorm = async (prompt: string, participants: string[], turns: number) => {
-    const session: BrainstormSession = {
-      id: `bs-${Date.now().toString(36)}`,
-      prompt,
-      participants,
-      turns,
-      round: 1,
-      status: "collecting",
-      responses: [],
-    };
-    const nextSessions = [session, ...brainstormSessionsRef.current].slice(0, 8);
-    brainstormSessionsRef.current = nextSessions;
-    setBrainstormSessions(nextSessions);
-    addLog(`Brainstorm started with ${participants.length} agents`, "system");
-    await sendBrainstormRound(session, 1);
+  const handleDragStart = (e: DragEvent, index: number) => {
+    e.dataTransfer.setData("agentIndex", index.toString());
   };
 
-  const handleDispatchMasterPlanTask = async (task: MasterPlanTaskDispatch) => {
-    if (!currentProjectRef.current) return;
-    const isActive = activeMasterPlanTask.current?.line === task.line;
-    const isQueued = queuedMasterPlanTasks.current.some(item => item.line === task.line);
-    if (isActive || isQueued) {
-      addLog(`Master Plan task already queued: ${task.text}`, "system");
-      return;
-    }
-
-    if (!activeMasterPlanTask.current) {
-      await dispatchMasterPlanTaskToOrchestrator(task);
-      return;
-    }
-
-    queuedMasterPlanTasks.current.push(task);
-    syncMasterPlanQueueState();
-    addLog(`Queued Master Plan task behind active work: ${task.text}`, "handoff");
-  };
-
-  const handleDragStart = (e: React.DragEvent, index: number) => {
-    e.dataTransfer.setData('agentIndex', index.toString());
-  };
-
-  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
-    const dragIndex = parseInt(e.dataTransfer.getData('agentIndex'));
+  const handleDrop = (e: DragEvent, dropIndex: number) => {
+    const dragIndex = parseInt(e.dataTransfer.getData("agentIndex"));
     if (isNaN(dragIndex) || dragIndex === dropIndex) return;
 
     const newAgents = [...agents];
@@ -1015,8 +328,8 @@ function App() {
     setAgents(newAgents);
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault(); // necessary to allow drop
+  const handleDragOver = (e: DragEvent) => {
+    e.preventDefault();
   };
 
   const handleKillAgent = (agent: string) => {
@@ -1030,7 +343,7 @@ function App() {
   };
 
   const handleInjectHint = (agent: string, hint: string) => {
-    invoke("write_pty", { agent: getPtyKey(agent), data: hint + "\r" }).catch(console.error);
+    invoke("write_pty", { agent: getPtyKey(agent), data: `${hint}\r` }).catch(console.error);
     addLog(`Injected hint to ${agent}`, "system");
   };
 
@@ -1052,377 +365,104 @@ function App() {
   const handleHitlReject = (feedback: string) => {
     if (!approvalRequest) return;
     const senderKey = getPtyKey(approvalRequest.agent);
-    let rejectionPayload = `[SYSTEM] The human rejected your completion. Please fix the issues and try again.`;
+    let rejectionPayload = "[SYSTEM] The human rejected your completion. Please fix the issues and try again.";
     if (feedback.trim()) {
       rejectionPayload = `[SYSTEM] The human rejected your completion with the following feedback:\n${feedback}\n\nPlease fix the issues and try again.`;
     }
-    
+
     if (readyAgents.current.has(senderKey)) {
       writeHandoff(senderKey, rejectionPayload);
     } else {
       queueHandoff(senderKey, rejectionPayload);
     }
-    
+
     setTasks(prev => prev.map(t => t.id === approvalRequest.taskId ? { ...t, status: "in_progress" } : t));
     setApprovalRequest(null);
   };
 
   return (
     <main className="h-screen w-screen bg-app-bg text-slate-300 overflow-hidden flex selection:bg-brand-accent/20 relative">
-      
-      {showNetworkGraph && (
-        <Suspense fallback={<div className="absolute inset-0 z-50 bg-zinc-950/80" />}>
-          <NetworkGraph 
-            agents={agents} 
-            tasks={tasks} 
-            onClose={() => setShowNetworkGraph(false)} 
-            onKillAgent={handleKillAgent}
-            onInterruptAgent={handleInterruptAgent}
-            onInjectHint={handleInjectHint}
-            onQuickDispatch={handleQuickDispatch}
-          />
-        </Suspense>
-      )}
+      <AppOverlays
+        showNetworkGraph={showNetworkGraph}
+        NetworkGraphComponent={NetworkGraph}
+        agents={agents}
+        tasks={tasks}
+        onCloseNetworkGraph={() => setShowNetworkGraph(false)}
+        onKillAgent={handleKillAgent}
+        onInterruptAgent={handleInterruptAgent}
+        onInjectHint={handleInjectHint}
+        onQuickDispatch={handleQuickDispatch}
+        showSettings={showSettings}
+        SettingsModalComponent={SettingsModal}
+        onCloseSettings={() => setShowSettings(false)}
+        showBrainstorm={showBrainstorm}
+        brainstormSessions={brainstormSessions}
+        onStartBrainstorm={handleStartBrainstorm}
+        onCloseBrainstorm={() => setShowBrainstorm(false)}
+        showMasterPlan={showMasterPlan}
+        currentProject={currentProject}
+        onDispatchMasterPlanTask={handleDispatchMasterPlanTask}
+        activeTaskLine={masterPlanQueueState.activeLine}
+        queuedTaskLines={masterPlanQueueState.queuedLines}
+        onCloseMasterPlan={() => setShowMasterPlan(false)}
+        approvalRequest={approvalRequest}
+        onApproveHitl={handleHitlApprove}
+        onRejectHitl={handleHitlReject}
+      />
 
-      {showSettings && (
-        <Suspense fallback={null}>
-          <SettingsModal onClose={() => setShowSettings(false)} />
-        </Suspense>
-      )}
-
-      {showBrainstorm && (
-        <BrainstormModal
-          agents={agents}
-          sessions={brainstormSessions}
-          onStart={handleStartBrainstorm}
-          onClose={() => setShowBrainstorm(false)}
-        />
-      )}
-
-      {showMasterPlan && (
-        <MasterPlanPanel
-          currentProject={currentProject}
-          onDispatchTask={handleDispatchMasterPlanTask}
-          activeTaskLine={masterPlanQueueState.activeLine}
-          queuedTaskLines={masterPlanQueueState.queuedLines}
-          onClose={() => setShowMasterPlan(false)}
-        />
-      )}
-
-      {approvalRequest && (
-        <ApprovalModal
-          agentName={approvalRequest.agent}
-          currentProject={currentProject}
-          onApprove={handleHitlApprove}
-          onReject={handleHitlReject}
-        />
-      )}
-
-      {/* Sidebar */}
       {isSidebarOpen && (
-      <aside className="w-72 border-r border-app-border bg-app-panel flex flex-col shadow-md z-10 shrink-0">
-        <div className="p-4 border-b border-app-border flex justify-between items-start">
-          <div>
-            <div className="flex items-center gap-2 text-brand-primary mb-1">
-              <Terminal size={20} className="stroke-[2.5]" />
-              <h1 className="text-lg font-bold tracking-widest uppercase">DidiTerminal</h1>
-            </div>
-            <p className="text-xs text-slate-500 font-medium tracking-tight font-semibold">Orchestrator Node v2.0</p>
-          </div>
-          <button onClick={() => setShowSettings(true)} className="text-slate-500 hover:text-brand-primary transition-colors mt-1" title="Settings">
-            <Settings size={16} />
-          </button>
-        </div>
-
-        {/* Project Setup */}
-        <div className="flex-1 overflow-y-auto flex flex-col">
-          <div className="shrink-0 p-4 border-b border-app-border space-y-4">
-            <div className="flex justify-between items-center text-xs font-semibold text-zinc-400">
-               <div className="flex items-center gap-2"><Server size={14} /> LLM API</div>
-               <span className={`${sidecarStatus === 'Connected' ? 'text-emerald-400' : 'text-amber-400'}`}>{sidecarStatus}</span>
-            </div>
-
-            <div>
-              <div className="text-xs font-semibold text-zinc-400 flex items-center gap-2 mb-2">
-                <FolderOpen size={14} /> Workspace
-              </div>
-              <button 
-                onClick={handleOpenProject} 
-                className="w-full bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 px-3 py-2 text-xs font-medium text-zinc-300 flex items-center justify-between transition-colors group rounded-sm"
-              >
-                <span className="truncate">{currentProject ? currentProject.split('\\').pop() : "Select Directory..."}</span>
-                <FolderOpen size={14} className="text-zinc-500 group-hover:text-zinc-300 transition-colors" />
-              </button>
-            </div>
-            
-            {currentProject && (
-              <button 
-                onClick={handleInitialize} 
-                className="w-full bg-brand-accent/10 hover:bg-brand-accent/20 text-brand-primary border border-brand-accent/30 hover:border-brand-accent/50 px-3 py-2 text-xs font-bold uppercase transition-colors flex items-center justify-center gap-2 rounded-sm"
-              >
-                <ShieldAlert size={14} /> Initialize Didi Protocol
-              </button>
-            )}
-          </div>
-
-          <SentinelPanel
-            enabled={sentinelEnabled}
-            incidents={sentinelIncidents}
-            onToggle={() => setSentinelEnabled(value => !value)}
-          />
-
-          <div className="shrink-0 border-b border-app-border bg-zinc-950 flex flex-col">
-            <div className="px-4 py-2.5 flex items-center justify-between text-xs font-semibold">
-              <div className="flex items-center gap-2 text-zinc-400">
-                <ShieldAlert size={14} className={hitlEnabled ? "text-amber-400" : "text-zinc-600"} />
-                HITL Approvals
-              </div>
-              <button 
-                onClick={() => setHitlEnabled(!hitlEnabled)}
-                className={`relative inline-flex h-4 w-8 items-center rounded-full transition-colors ${hitlEnabled ? 'bg-amber-500' : 'bg-zinc-700'}`}
-              >
-                <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${hitlEnabled ? 'translate-x-4' : 'translate-x-1'}`} />
-              </button>
-            </div>
-            {hitlEnabled && (
-              <div className="px-4 pb-3 text-[10px] text-zinc-500 leading-tight">
-                Intercepts task completions flagged with <code className="text-amber-400/70 font-mono">&lt;!-- didi:requires_approval --&gt;</code> in MASTER_PLAN.md.
-              </div>
-            )}
-          </div>
-
-          {/* Agents List */}
-          <div className="shrink-0 flex flex-col min-h-0 border-b border-app-border">
-            <div className="px-4 py-2.5 text-xs font-semibold text-zinc-400 bg-zinc-950 flex items-center justify-between border-b border-app-border">
-              <span className="flex items-center gap-2"><Cpu size={14} /> Active Agents</span>
-              <span>{agents.length}</span>
-            </div>
-            <div className="p-3 space-y-2">
-              {agents.map(agent => (
-                <div key={agent} className="group flex items-center justify-between px-3 py-2 bg-zinc-950 border border-zinc-800/50 hover:border-zinc-700 transition-colors rounded-sm">
-                  <div className="flex items-center gap-2 truncate">
-                    <div className="w-1.5 h-1.5 rounded-full bg-brand-accent animate-pulse"></div>
-                    <span className="text-xs font-medium text-zinc-300 truncate">{agent}</span>
-                  </div>
-                  {agentQueueCounts[getPtyKey(agent)] ? (
-                    <span className="text-[10px] text-amber-400 border border-amber-500/20 bg-amber-500/10 px-1.5 py-0.5 rounded-sm">
-                      {agentQueueCounts[getPtyKey(agent)]} queued
-                    </span>
-                  ) : null}
-                  <button 
-                    onClick={() => removeAgent(agent)}
-                    className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-red-400 transition-all"
-                    title="Terminate Agent"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <SnapshotPanel
-            currentProject={currentProject}
-            snapshots={snapshots}
-            isBusy={snapshotBusy}
-            onSnapshot={handleManualSnapshot}
-            onRewind={handleRewindSnapshot}
-          />
-
-          <div className="shrink-0 flex flex-col min-h-0 border-b border-app-border bg-zinc-900/10">
-            <div className="px-4 py-2.5 text-xs font-semibold text-zinc-400 bg-zinc-950 flex items-center justify-between border-b border-app-border">
-              <div className="flex items-center gap-2">
-                <button onClick={() => setIsTasksCollapsed(!isTasksCollapsed)} className="text-zinc-500 hover:text-zinc-300 transition-colors">
-                  {isTasksCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
-                </button>
-                <span>Task State</span>
-              </div>
-              <span className="text-zinc-500 font-normal">{tasks.filter(task => task.status !== "complete").length} active</span>
-            </div>
-            {!isTasksCollapsed && (
-              <div className="p-3 space-y-2">
-                {tasks.length === 0 ? (
-                  <div className="text-xs text-zinc-500">No tracked tasks</div>
-                ) : (
-                  tasks.slice(0, 8).map(task => (
-                    <div key={task.id} className="border border-zinc-800/50 bg-zinc-950/50 px-3 py-2 rounded-sm">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-medium text-brand-primary truncate">{task.target}</span>
-                        <span className={`text-[10px] uppercase ${task.status === "complete" ? "text-emerald-400" : "text-amber-400"}`}>
-                          {task.status.replace("_", " ")}
-                        </span>
-                      </div>
-                      <div className="text-xs text-zinc-400 truncate mt-1">{task.summary || "Delegated task"}</div>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Activity Feed */}
-          <div className="shrink-0 flex flex-col min-h-0 bg-zinc-900/10 pb-4">
-            <div className="px-4 py-2.5 text-xs font-semibold text-zinc-400 bg-zinc-950 flex items-center gap-2 border-b border-app-border">
-              <button onClick={() => setIsActivityCollapsed(!isActivityCollapsed)} className="text-zinc-500 hover:text-zinc-300 transition-colors">
-                {isActivityCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
-              </button>
-              <Activity size={14} /> System Feed
-            </div>
-            {!isActivityCollapsed && (
-              <div className="p-3 space-y-2">
-                {activity.map(log => (
-                  <div key={log.id} className="text-xs leading-tight flex gap-2">
-                    <span className="text-zinc-600 shrink-0">[{log.time}]</span>
-                    <span className={log.type === 'handoff' ? 'text-amber-400 font-medium' : 'text-zinc-400'}>
-                      {log.message}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </aside>
+        <AppSidebar
+          sidecarStatus={sidecarStatus}
+          currentProject={currentProject}
+          onOpenProject={handleOpenProject}
+          onInitialize={handleInitialize}
+          onOpenSettings={() => setShowSettings(true)}
+          sentinelEnabled={sentinelEnabled}
+          sentinelIncidents={sentinelIncidents}
+          onToggleSentinel={() => setSentinelEnabled(value => !value)}
+          hitlEnabled={hitlEnabled}
+          onToggleHitl={() => setHitlEnabled(!hitlEnabled)}
+          agents={agents}
+          agentQueueCounts={agentQueueCounts}
+          onRemoveAgent={removeAgent}
+          snapshots={snapshots}
+          snapshotBusy={snapshotBusy}
+          onManualSnapshot={handleManualSnapshot}
+          onRewindSnapshot={handleRewindSnapshot}
+          isTasksCollapsed={isTasksCollapsed}
+          onToggleTasksCollapsed={() => setIsTasksCollapsed(!isTasksCollapsed)}
+          tasks={tasks}
+          isActivityCollapsed={isActivityCollapsed}
+          onToggleActivityCollapsed={() => setIsActivityCollapsed(!isActivityCollapsed)}
+          activity={activity}
+        />
       )}
 
-      {/* Main Content Area */}
       <section className="flex-1 flex flex-col min-w-0">
-        {/* Topbar */}
-        <div className="h-14 border-b border-app-border flex items-center justify-between px-4 bg-app-bg">
-          <form onSubmit={spawnAgent} className="flex items-center gap-2">
-            <div className="relative flex items-center">
-              <Plus size={14} className="absolute left-2 text-slate-500" />
-              <input
-                type="text"
-                value={newAgentName}
-                onChange={e => setNewAgentName(e.target.value)}
-                placeholder="Spawn new agent..."
-                className="bg-[#0a0a0c] border border-app-border focus:border-brand-accent text-slate-200 pl-7 pr-3 py-1.5 text-xs outline-none transition-colors w-64 placeholder:text-slate-600"
-              />
-            </div>
-            <button type="submit" className="hidden" /> {/* Hidden submit so enter works */}
-          </form>
+        <AppTopbar
+          onSpawnAgent={spawnAgent}
+          newAgentName={newAgentName}
+          onChangeNewAgentName={setNewAgentName}
+          onOpenBrainstorm={() => setShowBrainstorm(true)}
+          onOpenMasterPlan={() => setShowMasterPlan(true)}
+          onOpenNetworkGraph={() => setShowNetworkGraph(true)}
+          layoutOrientation={layoutOrientation}
+          onSetLayoutOrientation={setLayoutOrientation}
+          isSidebarOpen={isSidebarOpen}
+          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+        />
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowBrainstorm(true)}
-              className="p-1.5 rounded-sm transition-colors text-slate-500 hover:text-brand-primary bg-[#0a0a0c] border border-app-border"
-              title="Brainstorm Mode"
-            >
-              <Brain size={16} />
-            </button>
-            <button
-              onClick={() => setShowMasterPlan(true)}
-              className="p-1.5 rounded-sm transition-colors text-slate-500 hover:text-brand-primary bg-[#0a0a0c] border border-app-border"
-              title="Master Plan Board"
-            >
-              <ClipboardList size={16} />
-            </button>
-            <button
-              onClick={() => setShowNetworkGraph(true)}
-              className="p-1.5 rounded-sm transition-colors text-slate-500 hover:text-brand-primary bg-[#0a0a0c] border border-app-border"
-              title="Collaboration Graph"
-            >
-              <Network size={16} />
-            </button>
-            <div className="flex items-center gap-1 bg-[#0a0a0c] p-1 border border-app-border rounded-sm">
-              <button 
-                onClick={() => setLayoutOrientation('horizontal')}
-                className={`p-1.5 rounded-sm transition-colors ${layoutOrientation === 'horizontal' ? 'bg-brand-accent/20 text-brand-primary' : 'text-slate-500 hover:text-slate-300'}`}
-                title="Vertical Splits"
-              >
-                <Columns size={14} />
-              </button>
-              <button 
-                onClick={() => setLayoutOrientation('vertical')}
-                className={`p-1.5 rounded-sm transition-colors ${layoutOrientation === 'vertical' ? 'bg-brand-accent/20 text-brand-primary' : 'text-slate-500 hover:text-slate-300'}`}
-                title="Horizontal Splits"
-              >
-                <Rows size={14} />
-              </button>
-              <button 
-                onClick={() => setLayoutOrientation('grid')}
-                className={`p-1.5 rounded-sm transition-colors ${layoutOrientation === 'grid' ? 'bg-brand-accent/20 text-brand-primary' : 'text-slate-500 hover:text-slate-300'}`}
-                title="Grid Split"
-              >
-                <Grid2X2 size={14} />
-              </button>
-            </div>
-            
-            <button 
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-1.5 rounded-sm transition-colors text-slate-500 hover:text-brand-primary bg-[#0a0a0c] border border-app-border"
-              title="Toggle Sidebar"
-            >
-              {isSidebarOpen ? <PanelLeftClose size={16} /> : <PanelLeft size={16} />}
-            </button>
-          </div>
-        </div>
-
-        {/* Terminals Container */}
-        <div className="flex-1 p-2 bg-[#020202]">
-          {agents.length === 0 ? (
-            <div className="h-full flex items-center justify-center text-slate-600 text-sm font-mono border border-dashed border-app-border">
-              NO ACTIVE AGENTS
-            </div>
-          ) : (
-            layoutOrientation === 'grid' ? (
-              <Group orientation="vertical" className="h-full w-full rounded-sm overflow-hidden border border-app-border">
-                {Array.from({ length: Math.ceil(agents.length / Math.ceil(Math.sqrt(agents.length))) }).map((_, rowIndex) => {
-                  const cols = Math.ceil(Math.sqrt(agents.length));
-                  const rowAgents = agents.slice(rowIndex * cols, rowIndex * cols + cols);
-                  const rowsCount = Math.ceil(agents.length / cols);
-                  return (
-                    <Fragment key={`row-${rowIndex}`}>
-                      {rowIndex > 0 && <Separator className="bg-app-border transition-colors hover:bg-brand-accent focus:bg-brand-accent h-1 my-0.5" />}
-                      <Panel defaultSize={100 / rowsCount} minSize={10}>
-                        <Group orientation="horizontal" className="h-full w-full">
-                          {rowAgents.map((agent, colIndex) => (
-                            <Fragment key={agent}>
-                              {colIndex > 0 && <Separator className="bg-app-border transition-colors hover:bg-brand-accent focus:bg-brand-accent w-1 mx-0.5" />}
-                              <Panel defaultSize={100 / rowAgents.length} minSize={10}>
-                                <TerminalInstance 
-                                  agentName={agent}
-                                  cwd={currentProject} 
-                                  onRemove={() => removeAgent(agent)} 
-                                  onDetach={() => detachAgent(agent)}
-                                  onDragStart={(e) => handleDragStart(e, agents.indexOf(agent))}
-                                  onDrop={(e) => handleDrop(e, agents.indexOf(agent))}
-                                  onDragOver={handleDragOver}
-                                />
-                              </Panel>
-                            </Fragment>
-                          ))}
-                        </Group>
-                      </Panel>
-                    </Fragment>
-                  );
-                })}
-              </Group>
-            ) : (
-              <Group orientation={layoutOrientation} className="h-full w-full rounded-sm overflow-hidden border border-app-border">
-                {agents.map((agent, index) => (
-                  <Fragment key={agent}>
-                    {index > 0 && <Separator className={`bg-app-border transition-colors hover:bg-brand-accent focus:bg-brand-accent ${layoutOrientation === 'horizontal' ? 'w-1 mx-0.5' : 'h-1 my-0.5'}`} />}
-                    <Panel defaultSize={100 / agents.length} minSize={10}>
-                      <TerminalInstance 
-                        agentName={agent} 
-                        cwd={currentProject} 
-                        onRemove={() => removeAgent(agent)} 
-                        onDetach={() => detachAgent(agent)}
-                        onDragStart={(e: React.DragEvent) => handleDragStart(e, index)}
-                        onDrop={(e: React.DragEvent) => handleDrop(e, index)}
-                        onDragOver={handleDragOver}
-                      />
-                    </Panel>
-                  </Fragment>
-                ))}
-              </Group>
-            )
-          )}
-        </div>
+        <AppTerminalArea
+          agents={agents}
+          currentProject={currentProject}
+          layoutOrientation={layoutOrientation}
+          onRemoveAgent={removeAgent}
+          onDetachAgent={detachAgent}
+          onDragStart={handleDragStart}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+        />
       </section>
-
     </main>
   );
 }
