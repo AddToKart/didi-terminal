@@ -254,6 +254,8 @@ pub fn run() {
             services::master_plan::set_master_plan_task_status_by_text,
             services::master_plan::append_master_plan_task,
             services::fs::list_directory,
+            services::ports::get_active_ports,
+            services::ports::kill_process,
             initialize_project,
             open_browser_view,
             update_browser_bounds,

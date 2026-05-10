@@ -28,6 +28,7 @@ import { CodeReviewPanel } from "./app/components/CodeReviewPanel";
 import { GitPanel } from "./app/components/GitPanel";
 import { PersonalKanban } from "./app/components/PersonalKanban";
 import { ProjectFileExplorer } from "./app/components/ProjectFileExplorer";
+import { StatusBar } from "./app/components/StatusBar";
 import { AppGlobalSidebar } from "./app/components/AppGlobalSidebar";
 import { AppTopbar } from "./app/components/AppTopbar";
 import { AppTerminalArea } from "./app/components/AppTerminalArea";
@@ -736,6 +737,7 @@ function App() {
           isOpen={showFileExplorer}
           onClose={() => setShowFileExplorer(false)}
         />
+        <StatusBar />
       </section>
 
       {isSidebarOpen && appMode === "orchestrator" && (

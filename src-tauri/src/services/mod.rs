@@ -6,3 +6,4 @@ pub mod master_plan;
 pub mod pty;
 pub mod dashboard;
 pub mod fs;
+pub mod ports;
