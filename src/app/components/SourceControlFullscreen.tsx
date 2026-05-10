@@ -4,7 +4,7 @@ import {
   GitBranch, X, RefreshCw, Plus, Minus, RotateCcw, Upload, Download,
   Check, Loader2, GitMerge, AlertCircle, FileText,
   GitPullRequest, GitCommit, LayoutDashboard, Search, Clock, ShieldAlert,
-  ChevronRight
+  ChevronRight, Trash2
 } from "lucide-react";
 import { FileIcon } from "./FileIcon";
 
@@ -32,6 +32,13 @@ interface GitCommitEntry {
   refs: string;
 }
 
+interface GitBranchInfo {
+  name: string;
+  isCurrent: boolean;
+  lastCommit: string;
+  date: string;
+}
+
 interface SourceControlFullscreenProps {
   currentProject: string | null;
   isOpen: boolean;
@@ -49,12 +56,6 @@ const MOCK_ISSUES = [
 const MOCK_PRS = [
   { id: 12, title: "feat: Add Source Control Fullscreen Mode", state: "open", author: "Antigravity", date: "1 hr ago", branches: "feat/source-control-full -> main" },
   { id: 10, title: "fix: Resolve layout shifting on startup", state: "merged", author: "Cay", date: "2 days ago", branches: "fix/layout-shift -> main" },
-];
-
-const MOCK_BRANCHES = [
-  { name: "main", isCurrent: false, lastCommit: "Merge pull request #10 from fix/layout-shift", date: "2 days ago" },
-  { name: "feat/source-control-full", isCurrent: true, lastCommit: "WIP: Initial UI for fullscreen source control", date: "Just now" },
-  { name: "test/port-monitor-fix", isCurrent: false, lastCommit: "fix: debounce port fetching", date: "4 hrs ago" },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -116,6 +117,7 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
   // Git State
   const [status, setStatus] = useState<GitPanelStatus | null>(null);
   const [log, setLog] = useState<GitCommitEntry[]>([]);
+  const [branches, setBranches] = useState<GitBranchInfo[]>([]);
   const [commitMsg, setCommitMsg] = useState("");
   const [loading, setLoading] = useState(false);
   const [actionMsg, setActionMsg] = useState<{ text: string; ok: boolean } | null>(null);
@@ -123,6 +125,7 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
   
   // Search state for non-overview tabs
   const [searchTerm, setSearchTerm] = useState("");
+  const [newBranchName, setNewBranchName] = useState("");
 
   const flash = (text: string, ok = true) => {
     setActionMsg({ text, ok });
@@ -133,12 +136,14 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
     if (!currentProject) return;
     setLoading(true);
     try {
-      const [s, l] = await Promise.all([
+      const [s, l, b] = await Promise.all([
         invoke<GitPanelStatus>("git_panel_get_status", { cwd: currentProject }),
         invoke<GitCommitEntry[]>("git_panel_get_log", { cwd: currentProject, limit: 50 }),
+        invoke<GitBranchInfo[]>("git_panel_get_branches", { cwd: currentProject }),
       ]);
       setStatus(s);
       setLog(l);
+      setBranches(b);
     } catch (e) {
       flash(String(e), false);
     } finally {
@@ -180,6 +185,16 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
   });
   const pull = () => run("pull", () => invoke("git_panel_pull", { cwd: currentProject! }));
   const push = () => run("push", () => invoke("git_panel_push", { cwd: currentProject! }));
+
+  const switchBranch = (branch: string) => run("switch:" + branch, () => invoke("git_panel_switch_branch", { cwd: currentProject!, branch }));
+  const createBranch = () => run("createBranch", async () => {
+    if (!newBranchName.trim()) throw new Error("Branch name required");
+    const res: string = await invoke("git_panel_create_branch", { cwd: currentProject!, branch: newBranchName.trim() });
+    setNewBranchName("");
+    return res;
+  });
+  const deleteBranch = (branch: string) => run("delete:" + branch, () => invoke("git_panel_delete_branch", { cwd: currentProject!, branch }));
+  const mergeBranch = (branch: string) => run("merge:" + branch, () => invoke("git_panel_merge_branch", { cwd: currentProject!, branch }));
 
   const TABS = [
     { id: "overview", label: "Changes & History", icon: LayoutDashboard },
@@ -451,25 +466,81 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {/* Mock Branches */}
-                  {activeTab === "branches" && MOCK_BRANCHES.map(b => (
-                    <div key={b.name} className="p-5 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-white/10 transition-all flex flex-col gap-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <GitBranch size={16} className={b.isCurrent ? "text-brand-accent" : "text-zinc-500"} />
-                          <span className={`font-semibold ${b.isCurrent ? "text-white" : "text-zinc-300"}`}>{b.name}</span>
+                  {/* Branches Tab */}
+                  {activeTab === "branches" && (
+                    <>
+                      {/* Create Branch Card */}
+                      <div className="p-5 rounded-2xl bg-brand-accent/5 border border-brand-accent/20 flex flex-col gap-4">
+                        <div className="flex items-center gap-2 text-brand-accent font-semibold">
+                          <Plus size={16} />
+                          <span>Create New Branch</span>
                         </div>
-                        {b.isCurrent && <span className="text-[10px] bg-brand-accent/20 text-brand-accent px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Current</span>}
+                        <input
+                          value={newBranchName}
+                          onChange={e => setNewBranchName(e.target.value)}
+                          placeholder="new-feature-name"
+                          className="bg-black/40 border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-brand-accent/50 outline-none w-full font-mono transition-all"
+                          onKeyDown={e => { if (e.key === 'Enter') createBranch(); }}
+                        />
+                        <button
+                          onClick={createBranch}
+                          disabled={!newBranchName.trim() || !!busy}
+                          className="w-full py-2.5 bg-brand-accent/90 hover:bg-brand-accent text-white rounded-lg text-sm font-bold disabled:opacity-50 transition-all active:scale-[0.98]"
+                        >
+                          Create Branch
+                        </button>
                       </div>
-                      <div className="text-xs text-zinc-500 flex items-center gap-2 line-clamp-1">
-                        <GitCommit size={14} />
-                        {b.lastCommit}
-                      </div>
-                      <div className="text-xs text-zinc-600 mt-auto">{b.date}</div>
-                    </div>
-                  ))}
+
+                      {/* Branch List */}
+                      {branches.filter(b => b.name.toLowerCase().includes(searchTerm.toLowerCase())).map(b => (
+                        <div key={b.name} className="p-5 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-white/10 transition-all flex flex-col gap-4 group">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <GitBranch size={16} className={b.isCurrent ? "text-brand-accent" : "text-zinc-500"} />
+                              <span className={`font-semibold ${b.isCurrent ? "text-white" : "text-zinc-300"}`}>{b.name}</span>
+                            </div>
+                            {b.isCurrent && <span className="text-[10px] bg-brand-accent/20 text-brand-accent px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Current</span>}
+                          </div>
+                          
+                          <div className="text-xs text-zinc-500 flex items-center gap-2 line-clamp-1">
+                            <GitCommit size={14} />
+                            {b.lastCommit || "No commits yet"}
+                          </div>
+                          
+                          <div className="flex items-center justify-between mt-auto pt-4 border-t border-white/5">
+                            <div className="text-xs text-zinc-600">{b.date}</div>
+                            
+                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              {!b.isCurrent && (
+                                <>
+                                  <button onClick={() => deleteBranch(b.name)} className="p-2 bg-white/5 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 rounded-lg transition-colors" title="Delete Branch">
+                                    <Trash2 size={14} />
+                                  </button>
+                                  <button onClick={() => mergeBranch(b.name)} className="p-2 bg-white/5 hover:bg-emerald-500/20 text-zinc-400 hover:text-emerald-400 rounded-lg transition-colors" title="Merge into current">
+                                    <GitMerge size={14} />
+                                  </button>
+                                  <button onClick={() => switchBranch(b.name)} className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-lg transition-colors">
+                                    Checkout
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  )}
 
                   {/* Mock Issues */}
+                  {activeTab === "issues" && (
+                    <div className="col-span-full mb-4 p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center gap-4 text-blue-400">
+                      <FileText size={24} />
+                      <div>
+                        <h4 className="font-semibold text-sm">GitHub Integration Required</h4>
+                        <p className="text-xs opacity-80 mt-0.5">Connect your GitHub account to manage Issues directly from DidiTerminal. (Coming soon)</p>
+                      </div>
+                    </div>
+                  )}
                   {activeTab === "issues" && MOCK_ISSUES.map(issue => (
                     <div key={issue.id} className="p-5 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-white/10 transition-all flex flex-col gap-4">
                       <div className="flex items-start justify-between gap-4">
@@ -493,6 +564,15 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
                   ))}
 
                   {/* Mock PRs */}
+                  {activeTab === "prs" && (
+                    <div className="col-span-full mb-4 p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center gap-4 text-blue-400">
+                      <GitPullRequest size={24} />
+                      <div>
+                        <h4 className="font-semibold text-sm">GitHub Integration Required</h4>
+                        <p className="text-xs opacity-80 mt-0.5">Connect your GitHub account to create and manage Pull Requests. (Coming soon)</p>
+                      </div>
+                    </div>
+                  )}
                   {activeTab === "prs" && MOCK_PRS.map(pr => (
                     <div key={pr.id} className="p-5 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-white/10 transition-all flex flex-col gap-4">
                       <div className="flex items-start justify-between gap-4">

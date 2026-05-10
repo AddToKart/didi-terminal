@@ -517,3 +517,66 @@ pub fn git_panel_get_log(cwd: String, limit: Option<usize>) -> Result<Vec<GitCom
 
     Ok(entries)
 }
+
+#[derive(serde::Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct GitBranchInfo {
+    pub name: String,
+    pub is_current: bool,
+    pub last_commit: String,
+    pub date: String,
+}
+
+#[tauri::command]
+pub fn git_panel_get_branches(cwd: String) -> Result<Vec<GitBranchInfo>, String> {
+    let cwd_path = Path::new(&cwd);
+    ensure_git_repo(cwd_path)?;
+    let out = run_git(cwd_path, &["for-each-ref", "--format=%(refname:short)\x1f%(HEAD)\x1f%(subject)\x1f%(committerdate:relative)", "refs/heads/"], None)?;
+    
+    let branches = out.lines().filter_map(|line| {
+        let parts: Vec<&str> = line.split('\x1f').collect();
+        if parts.len() < 4 { return None; }
+        Some(GitBranchInfo {
+            name: parts[0].to_string(),
+            is_current: parts[1].trim() == "*",
+            last_commit: parts[2].to_string(),
+            date: parts[3].to_string(),
+        })
+    }).collect();
+
+    Ok(branches)
+}
+
+#[tauri::command]
+pub fn git_panel_switch_branch(cwd: String, branch: String) -> Result<String, String> {
+    let cwd_path = Path::new(&cwd);
+    ensure_git_repo(cwd_path)?;
+    run_git(cwd_path, &["checkout", &branch], None)?;
+    Ok(format!("Switched to branch {}", branch))
+}
+
+#[tauri::command]
+pub fn git_panel_create_branch(cwd: String, branch: String) -> Result<String, String> {
+    let cwd_path = Path::new(&cwd);
+    ensure_git_repo(cwd_path)?;
+    run_git(cwd_path, &["checkout", "-b", &branch], None)?;
+    Ok(format!("Created and switched to branch {}", branch))
+}
+
+#[tauri::command]
+pub fn git_panel_delete_branch(cwd: String, branch: String) -> Result<String, String> {
+    let cwd_path = Path::new(&cwd);
+    ensure_git_repo(cwd_path)?;
+    run_git(cwd_path, &["branch", "-D", &branch], None)?;
+    Ok(format!("Deleted branch {}", branch))
+}
+
+#[tauri::command]
+pub fn git_panel_merge_branch(cwd: String, branch: String) -> Result<String, String> {
+    let cwd_path = Path::new(&cwd);
+    ensure_git_repo(cwd_path)?;
+    match run_git(cwd_path, &["merge", &branch], None) {
+        Ok(out) => Ok(out),
+        Err(e) => Err(format!("Merge failed (you may have conflicts): {}", e))
+    }
+}
