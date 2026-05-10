@@ -217,8 +217,21 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
       }
     });
 
-    invoke("spawn_pty", { agent: agentName.toLowerCase(), cwd: cwd || null })
-      .then(() => {
+    invoke<string>("spawn_pty", { agent: agentName.toLowerCase(), cwd: cwd || null })
+      .then((scrollback) => {
+        if (terminal && scrollback) {
+          terminal.write(scrollback, () => {
+            terminal.scrollToBottom();
+          });
+          
+          // Re-evaluate prompt readiness on scrollback restore
+          const text = stripTerminalControls(scrollback).replace(/\s+/g, " ");
+          outputBuffer.current = `${outputBuffer.current}${text}`.slice(-4000);
+          if (isPromptReady(outputBuffer.current)) {
+            setIsReady(true);
+          }
+        }
+        
         // Ensure the newly spawned PTY immediately gets the correct dimensions
         if (terminal && terminal.cols && terminal.rows) {
           invoke("resize_pty", {
@@ -327,7 +340,7 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
              <div className="animate-pulse text-zinc-500 text-xs tracking-widest uppercase">Loading Engine...</div>
            </div>
         )}
-        <div className="h-full w-full terminal-surface" ref={terminalRef} onClick={handleContainerClick}></div>
+        <div className="h-full w-full terminal-surface bg-[#09090b]" ref={terminalRef} onClick={handleContainerClick}></div>
       </div>
 
     </div>

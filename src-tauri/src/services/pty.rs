@@ -19,6 +19,7 @@ pub fn cleanup_pty(agent: &str, state: &State<'_, AppState>) {
     let agent_key = normalize_agent(agent);
     state.pty_writers.lock().unwrap().remove(&agent_key);
     state.pty_resizers.lock().unwrap().remove(&agent_key);
+    state.pty_scrollbacks.lock().unwrap().remove(&agent_key);
 
     if let Some(mut process) = state.pty_processes.lock().unwrap().remove(&agent_key) {
         let _ = process.child.kill();
@@ -64,8 +65,18 @@ pub fn configure_workspace(cmd: &mut CommandBuilder, shell: &str, cwd: Option<St
 }
 
 #[tauri::command]
-pub fn spawn_pty(agent: String, cwd: Option<String>, app_handle: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+pub fn spawn_pty(agent: String, cwd: Option<String>, app_handle: AppHandle, state: State<'_, AppState>) -> Result<String, String> {
     let agent = normalize_agent(&agent);
+    
+    // Check if the process already exists, returning its scrollback if so.
+    if state.pty_processes.lock().unwrap().contains_key(&agent) {
+        let scrollbacks = state.pty_scrollbacks.lock().unwrap();
+        if let Some(sb) = scrollbacks.get(&agent) {
+            return Ok(String::from_utf8_lossy(sb).into_owned());
+        }
+        return Ok(String::new());
+    }
+
     cleanup_pty(&agent, &state);
 
     let pty_system = NativePtySystem::default();
@@ -91,6 +102,7 @@ pub fn spawn_pty(agent: String, cwd: Option<String>, app_handle: AppHandle, stat
     state.pty_writers.lock().unwrap().insert(agent.clone(), writer);
     state.pty_resizers.lock().unwrap().insert(agent.clone(), master);
     state.pty_processes.lock().unwrap().insert(agent.clone(), PtyProcess { child, pid });
+    state.pty_scrollbacks.lock().unwrap().insert(agent.clone(), Vec::new());
 
     let agent_clone = agent.clone();
     std::thread::spawn(move || {
@@ -113,6 +125,22 @@ pub fn spawn_pty(agent: String, cwd: Option<String>, app_handle: AppHandle, stat
             
             if process_len > 0 {
                 let chunk: Vec<u8> = pending.drain(..process_len).collect();
+                
+                // Store in scrollback buffer
+                use tauri::Manager;
+                if let Some(state) = app_handle.try_state::<AppState>() {
+                    if let Ok(mut scrollbacks) = state.pty_scrollbacks.lock() {
+                        if let Some(sb) = scrollbacks.get_mut(&agent_clone) {
+                            sb.extend_from_slice(&chunk);
+                            // Keep max 64KB in scrollback to prevent memory bloat
+                            if sb.len() > 65536 {
+                                let excess = sb.len() - 65536;
+                                sb.drain(0..excess);
+                            }
+                        }
+                    }
+                }
+
                 let data = String::from_utf8_lossy(&chunk).into_owned();
                 
                 #[derive(serde::Serialize, Clone)]
@@ -134,7 +162,7 @@ pub fn spawn_pty(agent: String, cwd: Option<String>, app_handle: AppHandle, stat
         let _ = app_handle.emit("pty-exit", PtyExitPayload { agent: agent_clone });
     });
 
-    Ok(())
+    Ok(String::new())
 }
 
 #[tauri::command]
