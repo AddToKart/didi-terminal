@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Brain, ClipboardList, Columns, Globe, Grid2X2, Network, PanelLeft, PanelLeftClose, Plus, Rows, PanelRight, Presentation, Layers, AlignLeft, Sparkles, ChevronRight, ChevronLeft, GitMerge } from "lucide-react";
+import { Brain, ClipboardList, Columns, Globe, Grid2X2, Network, PanelLeft, PanelLeftClose, Plus, Rows, PanelRight, Presentation, Layers, AlignLeft, Sparkles, ChevronRight, ChevronLeft, GitMerge, LayoutList } from "lucide-react";
 
 interface AppTopbarProps {
   appMode: "terminal" | "orchestrator";
@@ -17,6 +17,8 @@ interface AppTopbarProps {
   codeReviewStats?: { additions: number; deletions: number };
   onToggleCodeReview?: () => void;
   onToggleGitPanel?: () => void;
+  onTogglePersonalKanban?: () => void;
+  currentProject: string | null;
 }
 
 export function AppTopbar({
@@ -35,6 +37,8 @@ export function AppTopbar({
   codeReviewStats,
   onToggleCodeReview,
   onToggleGitPanel,
+  onTogglePersonalKanban,
+  currentProject,
 }: AppTopbarProps) {
   const [isExtraLayoutsOpen, setIsExtraLayoutsOpen] = useState(false);
 
@@ -93,46 +97,70 @@ export function AppTopbar({
           </>
         )}
 
-        <div className="flex items-center gap-1 bg-app-panel p-1 border border-app-border rounded-lg shadow-inner">
+        {currentProject && (
+          <>
+            <button
+              onClick={onTogglePersonalKanban}
+              className="flex items-center gap-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all ml-2 text-[11px] font-bold"
+              title="My Tasks"
+            >
+              <LayoutList size={12} />
+              <span>My Tasks</span>
+            </button>
+
+            <button
+              onClick={onToggleGitPanel}
+              className="flex items-center gap-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all ml-2 text-[11px] font-bold"
+              title="Source Control"
+            >
+              <GitMerge size={12} />
+              <span>Source Control</span>
+            </button>
+
+            {codeReviewStats && (
+              <button
+                onClick={onToggleCodeReview}
+                className="flex items-center group relative overflow-hidden bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-700/50 hover:border-zinc-600 rounded-full px-3 py-1 transition-all ml-2 shadow-lg"
+                title="Open Code Review"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 to-red-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <div className="flex items-center gap-3 relative z-10 font-mono text-[11px] font-bold tracking-tight">
+                  <span className={`flex items-center gap-0.5 ${codeReviewStats.additions > 0 ? "text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.3)]" : "text-emerald-400/50"}`}>
+                    <span>+</span>{codeReviewStats.additions}
+                  </span>
+                  <span className={`flex items-center gap-0.5 ${codeReviewStats.deletions > 0 ? "text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.3)]" : "text-red-400/50"}`}>
+                    <span>-</span>{codeReviewStats.deletions}
+                  </span>
+                </div>
+              </button>
+            )}
+          </>
+        )}
+
+        <div className="flex items-center bg-zinc-900/60 border border-zinc-800/80 rounded-xl p-1 gap-1 shadow-sm ml-2">
           <button
-            onClick={() => onSetLayoutOrientation("horizontal")}
-            className={`p-1.5 rounded-lg transition-colors ${layoutOrientation === "horizontal" ? "bg-brand-accent/30 text-white" : "text-zinc-400 hover:text-white"}`}
-            title="Vertical Splits"
+            onClick={() => onSetLayoutOrientation("vertical")}
+            className={`p-1.5 rounded-lg transition-all shrink-0 ${layoutOrientation === "vertical" ? "bg-brand-accent/30 text-white shadow-inner" : "text-zinc-500 hover:text-zinc-300"}`}
+            title="Vertical Split (Side-by-side)"
           >
             <Columns size={14} strokeWidth={2.5} />
           </button>
           <button
-            onClick={() => onSetLayoutOrientation("vertical")}
-            className={`p-1.5 rounded-lg transition-colors ${layoutOrientation === "vertical" ? "bg-brand-accent/30 text-white" : "text-zinc-400 hover:text-white"}`}
-            title="Horizontal Splits"
+            onClick={() => onSetLayoutOrientation("horizontal")}
+            className={`p-1.5 rounded-lg transition-all shrink-0 ${layoutOrientation === "horizontal" ? "bg-brand-accent/30 text-white shadow-inner" : "text-zinc-500 hover:text-zinc-300"}`}
+            title="Horizontal Stack"
           >
             <Rows size={14} strokeWidth={2.5} />
           </button>
           <button
             onClick={() => onSetLayoutOrientation("grid")}
-            className={`p-1.5 rounded-lg transition-colors ${layoutOrientation === "grid" ? "bg-brand-accent/30 text-white" : "text-zinc-400 hover:text-white"}`}
-            title="Grid Split"
+            className={`p-1.5 rounded-lg transition-all shrink-0 ${layoutOrientation === "grid" ? "bg-brand-accent/30 text-white shadow-inner" : "text-zinc-500 hover:text-zinc-300"}`}
+            title="Grid Layout"
           >
             <Grid2X2 size={14} strokeWidth={2.5} />
           </button>
-          <div className="w-px h-4 bg-zinc-700/50 mx-1" />
-          
-          <div className={`flex items-center gap-1 transition-all duration-300 overflow-hidden ${showExtras ? "max-w-[400px] opacity-100" : "max-w-0 opacity-0"}`}>
-            <button
-              onClick={() => onSetLayoutOrientation("focus")}
-              className={`p-1.5 rounded-lg transition-colors shrink-0 ${layoutOrientation === "focus" ? "bg-brand-accent/30 text-white" : "text-zinc-400 hover:text-white"}`}
-              title="Focus Mode (The Pilot)"
-            >
-              <PanelRight size={14} strokeWidth={2.5} />
-            </button>
-            <button
-              onClick={() => onSetLayoutOrientation("presentation")}
-              className={`p-1.5 rounded-lg transition-colors shrink-0 ${layoutOrientation === "presentation" ? "bg-brand-accent/30 text-white" : "text-zinc-400 hover:text-white"}`}
-              title="Broadcast Mode"
-            >
-              <Presentation size={14} strokeWidth={2.5} />
-            </button>
-            <div className="w-px h-4 bg-zinc-700/50 mx-0.5 shrink-0" />
+
+          <div className={`flex items-center gap-1 transition-all duration-300 overflow-hidden ${showExtras ? "max-w-[200px] opacity-100 ml-1 border-l border-zinc-800 pl-1" : "max-w-0 opacity-0"}`}>
             <button
               onClick={() => onSetLayoutOrientation("dynamic")}
               className={`p-1.5 rounded-lg transition-colors shrink-0 ${layoutOrientation === "dynamic" ? "bg-brand-accent/30 text-white" : "text-zinc-400 hover:text-white"}`}
@@ -165,32 +193,6 @@ export function AppTopbar({
           </button>
         </div>
 
-        {codeReviewStats && (codeReviewStats.additions > 0 || codeReviewStats.deletions > 0) && (
-          <button
-            onClick={onToggleCodeReview}
-            className="flex items-center group relative overflow-hidden bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-700/50 hover:border-zinc-600 rounded-full px-3 py-1 transition-all ml-2 shadow-lg"
-            title="Open Code Review"
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 to-red-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            <div className="flex items-center gap-3 relative z-10 font-mono text-[11px] font-bold tracking-tight">
-              <span className={`flex items-center gap-0.5 ${codeReviewStats.additions > 0 ? "text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.3)]" : "text-emerald-400/50"}`}>
-                <span>+</span>{codeReviewStats.additions}
-              </span>
-              <span className={`flex items-center gap-0.5 ${codeReviewStats.deletions > 0 ? "text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.3)]" : "text-red-400/50"}`}>
-                <span>-</span>{codeReviewStats.deletions}
-              </span>
-            </div>
-          </button>
-        )}
-
-        <button
-          onClick={onToggleGitPanel}
-          className="flex items-center gap-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all ml-2 text-[11px] font-bold"
-          title="Source Control"
-        >
-          <GitMerge size={12} />
-          <span>Source Control</span>
-        </button>
 
         {appMode === "orchestrator" && (
           <button

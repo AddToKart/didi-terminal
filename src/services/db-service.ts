@@ -1,6 +1,16 @@
 import Database from "@tauri-apps/plugin-sql";
 import type { TerminalTab, WorkspaceState } from "../App";
 
+export interface PersonalTask {
+  id: string;
+  workspace_id: string;
+  title: string;
+  description: string;
+  status: "todo" | "in_progress" | "done";
+  order_index: number;
+  created_at: number;
+}
+
 let dbInstance: Database | null = null;
 
 export async function getDb(): Promise<Database> {
@@ -106,4 +116,45 @@ export async function setSetting(key: string, value: string): Promise<void> {
     "INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
     [key, value]
   );
+}
+
+export async function loadPersonalTasks(workspaceId: string): Promise<PersonalTask[]> {
+  const db = await getDb();
+  return await db.select<PersonalTask[]>(
+    "SELECT * FROM personal_tasks WHERE workspace_id = $1 ORDER BY order_index ASC, created_at DESC",
+    [workspaceId]
+  );
+}
+
+export async function savePersonalTask(task: PersonalTask): Promise<void> {
+  const db = await getDb();
+  await db.execute(
+    `INSERT INTO personal_tasks (id, workspace_id, title, description, status, order_index, created_at) 
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     ON CONFLICT(id) DO UPDATE SET 
+      title = excluded.title,
+      description = excluded.description,
+      status = excluded.status,
+      order_index = excluded.order_index`,
+    [task.id, task.workspace_id, task.title, task.description, task.status, task.order_index, task.created_at]
+  );
+}
+
+export async function updatePersonalTaskStatus(id: string, status: string): Promise<void> {
+  const db = await getDb();
+  await db.execute("UPDATE personal_tasks SET status = $1 WHERE id = $2", [status, id]);
+}
+
+export async function updatePersonalTasksOrder(tasks: PersonalTask[]): Promise<void> {
+  const db = await getDb();
+  // Simple approach: run individual updates (fine for small lists)
+  for (let i = 0; i < tasks.length; i++) {
+    await db.execute("UPDATE personal_tasks SET order_index = $1, status = $2 WHERE id = $3", 
+      [i, tasks[i].status, tasks[i].id]);
+  }
+}
+
+export async function deletePersonalTask(id: string): Promise<void> {
+  const db = await getDb();
+  await db.execute("DELETE FROM personal_tasks WHERE id = $1", [id]);
 }

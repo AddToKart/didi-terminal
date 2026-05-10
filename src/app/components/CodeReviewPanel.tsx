@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { X, Check, FileDown, Plus, Minus, FileCode2, ChevronRight, ChevronDown, GitCommit } from "lucide-react";
+import { X, Check, FileCode2, ChevronRight, ChevronDown, GitCommit } from "lucide-react";
 import { FileIcon } from "./FileIcon";
 
 export interface GitFileDiff {
@@ -71,10 +71,10 @@ export function CodeReviewPanel({ currentProject, isOpen, onClose, onStatsUpdate
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-bold text-white tracking-wide">Code review</h2>
             {status && (
-                <span className="text-[10px] font-mono text-zinc-500 bg-zinc-800/40 px-2 py-0.5 rounded-full ml-1 border border-zinc-800 flex items-center gap-1.5">
-                    <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><path d="M11.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm-2.25.75a2.25 2.25 0 1 1 3 2.122V6A1.5 1.5 0 0 1 11 7.5H4.5A1.5 1.5 0 0 0 3 9v2.122a2.25 2.25 0 1 1-1.5 0V5.378a2.25 2.25 0 1 1 1.5 0v3.622A3 3 0 0 1 4.5 6H11a3 3 0 0 0 3-3V5.378a2.25 2.25 0 1 1-1.5 0V3.25Z"></path></svg>
-                    {status.branch}
-                </span>
+              <span className="text-[10px] font-mono text-zinc-500 bg-zinc-800/40 px-2 py-0.5 rounded-full ml-1 border border-zinc-800 flex items-center gap-1.5">
+                <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><path d="M11.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm-2.25.75a2.25 2.25 0 1 1 3 2.122V6A1.5 1.5 0 0 1 11 7.5H4.5A1.5 1.5 0 0 0 3 9v2.122a2.25 2.25 0 1 1-1.5 0V5.378a2.25 2.25 0 1 1 1.5 0v3.622A3 3 0 0 1 4.5 6H11a3 3 0 0 0 3-3V5.378a2.25 2.25 0 1 1-1.5 0V3.25Z"></path></svg>
+                {status.branch}
+              </span>
             )}
           </div>
           {status && (status.totalAdditions > 0 || status.totalDeletions > 0) && (
@@ -109,7 +109,7 @@ export function CodeReviewPanel({ currentProject, isOpen, onClose, onStatsUpdate
         ) : (
           status?.files.map(file => (
             <div key={file.path} className="border border-zinc-800/80 rounded-lg bg-[#141418] overflow-hidden group">
-              <div 
+              <div
                 className="flex items-center justify-between p-2.5 bg-[#18181b] hover:bg-[#1f1f24] cursor-pointer transition-colors border-b border-transparent group-hover:border-zinc-800/50"
                 onClick={() => toggleFile(file.path)}
               >
@@ -128,10 +128,10 @@ export function CodeReviewPanel({ currentProject, isOpen, onClose, onStatsUpdate
                   </div>
                 </div>
                 <div className="flex items-center gap-2 text-zinc-500">
-                   <button className="opacity-0 group-hover:opacity-100 p-1 hover:text-white transition-all"><GitCommit size={14} /></button>
+                  <button className="opacity-0 group-hover:opacity-100 p-1 hover:text-white transition-all"><GitCommit size={14} /></button>
                 </div>
               </div>
-              
+
               {expandedFiles.has(file.path) && (
                 <div className="overflow-x-auto text-[11px] font-mono leading-relaxed bg-[#09090b] border-t border-zinc-800/50">
                   <table className="w-full border-collapse">
@@ -146,8 +146,8 @@ export function CodeReviewPanel({ currentProject, isOpen, onClose, onStatsUpdate
                             // Parse @@ -oldLine,oldCount +newLine,newCount @@
                             const match = line.match(/@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
                             if (match) {
-                                oldLine = parseInt(match[1], 10);
-                                newLine = parseInt(match[2], 10);
+                              oldLine = parseInt(match[1], 10);
+                              newLine = parseInt(match[2], 10);
                             }
                             return (
                               <tr key={i} className="bg-brand-accent/5">
@@ -155,7 +155,7 @@ export function CodeReviewPanel({ currentProject, isOpen, onClose, onStatsUpdate
                               </tr>
                             );
                           }
-                          
+
                           const isAdded = line.startsWith('+');
                           const isRemoved = line.startsWith('-');
                           const content = line.substring(1);

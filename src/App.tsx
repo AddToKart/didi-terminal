@@ -26,6 +26,7 @@ import { AppOverlays } from "./app/components/AppOverlays";
 import { AppSidebar } from "./app/components/AppSidebar";
 import { CodeReviewPanel } from "./app/components/CodeReviewPanel";
 import { GitPanel } from "./app/components/GitPanel";
+import { PersonalKanban } from "./app/components/PersonalKanban";
 import { AppGlobalSidebar } from "./app/components/AppGlobalSidebar";
 import { AppTopbar } from "./app/components/AppTopbar";
 import { AppTerminalArea } from "./app/components/AppTerminalArea";
@@ -146,6 +147,7 @@ function App() {
   const [isTasksCollapsed, setIsTasksCollapsed] = useState(false);
   const [showCodeReview, setShowCodeReview] = useState(false);
   const [showGitPanel, setShowGitPanel] = useState(false);
+  const [showPersonalKanban, setShowPersonalKanban] = useState(false);
   const [codeReviewStats, setCodeReviewStats] = useState({ additions: 0, deletions: 0 });
   const [isActivityCollapsed, setIsActivityCollapsed] = useState(false);
   const [sentinelEnabled, setSentinelEnabled] = useState(false);
@@ -671,6 +673,8 @@ function App() {
           codeReviewStats={codeReviewStats}
           onToggleCodeReview={() => setShowCodeReview(!showCodeReview)}
           onToggleGitPanel={() => setShowGitPanel(!showGitPanel)}
+          onTogglePersonalKanban={() => setShowPersonalKanban(!showPersonalKanban)}
+          currentProject={currentProject}
         />
 
         <AppTerminalTabs
@@ -696,12 +700,13 @@ function App() {
           workspaceId={activeWorkspaceId}
         />
         
-        {(showCodeReview || showGitPanel) && (
+        {(showCodeReview || showGitPanel || showPersonalKanban) && (
           <div 
             className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[45] animate-in fade-in duration-300" 
             onClick={() => {
               setShowCodeReview(false);
               setShowGitPanel(false);
+              setShowPersonalKanban(false);
             }}
           />
         )}
@@ -716,6 +721,11 @@ function App() {
           currentProject={currentProject}
           isOpen={showGitPanel}
           onClose={() => setShowGitPanel(false)}
+        />
+        <PersonalKanban
+          currentProject={currentProject}
+          isOpen={showPersonalKanban}
+          onClose={() => setShowPersonalKanban(false)}
         />
       </section>
 

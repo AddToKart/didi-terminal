@@ -198,6 +198,15 @@ pub fn run() {
                     key TEXT PRIMARY KEY,
                     value TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS personal_tasks (
+                    id TEXT PRIMARY KEY,
+                    workspace_id TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    description TEXT,
+                    status TEXT NOT NULL,
+                    order_index INTEGER NOT NULL DEFAULT 0,
+                    created_at INTEGER NOT NULL
+                );
             ",
             kind: MigrationKind::Up,
         }
