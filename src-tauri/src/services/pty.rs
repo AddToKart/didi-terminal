@@ -55,9 +55,9 @@ pub fn configure_workspace(cmd: &mut CommandBuilder, shell: &str, cwd: Option<St
         .to_lowercase();
 
     if shell_name == "pwsh.exe" || shell_name == "pwsh" || shell_name == "powershell.exe" || shell_name == "powershell" {
-        cmd.args(["-NoExit", "-Command", "Set-Location -LiteralPath $env:DIDI_WORKSPACE"]);
+        cmd.args(["-NoExit", "-Command", "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; [Console]::InputEncoding = [System.Text.Encoding]::UTF8; Set-Location -LiteralPath $env:DIDI_WORKSPACE"]);
     } else if shell_name == "cmd.exe" || shell_name == "cmd" {
-        cmd.args(["/K", "cd /d \"%DIDI_WORKSPACE%\""]);
+        cmd.args(["/K", "chcp 65001 >nul & cd /d \"%DIDI_WORKSPACE%\""]);
     }
 
     Ok(())
@@ -94,19 +94,37 @@ pub fn spawn_pty(agent: String, cwd: Option<String>, app_handle: AppHandle, stat
 
     let agent_clone = agent.clone();
     std::thread::spawn(move || {
-        let mut buf = [0; 1024];
+        let mut buf = [0; 4096];
+        let mut pending = Vec::new();
         while let Ok(n) = reader.read(&mut buf) {
             if n == 0 { break; }
-            let data = String::from_utf8_lossy(&buf[..n]).to_string();
-            #[derive(serde::Serialize, Clone)]
-            struct PtyPayload {
-                agent: String,
-                data: String,
+            pending.extend_from_slice(&buf[..n]);
+            
+            let mut process_len = pending.len();
+            match std::str::from_utf8(&pending) {
+                Ok(_) => {}
+                Err(e) => {
+                    if e.error_len().is_none() {
+                        // Incomplete multi-byte character at the end
+                        process_len = e.valid_up_to();
+                    }
+                }
             }
-            let _ = app_handle.emit("pty-output", PtyPayload {
-                agent: agent_clone.clone(),
-                data,
-            });
+            
+            if process_len > 0 {
+                let chunk: Vec<u8> = pending.drain(..process_len).collect();
+                let data = String::from_utf8_lossy(&chunk).into_owned();
+                
+                #[derive(serde::Serialize, Clone)]
+                struct PtyPayload {
+                    agent: String,
+                    data: String,
+                }
+                let _ = app_handle.emit("pty-output", PtyPayload {
+                    agent: agent_clone.clone(),
+                    data,
+                });
+            }
         }
 
         #[derive(serde::Serialize, Clone)]

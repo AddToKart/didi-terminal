@@ -217,7 +217,18 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
       }
     });
 
-    invoke("spawn_pty", { agent: agentName.toLowerCase(), cwd: cwd || null }).catch(console.error);
+    invoke("spawn_pty", { agent: agentName.toLowerCase(), cwd: cwd || null })
+      .then(() => {
+        // Ensure the newly spawned PTY immediately gets the correct dimensions
+        if (terminal && terminal.cols && terminal.rows) {
+          invoke("resize_pty", {
+            agent: agentName.toLowerCase(),
+            cols: terminal.cols,
+            rows: terminal.rows
+          }).catch(console.error);
+        }
+      })
+      .catch(console.error);
 
     return () => {
       unlistenPty.then(f => f());
