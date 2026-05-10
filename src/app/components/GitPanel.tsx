@@ -180,7 +180,7 @@ function Section({
 
 // ── GitPanel ──────────────────────────────────────────────────────────────────
 
-export function GitPanel({ currentProject, isOpen, onClose }: GitPanelProps) {
+export function GitPanel({ currentProject, isOpen, onClose, onOpenFullscreen }: GitPanelProps) {
   const [status, setStatus] = useState<GitPanelStatus | null>(null);
   const [log, setLog] = useState<GitCommitEntry[]>([]);
   const [commitMsg, setCommitMsg] = useState("");
@@ -257,7 +257,7 @@ export function GitPanel({ currentProject, isOpen, onClose }: GitPanelProps) {
     run("push", () => invoke("git_panel_push", { cwd: currentProject! }));
 
   return (
-    <div className="w-[400px] shrink-0 border-l border-app-border bg-[#0d0d10] flex flex-col shadow-2xl z-50 h-full absolute right-0 top-0 select-none">
+    <div className="w-[400px] shrink-0 border-l border-app-border bg-[#0d0d10] flex flex-col shadow-2xl z-50 h-full absolute right-0 top-0 select-none animate-in slide-in-from-right-10 duration-200">
 
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-app-border bg-[#0e0e12] shrink-0">
@@ -271,6 +271,15 @@ export function GitPanel({ currentProject, isOpen, onClose }: GitPanelProps) {
               <GitBranch size={10} className="text-brand-accent" />
               <span className="text-zinc-300">{status.branch}</span>
             </div>
+          )}
+          {onOpenFullscreen && (
+            <button
+              onClick={onOpenFullscreen}
+              className="p-1.5 rounded-md text-zinc-500 hover:text-brand-accent hover:bg-brand-accent/10 transition-colors"
+              title="Open Command Center"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+            </button>
           )}
           <button
             onClick={refresh}

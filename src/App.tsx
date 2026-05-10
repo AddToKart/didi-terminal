@@ -26,6 +26,7 @@ import { AppOverlays } from "./app/components/AppOverlays";
 import { AppSidebar } from "./app/components/AppSidebar";
 import { CodeReviewPanel } from "./app/components/CodeReviewPanel";
 import { GitPanel } from "./app/components/GitPanel";
+import { SourceControlFullscreen } from "./app/components/SourceControlFullscreen";
 import { PersonalKanban } from "./app/components/PersonalKanban";
 import { ProjectFileExplorer } from "./app/components/ProjectFileExplorer";
 import { StatusBar } from "./app/components/StatusBar";
@@ -150,6 +151,7 @@ function App() {
   const [isTasksCollapsed, setIsTasksCollapsed] = useState(false);
   const [showCodeReview, setShowCodeReview] = useState(false);
   const [showGitPanel, setShowGitPanel] = useState(false);
+  const [showGitFullscreen, setShowGitFullscreen] = useState(false);
   const [showPersonalKanban, setShowPersonalKanban] = useState(false);
   const [showFileExplorer, setShowFileExplorer] = useState(false);
   const [showPortManager, setShowPortManager] = useState(false);
@@ -729,6 +731,15 @@ function App() {
           currentProject={currentProject}
           isOpen={showGitPanel}
           onClose={() => setShowGitPanel(false)}
+          onOpenFullscreen={() => {
+            setShowGitPanel(false);
+            setShowGitFullscreen(true);
+          }}
+        />
+        <SourceControlFullscreen
+          currentProject={currentProject}
+          isOpen={showGitFullscreen}
+          onClose={() => setShowGitFullscreen(false)}
         />
         <PersonalKanban
           currentProject={currentProject}
