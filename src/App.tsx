@@ -38,7 +38,7 @@ export interface TerminalTab {
   id: string;
   name: string;
   agents: string[];
-  layoutOrientation: "horizontal" | "vertical" | "grid";
+  layoutOrientation: "horizontal" | "vertical" | "grid" | "focus" | "presentation" | "canvas" | "waterfall" | "dynamic";
 }
 
 export interface WorkspaceState {
@@ -473,6 +473,15 @@ function App() {
     }
   };
 
+  const handleTabReorder = (oldIndex: number, newIndex: number) => {
+    setTabs(prev => {
+      const next = [...prev];
+      const [moved] = next.splice(oldIndex, 1);
+      next.splice(newIndex, 0, moved);
+      return next;
+    });
+  };
+
   const spawnAgent = (e: FormEvent) => {
     e.preventDefault();
     let name = newAgentName.trim();
@@ -516,7 +525,7 @@ function App() {
   };
 
 
-  const handleSetLayoutOrientation = (orientation: "horizontal" | "vertical" | "grid") => {
+  const handleSetLayoutOrientation = (orientation: "horizontal" | "vertical" | "grid" | "focus" | "presentation" | "canvas" | "waterfall" | "dynamic") => {
     setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, layoutOrientation: orientation } : t));
   };
 
@@ -657,6 +666,7 @@ function App() {
           onTabClose={handleTabClose}
           onTabCreate={handleTabCreate}
           onTabRename={handleTabRename}
+          onTabReorder={handleTabReorder}
         />
 
         <AppTerminalArea

@@ -1,5 +1,5 @@
-import type { FormEvent } from "react";
-import { Brain, ClipboardList, Columns, Globe, Grid2X2, Network, PanelLeft, PanelLeftClose, Plus, Rows } from "lucide-react";
+import { useState, type FormEvent } from "react";
+import { Brain, ClipboardList, Columns, Globe, Grid2X2, Network, PanelLeft, PanelLeftClose, Plus, Rows, PanelRight, Presentation, Layers, AlignLeft, Sparkles, ChevronRight, ChevronLeft } from "lucide-react";
 
 interface AppTopbarProps {
   appMode: "terminal" | "orchestrator";
@@ -9,8 +9,8 @@ interface AppTopbarProps {
   onOpenBrainstorm: () => void;
   onOpenMasterPlan: () => void;
   onOpenNetworkGraph: () => void;
-  layoutOrientation: "horizontal" | "vertical" | "grid";
-  onSetLayoutOrientation: (orientation: "horizontal" | "vertical" | "grid") => void;
+  layoutOrientation: "horizontal" | "vertical" | "grid" | "focus" | "presentation" | "canvas" | "waterfall" | "dynamic";
+  onSetLayoutOrientation: (orientation: "horizontal" | "vertical" | "grid" | "focus" | "presentation" | "canvas" | "waterfall" | "dynamic") => void;
   isSidebarOpen: boolean;
   onToggleSidebar: () => void;
   onSpawnBrowser: () => void;
@@ -30,6 +30,11 @@ export function AppTopbar({
   onToggleSidebar,
   onSpawnBrowser,
 }: AppTopbarProps) {
+  const [isExtraLayoutsOpen, setIsExtraLayoutsOpen] = useState(false);
+
+  // Auto-expand if current orientation is one of the "extra" ones
+  const isExtraActive = ["focus", "presentation", "dynamic", "canvas", "waterfall"].includes(layoutOrientation);
+  const showExtras = isExtraLayoutsOpen || isExtraActive;
   return (
     <div className="h-14 border-b border-app-border flex items-center justify-between px-4 bg-app-bg">
       <form onSubmit={onSpawnAgent} className="flex items-center gap-2">
@@ -103,6 +108,54 @@ export function AppTopbar({
             title="Grid Split"
           >
             <Grid2X2 size={14} strokeWidth={2.5} />
+          </button>
+          <div className="w-px h-4 bg-zinc-700/50 mx-1" />
+          
+          <div className={`flex items-center gap-1 transition-all duration-300 overflow-hidden ${showExtras ? "max-w-[400px] opacity-100" : "max-w-0 opacity-0"}`}>
+            <button
+              onClick={() => onSetLayoutOrientation("focus")}
+              className={`p-1.5 rounded-lg transition-colors shrink-0 ${layoutOrientation === "focus" ? "bg-brand-accent/30 text-white" : "text-zinc-400 hover:text-white"}`}
+              title="Focus Mode (The Pilot)"
+            >
+              <PanelRight size={14} strokeWidth={2.5} />
+            </button>
+            <button
+              onClick={() => onSetLayoutOrientation("presentation")}
+              className={`p-1.5 rounded-lg transition-colors shrink-0 ${layoutOrientation === "presentation" ? "bg-brand-accent/30 text-white" : "text-zinc-400 hover:text-white"}`}
+              title="Broadcast Mode"
+            >
+              <Presentation size={14} strokeWidth={2.5} />
+            </button>
+            <div className="w-px h-4 bg-zinc-700/50 mx-0.5 shrink-0" />
+            <button
+              onClick={() => onSetLayoutOrientation("dynamic")}
+              className={`p-1.5 rounded-lg transition-colors shrink-0 ${layoutOrientation === "dynamic" ? "bg-brand-accent/30 text-white" : "text-zinc-400 hover:text-white"}`}
+              title="Dynamic Bento Grid"
+            >
+              <Sparkles size={14} strokeWidth={2.5} />
+            </button>
+            <button
+              onClick={() => onSetLayoutOrientation("canvas")}
+              className={`p-1.5 rounded-lg transition-colors shrink-0 ${layoutOrientation === "canvas" ? "bg-brand-accent/30 text-white" : "text-zinc-400 hover:text-white"}`}
+              title="Canvas (Free Float)"
+            >
+              <Layers size={14} strokeWidth={2.5} />
+            </button>
+            <button
+              onClick={() => onSetLayoutOrientation("waterfall")}
+              className={`p-1.5 rounded-lg transition-colors shrink-0 ${layoutOrientation === "waterfall" ? "bg-brand-accent/30 text-white" : "text-zinc-400 hover:text-white"}`}
+              title="Waterfall Stream"
+            >
+              <AlignLeft size={14} strokeWidth={2.5} />
+            </button>
+          </div>
+
+          <button
+            onClick={() => setIsExtraLayoutsOpen(!isExtraLayoutsOpen)}
+            className={`p-1 rounded-md transition-all ${showExtras ? "bg-white/5 text-zinc-300" : "text-zinc-500 hover:text-zinc-300"}`}
+            title={showExtras ? "Collapse Layouts" : "More Layouts"}
+          >
+            {showExtras ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
           </button>
         </div>
 
