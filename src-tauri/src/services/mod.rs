@@ -5,3 +5,4 @@ pub mod llm;
 pub mod master_plan;
 pub mod pty;
 pub mod dashboard;
+pub mod fs;

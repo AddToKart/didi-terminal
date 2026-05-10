@@ -253,6 +253,7 @@ pub fn run() {
             services::master_plan::set_master_plan_task_status,
             services::master_plan::set_master_plan_task_status_by_text,
             services::master_plan::append_master_plan_task,
+            services::fs::list_directory,
             initialize_project,
             open_browser_view,
             update_browser_bounds,

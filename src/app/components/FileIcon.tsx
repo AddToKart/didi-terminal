@@ -1,17 +1,12 @@
-import React from "react";
 import { 
   FileText, 
   Code2, 
   Hash, 
   Layout, 
-  Braces, 
   FileCode, 
   FileType, 
   Settings, 
-  Terminal,
-  FileJson,
-  Type,
-  Binary
+  FileJson
 } from "lucide-react";
 
 interface FileIconProps {
@@ -55,37 +50,37 @@ export function FileIcon({ filename, className = "", size = 12 }: FileIconProps)
 
   // ── CSS / SCSS ─────────────────────────────────────────────────────────────
   if (ext === "css" || ext === "scss" || ext === "less") {
-    return <Hash size={size} className={`text-blue-500 ${className}`} title="Styles" />;
+    return <Hash size={size} className={`text-blue-500 ${className}`} />;
   }
 
   // ── HTML ───────────────────────────────────────────────────────────────────
   if (ext === "html") {
-    return <Layout size={size} className={`text-orange-600 ${className}`} title="HTML" />;
+    return <Layout size={size} className={`text-orange-600 ${className}`} />;
   }
 
   // ── JSON ───────────────────────────────────────────────────────────────────
   if (ext === "json") {
-    return <FileJson size={size} className={`text-yellow-500 ${className}`} title="JSON" />;
+    return <FileJson size={size} className={`text-yellow-500 ${className}`} />;
   }
 
   // ── Python ─────────────────────────────────────────────────────────────────
   if (ext === "py") {
-    return <FileType size={size} className={`text-blue-400 ${className}`} title="Python" />;
+    return <FileType size={size} className={`text-blue-400 ${className}`} />;
   }
 
   // ── Markdown ───────────────────────────────────────────────────────────────
   if (ext === "md") {
-    return <FileText size={size} className={`text-zinc-400 ${className}`} title="Markdown" />;
+    return <FileText size={size} className={`text-zinc-400 ${className}`} />;
   }
 
   // ── Git ────────────────────────────────────────────────────────────────────
   if (filename === ".gitignore" || filename.startsWith(".git")) {
-    return <Settings size={size} className={`text-red-500 ${className}`} title="Git Config" />;
+    return <Settings size={size} className={`text-red-500 ${className}`} />;
   }
 
   // ── Configuration / Settings ──────────────────────────────────────────────
   if (ext === "yaml" || ext === "yml" || ext === "toml" || ext === "xml") {
-    return <Settings size={size} className={`text-zinc-500 ${className}`} title="Config" />;
+    return <Settings size={size} className={`text-zinc-500 ${className}`} />;
   }
 
   // ── Default ────────────────────────────────────────────────────────────────

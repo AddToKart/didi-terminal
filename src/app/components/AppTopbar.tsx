@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Brain, ClipboardList, Columns, Globe, Grid2X2, Network, PanelLeft, PanelLeftClose, Plus, Rows, PanelRight, Presentation, Layers, AlignLeft, Sparkles, ChevronRight, ChevronLeft, GitMerge, LayoutList } from "lucide-react";
+import { Brain, ClipboardList, Columns, Globe, Grid2X2, Network, PanelLeft, PanelLeftClose, Plus, Rows, Layers, AlignLeft, Sparkles, ChevronRight, ChevronLeft, GitMerge, LayoutList, FolderSearch } from "lucide-react";
 
 interface AppTopbarProps {
   appMode: "terminal" | "orchestrator";
@@ -18,6 +18,7 @@ interface AppTopbarProps {
   onToggleCodeReview?: () => void;
   onToggleGitPanel?: () => void;
   onTogglePersonalKanban?: () => void;
+  onToggleFileExplorer?: () => void;
   currentProject: string | null;
 }
 
@@ -38,6 +39,7 @@ export function AppTopbar({
   onToggleCodeReview,
   onToggleGitPanel,
   onTogglePersonalKanban,
+  onToggleFileExplorer,
   currentProject,
 }: AppTopbarProps) {
   const [isExtraLayoutsOpen, setIsExtraLayoutsOpen] = useState(false);
@@ -99,6 +101,15 @@ export function AppTopbar({
 
         {currentProject && (
           <>
+            <button
+              onClick={onToggleFileExplorer}
+              className="flex items-center gap-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all ml-2 text-[11px] font-bold"
+              title="Project Explorer"
+            >
+              <FolderSearch size={12} />
+              <span>Files</span>
+            </button>
+
             <button
               onClick={onTogglePersonalKanban}
               className="flex items-center gap-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all ml-2 text-[11px] font-bold"

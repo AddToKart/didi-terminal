@@ -27,6 +27,7 @@ import { AppSidebar } from "./app/components/AppSidebar";
 import { CodeReviewPanel } from "./app/components/CodeReviewPanel";
 import { GitPanel } from "./app/components/GitPanel";
 import { PersonalKanban } from "./app/components/PersonalKanban";
+import { ProjectFileExplorer } from "./app/components/ProjectFileExplorer";
 import { AppGlobalSidebar } from "./app/components/AppGlobalSidebar";
 import { AppTopbar } from "./app/components/AppTopbar";
 import { AppTerminalArea } from "./app/components/AppTerminalArea";
@@ -148,6 +149,7 @@ function App() {
   const [showCodeReview, setShowCodeReview] = useState(false);
   const [showGitPanel, setShowGitPanel] = useState(false);
   const [showPersonalKanban, setShowPersonalKanban] = useState(false);
+  const [showFileExplorer, setShowFileExplorer] = useState(false);
   const [codeReviewStats, setCodeReviewStats] = useState({ additions: 0, deletions: 0 });
   const [isActivityCollapsed, setIsActivityCollapsed] = useState(false);
   const [sentinelEnabled, setSentinelEnabled] = useState(false);
@@ -674,6 +676,7 @@ function App() {
           onToggleCodeReview={() => setShowCodeReview(!showCodeReview)}
           onToggleGitPanel={() => setShowGitPanel(!showGitPanel)}
           onTogglePersonalKanban={() => setShowPersonalKanban(!showPersonalKanban)}
+          onToggleFileExplorer={() => setShowFileExplorer(!showFileExplorer)}
           currentProject={currentProject}
         />
 
@@ -700,13 +703,14 @@ function App() {
           workspaceId={activeWorkspaceId}
         />
         
-        {(showCodeReview || showGitPanel || showPersonalKanban) && (
+        {(showCodeReview || showGitPanel || showPersonalKanban || showFileExplorer) && (
           <div 
             className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[45] animate-in fade-in duration-300" 
             onClick={() => {
               setShowCodeReview(false);
               setShowGitPanel(false);
               setShowPersonalKanban(false);
+              setShowFileExplorer(false);
             }}
           />
         )}
@@ -726,6 +730,11 @@ function App() {
           currentProject={currentProject}
           isOpen={showPersonalKanban}
           onClose={() => setShowPersonalKanban(false)}
+        />
+        <ProjectFileExplorer
+          currentProject={currentProject}
+          isOpen={showFileExplorer}
+          onClose={() => setShowFileExplorer(false)}
         />
       </section>
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { 
-  X, Plus, Check, Trash2, Edit2, Columns, LayoutList, 
+  X, Plus, Trash2, Edit2, LayoutList, 
   CircleDot, CheckCircle2, Circle
 } from "lucide-react";
 import { 

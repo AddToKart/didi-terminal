@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   GitBranch, X, RefreshCw, Plus, Minus, RotateCcw, Upload, Download,
-  GitCommit, ChevronDown, ChevronRight, Check, Loader2, GitMerge,
-  FileText, FilePlus, FileMinus, FileX, AlertCircle
+  ChevronDown, ChevronRight, Check, Loader2, GitMerge,
+  AlertCircle
 } from "lucide-react";
 import { FileIcon } from "./FileIcon";
 
@@ -255,9 +255,6 @@ export function GitPanel({ currentProject, isOpen, onClose }: GitPanelProps) {
     run("pull", () => invoke("git_panel_pull", { cwd: currentProject! }));
   const push = () =>
     run("push", () => invoke("git_panel_push", { cwd: currentProject! }));
-
-  const Spinner = ({ k }: { k: string }) =>
-    busy === k ? <Loader2 size={11} className="animate-spin" /> : null;
 
   return (
     <div className="w-[400px] shrink-0 border-l border-app-border bg-[#0d0d10] flex flex-col shadow-2xl z-50 h-full absolute right-0 top-0 select-none">
