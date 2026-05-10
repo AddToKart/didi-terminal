@@ -29,6 +29,7 @@ import { GitPanel } from "./app/components/GitPanel";
 import { PersonalKanban } from "./app/components/PersonalKanban";
 import { ProjectFileExplorer } from "./app/components/ProjectFileExplorer";
 import { StatusBar } from "./app/components/StatusBar";
+import { PortManager } from "./app/components/PortManager";
 import { AppGlobalSidebar } from "./app/components/AppGlobalSidebar";
 import { AppTopbar } from "./app/components/AppTopbar";
 import { AppTerminalArea } from "./app/components/AppTerminalArea";
@@ -151,6 +152,8 @@ function App() {
   const [showGitPanel, setShowGitPanel] = useState(false);
   const [showPersonalKanban, setShowPersonalKanban] = useState(false);
   const [showFileExplorer, setShowFileExplorer] = useState(false);
+  const [showPortManager, setShowPortManager] = useState(false);
+  const [portCount, setPortCount] = useState(0);
   const [codeReviewStats, setCodeReviewStats] = useState({ additions: 0, deletions: 0 });
   const [isActivityCollapsed, setIsActivityCollapsed] = useState(false);
   const [sentinelEnabled, setSentinelEnabled] = useState(false);
@@ -737,8 +740,17 @@ function App() {
           isOpen={showFileExplorer}
           onClose={() => setShowFileExplorer(false)}
         />
-        <StatusBar />
+        <StatusBar 
+          portCount={portCount} 
+          onOpenPortManager={() => setShowPortManager(true)} 
+        />
       </section>
+
+      <PortManager 
+        isOpen={showPortManager} 
+        onClose={() => setShowPortManager(false)} 
+        onPortsUpdate={setPortCount}
+      />
 
       {isSidebarOpen && appMode === "orchestrator" && (
         <AppSidebar
