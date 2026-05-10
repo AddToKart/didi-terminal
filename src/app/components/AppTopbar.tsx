@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Brain, ClipboardList, Columns, Globe, Grid2X2, Network, PanelLeft, PanelLeftClose, Plus, Rows, PanelRight, Presentation, Layers, AlignLeft, Sparkles, ChevronRight, ChevronLeft } from "lucide-react";
+import { Brain, ClipboardList, Columns, Globe, Grid2X2, Network, PanelLeft, PanelLeftClose, Plus, Rows, PanelRight, Presentation, Layers, AlignLeft, Sparkles, ChevronRight, ChevronLeft, GitMerge } from "lucide-react";
 
 interface AppTopbarProps {
   appMode: "terminal" | "orchestrator";
@@ -16,6 +16,7 @@ interface AppTopbarProps {
   onSpawnBrowser: () => void;
   codeReviewStats?: { additions: number; deletions: number };
   onToggleCodeReview?: () => void;
+  onToggleGitPanel?: () => void;
 }
 
 export function AppTopbar({
@@ -33,6 +34,7 @@ export function AppTopbar({
   onSpawnBrowser,
   codeReviewStats,
   onToggleCodeReview,
+  onToggleGitPanel,
 }: AppTopbarProps) {
   const [isExtraLayoutsOpen, setIsExtraLayoutsOpen] = useState(false);
 
@@ -180,6 +182,15 @@ export function AppTopbar({
             </div>
           </button>
         )}
+
+        <button
+          onClick={onToggleGitPanel}
+          className="flex items-center gap-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all ml-2 text-[11px] font-bold"
+          title="Source Control"
+        >
+          <GitMerge size={12} />
+          <span>Source Control</span>
+        </button>
 
         {appMode === "orchestrator" && (
           <button

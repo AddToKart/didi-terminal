@@ -302,3 +302,182 @@ pub fn rewind_git_snapshot(cwd: String, commit: String) -> Result<String, String
 
     Ok(format!("Workspace restored to snapshot {}", commit))
 }
+
+// ── Git Panel Commands ────────────────────────────────────────────────────────
+
+#[derive(serde::Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct GitPanelFile {
+    pub path: String,
+    pub status: String,
+    pub status_label: String,
+}
+
+#[derive(serde::Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct GitPanelStatus {
+    pub branch: String,
+    pub remote: String,
+    pub staged: Vec<GitPanelFile>,
+    pub unstaged: Vec<GitPanelFile>,
+}
+
+#[derive(serde::Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct GitCommitEntry {
+    pub hash: String,
+    pub short_hash: String,
+    pub message: String,
+    pub author: String,
+    pub date: String,
+    pub refs: String,
+}
+
+fn status_label(code: &str) -> String {
+    match code.trim() {
+        "M" => "Modified",
+        "A" => "Added",
+        "D" => "Deleted",
+        "R" => "Renamed",
+        "C" => "Copied",
+        "U" => "Conflict",
+        "??" => "Untracked",
+        _ => "Changed",
+    }.to_string()
+}
+
+#[tauri::command]
+pub fn git_panel_get_status(cwd: String) -> Result<GitPanelStatus, String> {
+    let cwd_path = Path::new(&cwd);
+    ensure_git_repo(cwd_path)?;
+
+    let branch = run_git(cwd_path, &["branch", "--show-current"], None)
+        .unwrap_or_else(|_| "HEAD".to_string());
+    let remote = run_git(cwd_path, &["remote", "get-url", "origin"], None)
+        .unwrap_or_else(|_| String::new());
+
+    let status_out = run_git(cwd_path, &["status", "--porcelain"], None)?;
+
+    let mut staged = Vec::new();
+    let mut unstaged = Vec::new();
+
+    for line in status_out.lines() {
+        if line.len() < 4 { continue; }
+        let x = line[0..1].to_string();
+        let y = line[1..2].to_string();
+        let path_raw = line[3..].trim().to_string();
+        let path = if path_raw.contains(" -> ") {
+            path_raw.split(" -> ").last().unwrap_or(&path_raw).to_string()
+        } else {
+            path_raw
+        };
+
+        if x != " " && x != "?" {
+            staged.push(GitPanelFile {
+                path: path.clone(),
+                status: x.clone(),
+                status_label: status_label(&x),
+            });
+        }
+
+        if y != " " {
+            let code = if y == "?" { "??".to_string() } else { y.clone() };
+            unstaged.push(GitPanelFile {
+                path: path.clone(),
+                status: code.clone(),
+                status_label: status_label(&code),
+            });
+        }
+    }
+
+    Ok(GitPanelStatus { branch, remote, staged, unstaged })
+}
+
+#[tauri::command]
+pub fn git_panel_stage(cwd: String, path: String) -> Result<String, String> {
+    let cwd_path = Path::new(&cwd);
+    ensure_git_repo(cwd_path)?;
+    run_git(cwd_path, &["add", "--", &path], None)?;
+    Ok(format!("Staged {}", path))
+}
+
+#[tauri::command]
+pub fn git_panel_stage_all(cwd: String) -> Result<String, String> {
+    let cwd_path = Path::new(&cwd);
+    ensure_git_repo(cwd_path)?;
+    run_git(cwd_path, &["add", "-A"], None)?;
+    Ok("Staged all files".to_string())
+}
+
+#[tauri::command]
+pub fn git_panel_unstage(cwd: String, path: String) -> Result<String, String> {
+    let cwd_path = Path::new(&cwd);
+    ensure_git_repo(cwd_path)?;
+    run_git(cwd_path, &["reset", "HEAD", "--", &path], None)?;
+    Ok(format!("Unstaged {}", path))
+}
+
+#[tauri::command]
+pub fn git_panel_discard(cwd: String, path: String) -> Result<String, String> {
+    let cwd_path = Path::new(&cwd);
+    ensure_git_repo(cwd_path)?;
+    // Try checkout first (tracked files), then remove (untracked)
+    if run_git(cwd_path, &["checkout", "--", &path], None).is_err() {
+        let full = cwd_path.join(&path);
+        std::fs::remove_file(&full).map_err(|e| e.to_string())?;
+    }
+    Ok(format!("Discarded {}", path))
+}
+
+#[tauri::command]
+pub fn git_panel_commit(cwd: String, message: String) -> Result<String, String> {
+    let cwd_path = Path::new(&cwd);
+    ensure_git_repo(cwd_path)?;
+    if message.trim().is_empty() {
+        return Err("Commit message cannot be empty".into());
+    }
+    run_git(cwd_path, &["commit", "-m", &message], None)?;
+    Ok("Committed successfully".to_string())
+}
+
+#[tauri::command]
+pub fn git_panel_pull(cwd: String) -> Result<String, String> {
+    let cwd_path = Path::new(&cwd);
+    ensure_git_repo(cwd_path)?;
+    run_git(cwd_path, &["pull", "--rebase"], None)
+}
+
+#[tauri::command]
+pub fn git_panel_push(cwd: String) -> Result<String, String> {
+    let cwd_path = Path::new(&cwd);
+    ensure_git_repo(cwd_path)?;
+    let branch = run_git(cwd_path, &["branch", "--show-current"], None)
+        .unwrap_or_else(|_| "HEAD".to_string());
+    run_git(cwd_path, &["push", "origin", &branch], None)
+}
+
+#[tauri::command]
+pub fn git_panel_get_log(cwd: String, limit: Option<usize>) -> Result<Vec<GitCommitEntry>, String> {
+    let cwd_path = Path::new(&cwd);
+    ensure_git_repo(cwd_path)?;
+    let n = limit.unwrap_or(50).to_string();
+    // format: HASH<sep>SHORTHASH<sep>MESSAGE<sep>AUTHOR<sep>DATE<sep>REFS
+    let sep = "\x1f";
+    let fmt = format!("%H{s}%h{s}%s{s}%an{s}%cr{s}%D", s = sep);
+    let out = run_git(cwd_path, &["log", &format!("-{}", n), &format!("--pretty=format:{}", fmt)], None)?;
+
+    let entries = out.lines().filter_map(|line| {
+        let parts: Vec<&str> = line.split('\x1f').collect();
+        if parts.len() < 5 { return None; }
+        Some(GitCommitEntry {
+            hash: parts[0].to_string(),
+            short_hash: parts[1].to_string(),
+            message: parts[2].to_string(),
+            author: parts[3].to_string(),
+            date: parts[4].to_string(),
+            refs: parts.get(5).unwrap_or(&"").to_string(),
+        })
+    }).collect();
+
+    Ok(entries)
+}

@@ -25,6 +25,7 @@ import { createBrainstormWorkflow } from "./app/workflows/brainstorm-workflow";
 import { AppOverlays } from "./app/components/AppOverlays";
 import { AppSidebar } from "./app/components/AppSidebar";
 import { CodeReviewPanel } from "./app/components/CodeReviewPanel";
+import { GitPanel } from "./app/components/GitPanel";
 import { AppGlobalSidebar } from "./app/components/AppGlobalSidebar";
 import { AppTopbar } from "./app/components/AppTopbar";
 import { AppTerminalArea } from "./app/components/AppTerminalArea";
@@ -144,6 +145,7 @@ function App() {
   });
   const [isTasksCollapsed, setIsTasksCollapsed] = useState(false);
   const [showCodeReview, setShowCodeReview] = useState(false);
+  const [showGitPanel, setShowGitPanel] = useState(false);
   const [codeReviewStats, setCodeReviewStats] = useState({ additions: 0, deletions: 0 });
   const [isActivityCollapsed, setIsActivityCollapsed] = useState(false);
   const [sentinelEnabled, setSentinelEnabled] = useState(false);
@@ -668,6 +670,7 @@ function App() {
           onSpawnBrowser={handleSpawnBrowser}
           codeReviewStats={codeReviewStats}
           onToggleCodeReview={() => setShowCodeReview(!showCodeReview)}
+          onToggleGitPanel={() => setShowGitPanel(!showGitPanel)}
         />
 
         <AppTerminalTabs
@@ -693,11 +696,26 @@ function App() {
           workspaceId={activeWorkspaceId}
         />
         
+        {(showCodeReview || showGitPanel) && (
+          <div 
+            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[45] animate-in fade-in duration-300" 
+            onClick={() => {
+              setShowCodeReview(false);
+              setShowGitPanel(false);
+            }}
+          />
+        )}
+
         <CodeReviewPanel 
           currentProject={currentProject} 
           isOpen={showCodeReview} 
           onClose={() => setShowCodeReview(false)} 
           onStatsUpdate={setCodeReviewStats}
+        />
+        <GitPanel
+          currentProject={currentProject}
+          isOpen={showGitPanel}
+          onClose={() => setShowGitPanel(false)}
         />
       </section>
 

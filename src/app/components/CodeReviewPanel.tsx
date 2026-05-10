@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { X, Check, FileDown, Plus, Minus, FileCode2, ChevronRight, ChevronDown, GitCommit } from "lucide-react";
+import { FileIcon } from "./FileIcon";
 
 export interface GitFileDiff {
   path: string;
@@ -63,7 +64,7 @@ export function CodeReviewPanel({ currentProject, isOpen, onClose, onStatsUpdate
   };
 
   return (
-    <div className="w-[600px] border-l border-app-border bg-[#0e0e11] flex flex-col shadow-2xl z-50 shrink-0 h-full absolute right-0 top-0">
+    <div className="w-[800px] border-l border-app-border bg-[#0e0e11] flex flex-col shadow-2xl z-50 shrink-0 h-full absolute right-0 top-0">
       <div className="flex items-center justify-between p-4 border-b border-app-border bg-[#0e0e11] shrink-0">
         <div className="flex items-center gap-3">
           <FileCode2 className="text-zinc-400" size={18} />
@@ -114,6 +115,7 @@ export function CodeReviewPanel({ currentProject, isOpen, onClose, onStatsUpdate
               >
                 <div className="flex items-center gap-2 truncate">
                   {expandedFiles.has(file.path) ? <ChevronDown size={14} className="text-zinc-500" /> : <ChevronRight size={14} className="text-zinc-500" />}
+                  <FileIcon filename={file.path} size={14} />
                   <span className="text-xs font-medium text-zinc-300 truncate">{file.path}</span>
                   {(file.status === "??" || file.status.trim() === "A") && (
                     <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ml-2">
