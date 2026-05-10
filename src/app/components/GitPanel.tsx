@@ -208,11 +208,12 @@ export function GitPanel({ currentProject, isOpen, onClose }: GitPanelProps) {
     try {
       const msg = await fn();
       flash(msg);
-      await refresh();
     } catch (e) {
       flash(String(e), false);
     } finally {
       setBusy(null);
+      // Always refresh so the UI reflects the real git state
+      await refresh();
     }
   };
 

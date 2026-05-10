@@ -72,6 +72,27 @@ pub fn run_git(cwd: &Path, args: &[&str], index_file: Option<&Path>) -> Result<S
     }
 }
 
+pub fn run_git_raw(cwd: &Path, args: &[&str], index_file: Option<&Path>) -> Result<String, String> {
+    let mut command = Command::new("git");
+    command.current_dir(cwd).args(args);
+
+    if let Some(index_file) = index_file {
+        command.env("GIT_INDEX_FILE", index_file);
+    }
+
+    let output = command.output().map_err(|e| e.to_string())?;
+    if output.status.success() {
+        return Ok(String::from_utf8_lossy(&output.stdout).to_string());
+    }
+
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    if stderr.is_empty() {
+        Err(format!("git {:?} failed", args))
+    } else {
+        Err(stderr)
+    }
+}
+
 pub fn ensure_git_repo(cwd: &Path) -> Result<(), String> {
     run_git(cwd, &["rev-parse", "--is-inside-work-tree"], None)
         .and_then(|value| {
@@ -203,7 +224,7 @@ pub fn get_git_status_structured(cwd: String) -> Result<GitStatusResponse, Strin
     let cwd_path = Path::new(&cwd);
     ensure_git_repo(cwd_path)?;
 
-    let status_out = run_git(cwd_path, &["status", "--porcelain"], None)?;
+    let status_out = run_git_raw(cwd_path, &["status", "--porcelain"], None)?;
     let numstat_out = run_git(cwd_path, &["diff", "HEAD", "--numstat"], None).unwrap_or_default();
     
     let branch = run_git(cwd_path, &["branch", "--show-current"], None).unwrap_or_else(|_| "main".to_string());
@@ -356,7 +377,7 @@ pub fn git_panel_get_status(cwd: String) -> Result<GitPanelStatus, String> {
     let remote = run_git(cwd_path, &["remote", "get-url", "origin"], None)
         .unwrap_or_else(|_| String::new());
 
-    let status_out = run_git(cwd_path, &["status", "--porcelain"], None)?;
+    let status_out = run_git_raw(cwd_path, &["status", "--porcelain"], None)?;
 
     let mut staged = Vec::new();
     let mut unstaged = Vec::new();
@@ -413,7 +434,12 @@ pub fn git_panel_stage_all(cwd: String) -> Result<String, String> {
 pub fn git_panel_unstage(cwd: String, path: String) -> Result<String, String> {
     let cwd_path = Path::new(&cwd);
     ensure_git_repo(cwd_path)?;
-    run_git(cwd_path, &["reset", "HEAD", "--", &path], None)?;
+    // `git restore --staged` is cleaner and doesn't write to stderr
+    // Fall back to `git reset HEAD` for older git versions
+    if run_git(cwd_path, &["restore", "--staged", "--", &path], None).is_err() {
+        run_git(cwd_path, &["reset", "HEAD", "--", &path], None)
+            .map_err(|e| e)?;
+    }
     Ok(format!("Unstaged {}", path))
 }
 
@@ -444,7 +470,12 @@ pub fn git_panel_commit(cwd: String, message: String) -> Result<String, String> 
 pub fn git_panel_pull(cwd: String) -> Result<String, String> {
     let cwd_path = Path::new(&cwd);
     ensure_git_repo(cwd_path)?;
-    run_git(cwd_path, &["pull", "--rebase"], None)
+    let out = run_git(cwd_path, &["pull", "--rebase"], None)?;
+    if out.is_empty() {
+        Ok("Already up to date".to_string())
+    } else {
+        Ok(out)
+    }
 }
 
 #[tauri::command]
@@ -453,7 +484,12 @@ pub fn git_panel_push(cwd: String) -> Result<String, String> {
     ensure_git_repo(cwd_path)?;
     let branch = run_git(cwd_path, &["branch", "--show-current"], None)
         .unwrap_or_else(|_| "HEAD".to_string());
-    run_git(cwd_path, &["push", "origin", &branch], None)
+    let out = run_git(cwd_path, &["push", "origin", &branch], None)?;
+    if out.is_empty() {
+        Ok(format!("Pushed {} to origin successfully", branch))
+    } else {
+        Ok(out)
+    }
 }
 
 #[tauri::command]
