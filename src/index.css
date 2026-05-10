@@ -18,13 +18,15 @@
   }
 
   .glass {
-    --app-bg: rgba(244, 244, 245, 0.1);
-    --app-panel: rgba(255, 255, 255, 0.2);
+    --app-bg: rgba(244, 244, 245, 0.02);
+    --app-panel: rgba(255, 255, 255, 0.15);
+    --app-border: rgba(255, 255, 255, 0.4);
   }
 
   .dark.glass {
-    --app-bg: rgba(9, 9, 11, 0.1);
-    --app-panel: rgba(24, 24, 27, 0.2);
+    --app-bg: rgba(0, 0, 0, 0.05);
+    --app-panel: rgba(255, 255, 255, 0.03);
+    --app-border: rgba(255, 255, 255, 0.1);
   }
 
   body {
@@ -33,14 +35,65 @@
     transition: background-color 0.3s ease, color 0.3s ease;
   }
   
+  /* Main structural liquid glass panels */
+  .glass .bg-app-panel {
+    backdrop-filter: blur(24px) saturate(200%);
+    -webkit-backdrop-filter: blur(24px) saturate(200%);
+    border-color: var(--app-border);
+    box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.2),
+                0 8px 32px 0 rgba(0, 0, 0, 0.15);
+  }
+
+  .dark.glass .bg-app-panel {
+    box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.08),
+                0 12px 48px 0 rgba(0, 0, 0, 0.5);
+  }
+
+  /* Improve text clarity in glass mode */
+  .glass .text-zinc-400, 
+  .glass .text-slate-400 {
+    color: #d4d4d8 !important; /* zinc-300 */
+    font-weight: 500 !important;
+  }
+
+  .glass .text-zinc-500,
+  .glass .text-slate-500 {
+    color: #e4e4e7 !important; /* zinc-200 */
+    font-weight: 600 !important;
+  }
+
+  .dark.glass .text-zinc-600 {
+    color: #a1a1aa !important; /* zinc-400 */
+  }
+
+  /* Make headers more "liquid" */
+  .glass .border-b,
+  .glass .border-r,
+  .glass .border-l,
+  .glass .border-t {
+    border-color: rgba(255, 255, 255, 0.1) !important;
+  }
+
+  /* The terminal content area integration */
+  .glass .terminal-surface {
+    background: rgba(0, 0, 0, 0.3) !important;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  .dark.glass .terminal-surface {
+    background: rgba(0, 0, 0, 0.5) !important;
+  }
+
+  /* Interactive elements (Buttons, Inputs) get a lighter frost effect */
   .glass button,
   .glass input,
   .glass textarea,
-  .glass select,
-  .glass .bg-app-panel,
-  .glass .bg-app-bg {
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+  .glass select {
+    backdrop-filter: blur(12px) saturate(150%);
+    -webkit-backdrop-filter: blur(12px) saturate(150%);
+    border-color: var(--app-border);
+    font-weight: 500 !important;
   }
 }
 
@@ -79,10 +132,6 @@
 
 .xterm-viewport::-webkit-scrollbar-thumb:hover {
   background: #3f3f46;
-}
-
-.terminal-surface {
-  /* Padding removed: xterm FitAddon requires exact dimensions. */
 }
 
 .terminal-surface .xterm-screen,

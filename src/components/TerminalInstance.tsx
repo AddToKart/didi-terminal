@@ -298,7 +298,7 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
       >
         <div className="flex items-center gap-2">
           <TerminalIcon size={12} className={sentinelPaused ? 'text-red-300' : isPulsing ? 'text-brand-primary' : 'text-slate-500'} />
-          <span className={`text-[11px] font-bold tracking-widest uppercase ${sentinelPaused ? 'text-red-200' : isPulsing ? 'text-brand-primary' : 'text-slate-300'}`}>
+          <span className={`text-[11px] font-bold tracking-widest uppercase ${sentinelPaused ? 'text-red-200' : isPulsing ? 'text-brand-primary' : 'text-zinc-200'}`}>
             {agentName}
           </span>
           {(isPulsing || sentinelPaused) && <Zap size={12} className="text-brand-warn animate-pulse" />}
@@ -306,22 +306,22 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
         
         {/* Macro Bar */}
         <div className="flex flex-1 mx-4 justify-end gap-1 opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity">
-           <button onClick={() => executeMacro("clear")} className="px-1.5 py-0.5 text-[9px] bg-[#111] hover:bg-[#1a1a1a] text-slate-400 hover:text-brand-primary border border-app-border rounded flex items-center gap-1">
+           <button onClick={() => executeMacro("clear")} className="px-1.5 py-0.5 text-[9px] bg-app-panel hover:bg-zinc-800/60 text-zinc-300 hover:text-brand-primary border border-app-border rounded flex items-center gap-1 font-bold">
              <Eraser size={9} /> CLEAR
            </button>
-           <button onClick={() => executeMacro("npm run dev")} className="px-1.5 py-0.5 text-[9px] bg-[#111] hover:bg-[#1a1a1a] text-slate-400 hover:text-brand-primary border border-app-border rounded flex items-center gap-1">
+           <button onClick={() => executeMacro("npm run dev")} className="px-1.5 py-0.5 text-[9px] bg-app-panel hover:bg-zinc-800/60 text-zinc-300 hover:text-brand-primary border border-app-border rounded flex items-center gap-1 font-bold">
              <Play size={9} /> DEV
            </button>
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="hidden md:flex items-center gap-2 text-[9px] font-mono text-slate-600 mr-2">
+          <div className="hidden md:flex items-center gap-2 text-[9px] font-mono text-zinc-400 font-bold mr-2">
              <span title="CPU Usage">{stats.cpu.toFixed(1)}% CPU</span>
              <span title="Memory Usage">{(stats.mem / 1024 / 1024).toFixed(0)} MB</span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className={`w-1.5 h-1.5 rounded-full ${isReady ? 'bg-emerald-400' : 'bg-brand-warn animate-pulse'}`}></div>
-            <span className="text-[9px] font-bold text-slate-500 font-medium tracking-tight">
+            <span className="text-[9px] font-bold text-zinc-300 font-medium tracking-tight">
               {sentinelPaused ? 'PAUSED' : isReady ? 'IDLE' : 'INIT'}
             </span>
           </div>

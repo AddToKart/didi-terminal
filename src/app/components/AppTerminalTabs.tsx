@@ -61,10 +61,10 @@ export function AppTerminalTabs({
               key={tab.id}
               onClick={() => { if (!isEditing) onTabSelect(tab.id); }}
               onDoubleClick={() => handleDoubleClick(tab.id, tab.name)}
-              className={`group flex items-center gap-2 px-4 h-full border-r border-app-border cursor-pointer select-none min-w-[120px] max-w-[200px] transition-colors ${
+              className={`group flex items-center gap-2 px-4 h-full border-r border-app-border cursor-pointer select-none min-w-[120px] max-w-[200px] transition-all ${
                 isActive
-                  ? "bg-app-panel text-brand-primary"
-                  : "bg-transparent text-zinc-500 hover:bg-zinc-800/50 hover:text-zinc-300"
+                  ? "bg-app-panel text-white shadow-[inset_0_-2px_0_0_var(--tw-colors-brand-accent)]"
+                  : "bg-transparent text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
               }`}
             >              {isEditing ? (
                 <input
@@ -73,10 +73,10 @@ export function AppTerminalTabs({
                   onChange={(e) => setEditValue(e.target.value)}
                   onBlur={handleRenameSubmit}
                   onKeyDown={handleKeyDown}
-                  className="bg-transparent border-none outline-none text-xs font-medium text-brand-primary flex-1 min-w-0"
+                  className="bg-transparent border-none outline-none text-xs font-bold text-white flex-1 min-w-0"
                 />
               ) : (
-                <span className="text-xs font-medium truncate flex-1">{tab.name}</span>
+                <span className={`text-xs truncate flex-1 ${isActive ? "font-bold" : "font-medium"}`}>{tab.name}</span>
               )}
               {!isEditing && (
                 <button
@@ -86,11 +86,11 @@ export function AppTerminalTabs({
                   }}
                   className={`p-1 rounded-md transition-colors ${
                     isActive 
-                      ? "text-brand-primary/50 hover:text-brand-primary hover:bg-brand-accent/20" 
-                      : "opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800/40"
+                      ? "text-brand-primary/80 hover:text-white hover:bg-white/10" 
+                      : "opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-zinc-200 hover:bg-white/5"
                   }`}
                 >
-                  <X size={12} />
+                  <X size={12} strokeWidth={2.5} />
                 </button>
               )}
             </div>
@@ -99,10 +99,10 @@ export function AppTerminalTabs({
       </div>
       <button
         onClick={onTabCreate}
-        className="h-full px-3 flex items-center justify-center text-zinc-500 hover:text-zinc-200 hover:bg-[#151518] transition-colors border-r border-app-border shrink-0"
+        className="h-full px-3 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/5 transition-colors border-r border-app-border shrink-0"
         title="New Tab"
       >
-        <Plus size={16} />
+        <Plus size={16} strokeWidth={2.5} />
       </button>
     </div>
   );

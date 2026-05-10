@@ -111,20 +111,20 @@ function SortableWorkspaceItem({
               className="text-xs font-bold bg-app-panel border border-brand-accent/50 rounded px-1 outline-none text-brand-accent w-full"
             />
           ) : (
-            <div className={`text-xs font-bold truncate transition-colors ${isActive ? "text-brand-accent" : "text-zinc-400 group-hover:text-zinc-300"}`}>
+            <div className={`text-xs font-bold truncate transition-colors ${isActive ? "text-white" : "text-zinc-300 group-hover:text-white"}`}>
               {ws.name}
             </div>
           )}
           {ws.directory ? (
-            <div className="text-[9px] text-zinc-500 truncate" title={ws.directory}>{ws.directory.split("\\").pop()?.split("/").pop()}</div>
+            <div className={`text-[9px] truncate font-bold ${isActive ? "text-brand-accent/80" : "text-zinc-400"}`} title={ws.directory}>{ws.directory.split("\\").pop()?.split("/").pop()}</div>
           ) : (
-            <div className="text-[9px] text-zinc-500 italic">No directory</div>
+            <div className="text-[9px] text-zinc-500 italic font-medium">No directory</div>
           )}
         </div>
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
-        <div className={`w-2 h-2 rounded-full ${ws.directory ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" : "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.4)]"}`} title={ws.directory ? "Configured" : "Unconfigured"} />
+        <div className={`w-2 h-2 rounded-full ${ws.directory ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]"}`} title={ws.directory ? "Configured" : "Unconfigured"} />
         <button
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => { e.stopPropagation(); onOpenMenu(e, ws.id); }}
@@ -308,18 +308,18 @@ export function AppGlobalSidebar({
         </div>
 
         <div className="p-3 border-t border-app-border/50 flex flex-col gap-3">
-          <div className="flex items-center justify-between bg-app-panel/50 p-1.5 rounded-xl border border-zinc-800/50">
+          <div className="flex items-center justify-between bg-app-panel/50 p-1.5 rounded-xl border border-zinc-700/30 shadow-inner">
             <button
               onClick={() => onSetAppMode("terminal")}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all ${appMode === "terminal" ? "bg-zinc-800/40 text-zinc-200 shadow-sm" : "text-zinc-500 hover:text-zinc-300"}`}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all ${appMode === "terminal" ? "bg-white/10 text-white shadow-sm ring-1 ring-white/10" : "text-zinc-400 hover:text-white"}`}
             >
-              <TerminalSquare size={14} /> Terminal
+              <TerminalSquare size={14} strokeWidth={2.5} /> Terminal
             </button>
             <button
               onClick={() => onSetAppMode("orchestrator")}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all ${appMode === "orchestrator" ? "bg-purple-500/20 text-purple-400 shadow-sm" : "text-zinc-500 hover:text-zinc-300"}`}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all ${appMode === "orchestrator" ? "bg-purple-500/30 text-white shadow-sm ring-1 ring-purple-500/20" : "text-zinc-400 hover:text-white"}`}
             >
-              <Workflow size={14} /> Orchestrator
+              <Workflow size={14} strokeWidth={2.5} /> Orchestrator
             </button>
           </div>
           <div className="flex items-center justify-between">
