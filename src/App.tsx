@@ -488,20 +488,26 @@ function App() {
     if (!name) {
       let counter = 1;
       name = `Terminal ${counter}`;
-      while (allAgents.includes(name)) {
+      while (findMatchingAgent(allAgents, name)) {
         counter++;
         name = `Terminal ${counter}`;
       }
+    } else {
+      let originalName = name;
+      let counter = 1;
+      while (findMatchingAgent(allAgents, name)) {
+        counter++;
+        name = `${originalName}-${counter}`;
+      }
     }
-    if (!findMatchingAgent(allAgents, name)) {
-      setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, agents: [...t.agents, name] } : t));
-      setNewAgentName("");
-      addLog(`Spawned terminal: ${name}`, "system");
-    }
+    
+    setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, agents: [...t.agents, name] } : t));
+    setNewAgentName("");
+    addLog(`Spawned terminal: ${name}`, "system");
   };
 
   const removeAgent = (agentToRemove: string) => {
-    const agentKey = getPtyKey(agentToRemove);
+    const agentKey = `${activeWorkspaceId}::${getPtyKey(agentToRemove)}`;
     invoke("close_pty", { agent: agentKey }).catch(console.error);
     pendingHandoffs.current.delete(agentKey);
     readyAgents.current.delete(agentKey);
@@ -552,17 +558,17 @@ function App() {
   };
 
   const handleKillAgent = (agent: string) => {
-    invoke("close_pty", { agent: getPtyKey(agent) }).catch(console.error);
+    invoke("close_pty", { agent: `${activeWorkspaceId}::${getPtyKey(agent)}` }).catch(console.error);
     addLog(`Sent kill signal to ${agent}`, "system");
   };
 
   const handleInterruptAgent = (agent: string) => {
-    invoke("write_pty", { agent: getPtyKey(agent), data: "\x03" }).catch(console.error);
+    invoke("write_pty", { agent: `${activeWorkspaceId}::${getPtyKey(agent)}`, data: "\x03" }).catch(console.error);
     addLog(`Sent SIGINT to ${agent}`, "system");
   };
 
   const handleInjectHint = (agent: string, hint: string) => {
-    invoke("write_pty", { agent: getPtyKey(agent), data: `${hint}\r` }).catch(console.error);
+    invoke("write_pty", { agent: `${activeWorkspaceId}::${getPtyKey(agent)}`, data: `${hint}\r` }).catch(console.error);
     addLog(`Injected hint to ${agent}`, "system");
   };
 
@@ -678,6 +684,8 @@ function App() {
           onReorderAgents={handleReorderAgents}
           onSplit={handleSplit}
           onOpenDirectory={() => handleOpenDirectory(activeWorkspaceId)}
+          workspaceName={workspaces.find(w => w.id === activeWorkspaceId)?.name}
+          workspaceId={activeWorkspaceId}
         />
       </section>
 

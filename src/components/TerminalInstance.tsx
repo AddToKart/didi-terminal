@@ -46,9 +46,11 @@ interface Props {
   onSplit?: () => void;
   dragAttributes?: any;
   dragListeners?: any;
+  workspaceName?: string;
+  workspaceId?: string;
 }
 
-export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, dragAttributes, dragListeners }: Props) {
+export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, dragAttributes, dragListeners, workspaceName, workspaceId }: Props) {
   const terminalRef = useRef<HTMLDivElement>(null);
   
   const [isPulsing, setIsPulsing] = useState(false);
@@ -58,19 +60,21 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
 
   const [isFocused, setIsFocused] = useState(false);
 
+  // The globally unique identifier for this process in the Rust backend
+  const ptyKey = workspaceId ? `${workspaceId}::${agentName}`.toLowerCase() : agentName.toLowerCase();
+
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     if (onSplit) onSplit();
   };
 
   const executeMacro = (command: string) => {
-    const agent = agentName.toLowerCase();
-    invoke("write_pty", { agent, data: command + "\r" }).catch(console.error);
-    emit("agent-input", { agent, data: command + "\r" }).catch(console.error);
+    invoke("write_pty", { agent: ptyKey, data: command + "\r" }).catch(console.error);
+    emit("agent-input", { agent: ptyKey, data: command + "\r" }).catch(console.error);
   };
 
   const handlePopOut = async () => {
-    const label = `agent-${agentName.replace(/[^a-zA-Z0-9_-]/g, '')}-${Date.now()}`;
+    const label = `agent-${ptyKey.replace(/[^a-zA-Z0-9_-]/g, '')}-${Date.now()}`;
     const params = new URLSearchParams({ agent: agentName });
     if (cwd) params.set("cwd", cwd);
     const popoutWindow = new WebviewWindow(label, {
@@ -91,14 +95,14 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
   useEffect(() => {
     const statInterval = setInterval(async () => {
       try {
-        const result: [number, number] = await invoke("get_process_stats", { agent: agentName.toLowerCase() });
+        const result: [number, number] = await invoke("get_process_stats", { agent: ptyKey });
         setStats({ cpu: result[0], mem: result[1] });
       } catch (e) {
         // Ignore errors
       }
     }, 4000);
     return () => clearInterval(statInterval);
-  }, [agentName]);
+  }, [ptyKey]);
 
   useEffect(() => {
     const unlistenHandoff = listen<{ target: string, payload: string }>("agent-handoff", (event) => {
@@ -116,7 +120,7 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
 
   useEffect(() => {
     const unlistenExit = listen<{ agent: string }>("pty-exit", (event) => {
-      if (event.payload.agent !== agentName.toLowerCase()) return;
+      if (event.payload.agent !== ptyKey) return;
       setIsReady(false);
       setStats({ cpu: 0, mem: 0 });
     });
@@ -124,7 +128,7 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
     return () => {
       unlistenExit.then(f => f());
     };
-  }, [agentName]);
+  }, [ptyKey]);
 
   useEffect(() => {
     const unlistenSentinel = listen<{ agent: string }>("sentinel-intervention", (event) => {
@@ -140,14 +144,13 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
   }, [agentName]);
 
   const handleTerminalData = (data: string) => {
-    const agent = agentName.toLowerCase();
-    invoke("write_pty", { agent, data }).catch(console.error);
-    emit("agent-input", { agent, data }).catch(console.error);
+    invoke("write_pty", { agent: ptyKey, data }).catch(console.error);
+    emit("agent-input", { agent: ptyKey, data }).catch(console.error);
   };
 
   const handleTerminalResize = (cols: number, rows: number) => {
     invoke("resize_pty", {
-      agent: agentName.toLowerCase(),
+      agent: ptyKey,
       cols,
       rows
     }).catch(console.error);
@@ -157,9 +160,8 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
     if (e.ctrlKey && e.key === "v" && e.type === "keydown") {
       readText().then((text) => {
         if (text) {
-          const agent = agentName.toLowerCase();
-          invoke("write_pty", { agent, data: text }).catch(console.error);
-          emit("agent-input", { agent, data: text }).catch(console.error);
+          invoke("write_pty", { agent: ptyKey, data: text }).catch(console.error);
+          emit("agent-input", { agent: ptyKey, data: text }).catch(console.error);
         }
       }).catch(console.error);
       return true; // prevent default
@@ -199,7 +201,7 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
     const lastReadyEmitAt = { current: 0 };
 
     const unlistenPty = listen<{ agent: string, data: string }>("pty-output", (event) => {
-      if (event.payload.agent === agentName.toLowerCase()) {
+      if (event.payload.agent === ptyKey) {
         terminal.write(event.payload.data);
 
         const text = stripTerminalControls(event.payload.data).replace(/\s+/g, " ");
@@ -211,13 +213,13 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
 
           if (now - lastReadyEmitAt.current > 1000) {
             lastReadyEmitAt.current = now;
-            emit("agent-prompt-ready", { agent: agentName.toLowerCase() });
+            emit("agent-prompt-ready", { agent: ptyKey });
           }
         }
       }
     });
 
-    invoke<string>("spawn_pty", { agent: agentName.toLowerCase(), cwd: cwd || null })
+    invoke<string>("spawn_pty", { agent: ptyKey, cwd: cwd || null, workspace_name: workspaceName || null })
       .then((scrollback) => {
         if (terminal && scrollback) {
           terminal.write(scrollback, () => {
@@ -235,7 +237,7 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
         // Ensure the newly spawned PTY immediately gets the correct dimensions
         if (terminal && terminal.cols && terminal.rows) {
           invoke("resize_pty", {
-            agent: agentName.toLowerCase(),
+            agent: ptyKey,
             cols: terminal.cols,
             rows: terminal.rows
           }).catch(console.error);
@@ -246,16 +248,15 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
     return () => {
       unlistenPty.then(f => f());
     };
-  }, [isTerminalReady, terminal, agentName, cwd]);
+  }, [isTerminalReady, terminal, ptyKey, cwd, workspaceName]);
 
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
       e.preventDefault();
       const text = e.clipboardData?.getData("text");
       if (text) {
-        const agent = agentName.toLowerCase();
-        invoke("write_pty", { agent, data: text }).catch(console.error);
-        emit("agent-input", { agent, data: text }).catch(console.error);
+        invoke("write_pty", { agent: ptyKey, data: text }).catch(console.error);
+        emit("agent-input", { agent: ptyKey, data: text }).catch(console.error);
       }
     };
 
@@ -265,7 +266,7 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
     return () => {
       container?.removeEventListener("paste", handlePaste);
     };
-  }, [agentName]);
+  }, [ptyKey]);
 
   return (
     <div 

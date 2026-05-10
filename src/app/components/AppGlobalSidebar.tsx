@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Code2, FolderOpen, Settings, Bell, Palette, Plus, TerminalSquare, Workflow, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { Code2, FolderOpen, Settings, Bell, Palette, Plus, TerminalSquare, Workflow, MoreVertical, Pencil, Trash2, Globe, Copy, Check } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -158,7 +158,13 @@ export function AppGlobalSidebar({
   const [editingWsId, setEditingWsId] = useState<string | null>(null);
   const [editWsName, setEditWsName] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [showShareTooltip, setShowShareTooltip] = useState(false);
+  const [copied, setCopied] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // Localhost only for now
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -324,6 +330,34 @@ export function AppGlobalSidebar({
           </div>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1">
+              <button 
+                onClick={() => setShowShareTooltip(!showShareTooltip)}
+                className={`p-2 rounded-lg transition-all relative ${showShareTooltip ? "bg-brand-accent/20 text-brand-accent" : "text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/50"}`}
+                title="Remote Access Dashboard"
+              >
+                <Globe size={16} />
+                {showShareTooltip && (
+                  <div className="absolute bottom-full left-0 mb-2 w-56 p-3 bg-[#18181b] border border-brand-accent/30 rounded-xl shadow-2xl z-[100] animate-in fade-in slide-in-from-bottom-2">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-brand-accent mb-2">Local Dashboard</p>
+                    <div className="bg-black/40 p-2 rounded-lg border border-white/5 mb-2 group/url relative">
+                      <p className="text-[10px] font-mono break-all text-zinc-300 pr-8">http://localhost:1420/dashboard</p>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const url = `http://localhost:1420/dashboard`;
+                          navigator.clipboard.writeText(url);
+                          setCopied(true);
+                          setTimeout(() => setCopied(false), 2000);
+                        }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md bg-zinc-800 text-zinc-400 hover:text-white transition-all border border-zinc-700/50 shadow-lg"
+                      >
+                        {copied ? <Check size={10} className="text-emerald-400" /> : <Copy size={10} />}
+                      </button>
+                    </div>
+                    <p className="text-[9px] text-zinc-500 leading-relaxed">Open this URL on any device in your network to monitor your agents live.</p>
+                  </div>
+                )}
+              </button>
               <button className="p-2 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/50 rounded-lg transition-colors">
                 <Palette size={16} />
               </button>

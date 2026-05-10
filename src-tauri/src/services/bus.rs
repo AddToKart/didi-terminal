@@ -48,7 +48,14 @@ pub fn start_agent_bus(app_handle: AppHandle) {
                         let msg = String::from_utf8_lossy(&buf).to_string();
                         match serde_json::from_str::<serde_json::Value>(&msg) {
                             Ok(json) => {
-                                if let Ok(message) = serde_json::from_value::<HandoffMessage>(json) {
+                                if let Ok(mut message) = serde_json::from_value::<HandoffMessage>(json) {
+                                    // Auto-scope targets to the sender's workspace if not fully qualified
+                                    if message.sender.contains("::") && !message.target.contains("::") {
+                                        if let Some(ws_id) = message.sender.split("::").next() {
+                                            message.target = format!("{}::{}", ws_id, message.target);
+                                        }
+                                    }
+
                                     if let Ok(app_data_dir) = app_handle.path().app_data_dir() {
                                         let context_dir = app_data_dir.join("context");
                                         let _ = std::fs::create_dir_all(&context_dir);

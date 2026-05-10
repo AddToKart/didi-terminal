@@ -65,9 +65,28 @@ pub fn configure_workspace(cmd: &mut CommandBuilder, shell: &str, cwd: Option<St
 }
 
 #[tauri::command]
-pub fn spawn_pty(agent: String, cwd: Option<String>, app_handle: AppHandle, state: State<'_, AppState>) -> Result<String, String> {
+pub fn spawn_pty(
+    agent: String, 
+    cwd: Option<String>, 
+    workspace_name: Option<String>,
+    app_handle: AppHandle, 
+    state: State<'_, AppState>
+) -> Result<String, String> {
     let agent = normalize_agent(&agent);
     
+    // Associate agent with workspace if provided
+    if let Some(ws) = workspace_name {
+        state.pty_workspaces.lock().unwrap().insert(agent.clone(), ws);
+    } else {
+        // Fallback to "Default" or based on CWD if possible
+        let ws_name = cwd.as_ref()
+            .and_then(|p| Path::new(p).file_name())
+            .and_then(|n| n.to_str())
+            .unwrap_or("Default")
+            .to_string();
+        state.pty_workspaces.lock().unwrap().insert(agent.clone(), ws_name);
+    }
+
     // Check if the process already exists, returning its scrollback if so.
     if state.pty_processes.lock().unwrap().contains_key(&agent) {
         let scrollbacks = state.pty_scrollbacks.lock().unwrap();
@@ -128,6 +147,7 @@ pub fn spawn_pty(agent: String, cwd: Option<String>, app_handle: AppHandle, stat
                 
                 // Store in scrollback buffer
                 use tauri::Manager;
+                let mut workspace = "Default".to_string();
                 if let Some(state) = app_handle.try_state::<AppState>() {
                     if let Ok(mut scrollbacks) = state.pty_scrollbacks.lock() {
                         if let Some(sb) = scrollbacks.get_mut(&agent_clone) {
@@ -139,6 +159,11 @@ pub fn spawn_pty(agent: String, cwd: Option<String>, app_handle: AppHandle, stat
                             }
                         }
                     }
+                    if let Ok(workspaces) = state.pty_workspaces.lock() {
+                        if let Some(ws) = workspaces.get(&agent_clone) {
+                            workspace = ws.clone();
+                        }
+                    }
                 }
 
                 let data = String::from_utf8_lossy(&chunk).into_owned();
@@ -146,10 +171,12 @@ pub fn spawn_pty(agent: String, cwd: Option<String>, app_handle: AppHandle, stat
                 #[derive(serde::Serialize, Clone)]
                 struct PtyPayload {
                     agent: String,
+                    workspace: String,
                     data: String,
                 }
                 let _ = app_handle.emit("pty-output", PtyPayload {
                     agent: agent_clone.clone(),
+                    workspace,
                     data,
                 });
             }

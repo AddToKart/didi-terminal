@@ -18,9 +18,23 @@ struct AppState {
     pty_resizers: Mutex<HashMap<String, Box<dyn portable_pty::MasterPty + Send>>>,
     pty_processes: Mutex<HashMap<String, PtyProcess>>,
     pty_scrollbacks: Mutex<HashMap<String, Vec<u8>>>,
+    pty_workspaces: Mutex<HashMap<String, String>>,
     sys: Mutex<sysinfo::System>,
+
     config: Mutex<AppConfig>,
     browser_views: Mutex<HashMap<String, tauri::Webview>>,
+}
+
+#[tauri::command]
+fn get_local_ip() -> String {
+    if let Ok(ifaces) = local_ip_address::list_afinet_netifas() {
+        for (_name, ip) in ifaces {
+            if !ip.is_loopback() && ip.is_ipv4() {
+                return ip.to_string();
+            }
+        }
+    }
+    "127.0.0.1".to_string()
 }
 
 #[tauri::command]
@@ -225,6 +239,7 @@ pub fn run() {
             navigate_browser_view,
             close_browser_view,
             update_vibrancy,
+            get_local_ip,
         ])
         .setup(|app| {
             let loaded_config = load_config(app.handle());
@@ -235,12 +250,15 @@ pub fn run() {
             }
 
             start_agent_bus(app.handle().clone());
+            services::dashboard::start_dashboard_server(app.handle().clone());
             app.manage(AppState {
                 pty_writers: Mutex::new(HashMap::new()),
                 pty_resizers: Mutex::new(HashMap::new()),
                 pty_processes: Mutex::new(HashMap::new()),
                 pty_scrollbacks: Mutex::new(HashMap::new()),
+                pty_workspaces: Mutex::new(HashMap::new()),
                 sys: Mutex::new(sysinfo::System::new_all()),
+
                 config: Mutex::new(loaded_config),
                 browser_views: Mutex::new(HashMap::new()),
             });
