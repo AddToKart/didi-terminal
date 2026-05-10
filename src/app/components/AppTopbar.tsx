@@ -14,6 +14,8 @@ interface AppTopbarProps {
   isSidebarOpen: boolean;
   onToggleSidebar: () => void;
   onSpawnBrowser: () => void;
+  codeReviewStats?: { additions: number; deletions: number };
+  onToggleCodeReview?: () => void;
 }
 
 export function AppTopbar({
@@ -29,6 +31,8 @@ export function AppTopbar({
   isSidebarOpen,
   onToggleSidebar,
   onSpawnBrowser,
+  codeReviewStats,
+  onToggleCodeReview,
 }: AppTopbarProps) {
   const [isExtraLayoutsOpen, setIsExtraLayoutsOpen] = useState(false);
 
@@ -158,6 +162,24 @@ export function AppTopbar({
             {showExtras ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
           </button>
         </div>
+
+        {codeReviewStats && (codeReviewStats.additions > 0 || codeReviewStats.deletions > 0) && (
+          <button
+            onClick={onToggleCodeReview}
+            className="flex items-center group relative overflow-hidden bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-700/50 hover:border-zinc-600 rounded-full px-3 py-1 transition-all ml-2 shadow-lg"
+            title="Open Code Review"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 to-red-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <div className="flex items-center gap-3 relative z-10 font-mono text-[11px] font-bold tracking-tight">
+              <span className={`flex items-center gap-0.5 ${codeReviewStats.additions > 0 ? "text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.3)]" : "text-emerald-400/50"}`}>
+                <span>+</span>{codeReviewStats.additions}
+              </span>
+              <span className={`flex items-center gap-0.5 ${codeReviewStats.deletions > 0 ? "text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.3)]" : "text-red-400/50"}`}>
+                <span>-</span>{codeReviewStats.deletions}
+              </span>
+            </div>
+          </button>
+        )}
 
         {appMode === "orchestrator" && (
           <button

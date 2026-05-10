@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Code2, FolderOpen, Settings, Bell, Palette, Plus, TerminalSquare, Workflow, MoreVertical, Pencil, Trash2, Globe, Copy, Check } from "lucide-react";
+import { Code2, FolderOpen, Settings, Bell, Palette, Plus, TerminalSquare, Workflow, MoreVertical, Pencil, Trash2, Globe, Copy, Check, GitBranch } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
 import {
   DndContext,
   closestCenter,
@@ -65,6 +66,18 @@ function SortableWorkspaceItem({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: ws.id });
 
+  const [branch, setBranch] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (ws.directory) {
+      invoke("get_git_branch", { cwd: ws.directory })
+        .then((res) => setBranch(res as string))
+        .catch(() => setBranch(null));
+    } else {
+      setBranch(null);
+    }
+  }, [ws.directory]);
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition: isDragOverlay ? undefined : transition,
@@ -116,7 +129,19 @@ function SortableWorkspaceItem({
             </div>
           )}
           {ws.directory ? (
-            <div className={`text-[9px] truncate font-bold ${isActive ? "text-brand-accent/80" : "text-zinc-400"}`} title={ws.directory}>{ws.directory.split("\\").pop()?.split("/").pop()}</div>
+            <div className={`flex items-center gap-1.5 text-[9px] truncate font-bold ${isActive ? "text-brand-accent/80" : "text-zinc-400"}`} title={ws.directory}>
+              <span className="truncate">{ws.directory.split("\\").pop()?.split("/").pop()}</span>
+              {branch && (
+                <>
+                  <span className="text-zinc-600/50">•</span>
+                  <span className="flex items-center gap-0.5 text-zinc-500 font-mono tracking-tighter truncate" title={`Branch: ${branch}`}>
+                    <GitBranch size={9} />
+                    {branch}
+                  </span>
+                </>
+              )}
+            </div>
+
           ) : (
             <div className="text-[9px] text-zinc-500 italic font-medium">No directory</div>
           )}

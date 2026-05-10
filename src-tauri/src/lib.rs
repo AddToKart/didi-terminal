@@ -228,6 +228,8 @@ pub fn run() {
             services::git::list_git_snapshots,
             services::git::rewind_git_snapshot,
             services::git::get_git_diff,
+            services::git::get_git_branch,
+            services::git::get_git_status_structured,
             services::master_plan::append_master_plan_entry,
             services::master_plan::read_master_plan,
             services::master_plan::set_master_plan_task_status,

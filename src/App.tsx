@@ -24,6 +24,7 @@ import { createMasterPlanWorkflow } from "./app/workflows/master-plan-workflow";
 import { createBrainstormWorkflow } from "./app/workflows/brainstorm-workflow";
 import { AppOverlays } from "./app/components/AppOverlays";
 import { AppSidebar } from "./app/components/AppSidebar";
+import { CodeReviewPanel } from "./app/components/CodeReviewPanel";
 import { AppGlobalSidebar } from "./app/components/AppGlobalSidebar";
 import { AppTopbar } from "./app/components/AppTopbar";
 import { AppTerminalArea } from "./app/components/AppTerminalArea";
@@ -142,6 +143,8 @@ function App() {
     queuedLines: [],
   });
   const [isTasksCollapsed, setIsTasksCollapsed] = useState(false);
+  const [showCodeReview, setShowCodeReview] = useState(false);
+  const [codeReviewStats, setCodeReviewStats] = useState({ additions: 0, deletions: 0 });
   const [isActivityCollapsed, setIsActivityCollapsed] = useState(false);
   const [sentinelEnabled, setSentinelEnabled] = useState(false);
   const [hitlEnabled, setHitlEnabled] = useState(false);
@@ -663,6 +666,8 @@ function App() {
           isSidebarOpen={isSidebarOpen}
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           onSpawnBrowser={handleSpawnBrowser}
+          codeReviewStats={codeReviewStats}
+          onToggleCodeReview={() => setShowCodeReview(!showCodeReview)}
         />
 
         <AppTerminalTabs
@@ -686,6 +691,13 @@ function App() {
           onOpenDirectory={() => handleOpenDirectory(activeWorkspaceId)}
           workspaceName={workspaces.find(w => w.id === activeWorkspaceId)?.name}
           workspaceId={activeWorkspaceId}
+        />
+        
+        <CodeReviewPanel 
+          currentProject={currentProject} 
+          isOpen={showCodeReview} 
+          onClose={() => setShowCodeReview(false)} 
+          onStatsUpdate={setCodeReviewStats}
         />
       </section>
 
