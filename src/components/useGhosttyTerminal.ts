@@ -27,6 +27,13 @@ export function useGhosttyTerminal(
 ) {
   const terminalRef = useRef<Terminal | null>(null);
   const [termLoaded, setTermLoaded] = useState(false);
+  const onDataRef = useRef(options.onData);
+  const onResizeRef = useRef(options.onResize);
+  const onKeyRef = useRef(options.onKey);
+
+  onDataRef.current = options.onData;
+  onResizeRef.current = options.onResize;
+  onKeyRef.current = options.onKey;
 
   useEffect(() => {
     let term: Terminal | null = null;
@@ -68,26 +75,22 @@ export function useGhosttyTerminal(
         (term.renderer as any).remeasureFont();
       }
 
-      if (options.onData) {
-        term.onData(options.onData);
-      }
+      term.onData((data) => onDataRef.current?.(data));
 
-      if (options.onKey) {
-        term.attachCustomKeyEventHandler(options.onKey);
-      }
+      term.attachCustomKeyEventHandler((event) => onKeyRef.current?.(event) ?? false);
 
       // Initial fit
       fitAddon.fit();
-      if (options.onResize && term.cols && term.rows) {
-        options.onResize(term.cols, term.rows);
+      if (onResizeRef.current && term.cols && term.rows) {
+        onResizeRef.current(term.cols, term.rows);
       }
 
       const fitTerminal = () => {
         resizeFrame = null;
         if (!term || !fitAddon) return;
         fitAddon.fit();
-        if (options.onResize && term.cols && term.rows) {
-          options.onResize(term.cols, term.rows);
+        if (onResizeRef.current && term.cols && term.rows) {
+          onResizeRef.current(term.cols, term.rows);
         }
       };
 

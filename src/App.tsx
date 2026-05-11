@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent, lazy } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, lazy } from "react";
 import { emit } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -44,6 +44,12 @@ import { DbViewer } from "./app/components/DbViewer";
 import { SecurityPanel } from "./app/components/SecurityPanel";
 import { TwoFactorModal } from "./components/TwoFactorModal";
 import { loadWorkspaces, saveWorkspaces, getSetting, setSetting } from "./services/db-service";
+import {
+  ROOT_TERMINAL_LANE_ID,
+  clearTerminalLanes,
+  getTerminalLanePtyKey,
+  loadStoredTerminalLanes,
+} from "./services/terminal-lanes";
 
 const NetworkGraph = lazy(() => import("./components/NetworkGraph").then(module => ({ default: module.NetworkGraph })));
 const SettingsModal = lazy(() => import("./components/SettingsModal").then(module => ({ default: module.SettingsModal })));
@@ -314,14 +320,23 @@ function App() {
       try {
         const stats = await invoke<GitDiffStats>("get_git_diff_stats", { cwd: currentProject });
         if (!cancelled) {
-          setCodeReviewStats({
-            additions: stats.totalAdditions,
-            deletions: stats.totalDeletions,
+          setCodeReviewStats(prev => {
+            if (prev.additions === stats.totalAdditions && prev.deletions === stats.totalDeletions) {
+              return prev;
+            }
+
+            return {
+              additions: stats.totalAdditions,
+              deletions: stats.totalDeletions,
+            };
           });
         }
       } catch {
         if (!cancelled) {
-          setCodeReviewStats({ additions: 0, deletions: 0 });
+          setCodeReviewStats(prev => {
+            if (prev.additions === 0 && prev.deletions === 0) return prev;
+            return { additions: 0, deletions: 0 };
+          });
         }
       } finally {
         isRefreshing = false;
@@ -335,6 +350,37 @@ function App() {
       clearInterval(interval);
     };
   }, [currentProject]);
+
+  useEffect(() => {
+    if (!isDbLoaded || showPortManager || appMode === "zen") return;
+
+    let cancelled = false;
+    let isRefreshing = false;
+
+    const refreshPortCount = async () => {
+      if (isRefreshing) return;
+      isRefreshing = true;
+
+      try {
+        const result = await invoke<unknown[]>("get_active_ports");
+        if (!cancelled) {
+          setPortCount(result.length);
+        }
+      } catch {
+        // Keep the existing count if the system command is temporarily unavailable.
+      } finally {
+        isRefreshing = false;
+      }
+    };
+
+    refreshPortCount();
+    const interval = setInterval(refreshPortCount, 30000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [appMode, isDbLoaded, showPortManager]);
 
   useEffect(() => {
     invoke<any>("get_config").then(config => {
@@ -367,11 +413,11 @@ function App() {
     addLog,
   }), []);
 
-  const { writeHandoff, queueHandoff, flushQueuedHandoff } = createHandoffQueueService({
+  const { writeHandoff, queueHandoff, flushQueuedHandoff } = useMemo(() => createHandoffQueueService({
     pendingHandoffs,
     readyAgents,
     setAgentQueueCounts,
-  });
+  }), []);
 
   useEffect(() => registerHandoffListeners({
     currentProjectRef,
@@ -521,6 +567,18 @@ function App() {
     }));
   };
 
+  const closeStoredTerminalLanes = (agentName: string) => {
+    const storedLanes = loadStoredTerminalLanes(agentName, activeWorkspaceId);
+    if (!storedLanes) return;
+
+    for (const lane of storedLanes) {
+      if (lane.id === ROOT_TERMINAL_LANE_ID) continue;
+      invoke("close_pty", { agent: getTerminalLanePtyKey(activeWorkspaceId, lane.agentName) }).catch(console.error);
+    }
+
+    clearTerminalLanes(agentName, activeWorkspaceId);
+  };
+
   const handleTabCreate = () => {
     const newTab: TerminalTab = {
       id: crypto.randomUUID(),
@@ -606,6 +664,7 @@ function App() {
 
   const removeAgent = (agentToRemove: string) => {
     const agentKey = `${activeWorkspaceId}::${getPtyKey(agentToRemove)}`;
+    closeStoredTerminalLanes(agentToRemove);
     invoke("close_pty", { agent: agentKey }).catch(console.error);
     pendingHandoffs.current.delete(agentKey);
     readyAgents.current.delete(agentKey);
@@ -656,6 +715,7 @@ function App() {
   };
 
   const handleKillAgent = (agent: string) => {
+    closeStoredTerminalLanes(agent);
     invoke("close_pty", { agent: `${activeWorkspaceId}::${getPtyKey(agent)}` }).catch(console.error);
     addLog(`Sent kill signal to ${agent}`, "system");
   };

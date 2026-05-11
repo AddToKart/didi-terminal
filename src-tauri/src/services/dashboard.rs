@@ -24,6 +24,10 @@ pub fn start_dashboard_server(app_handle: AppHandle) {
     
     let tx_clone = tx.clone();
     app_handle.listen_any("pty-output", move |event| {
+        if tx_clone.receiver_count() == 0 {
+            return;
+        }
+
         if let Ok(payload) = serde_json::from_str::<serde_json::Value>(event.payload()) {
             let msg = json!({
                 "type": "pty-output",
@@ -35,6 +39,10 @@ pub fn start_dashboard_server(app_handle: AppHandle) {
 
     let tx_clone = tx.clone();
     app_handle.listen_any("agent-handoff", move |event| {
+        if tx_clone.receiver_count() == 0 {
+            return;
+        }
+
         if let Ok(payload) = serde_json::from_str::<serde_json::Value>(event.payload()) {
             let msg = json!({
                 "type": "agent-handoff",
@@ -46,6 +54,10 @@ pub fn start_dashboard_server(app_handle: AppHandle) {
 
     let tx_clone = tx.clone();
     app_handle.listen_any("agent-prompt-ready", move |event| {
+        if tx_clone.receiver_count() == 0 {
+            return;
+        }
+
         if let Ok(payload) = serde_json::from_str::<serde_json::Value>(event.payload()) {
             let msg = json!({
                 "type": "agent-prompt-ready",
@@ -57,6 +69,10 @@ pub fn start_dashboard_server(app_handle: AppHandle) {
 
     let tx_clone = tx.clone();
     app_handle.listen_any("sentinel-intervention", move |event| {
+        if tx_clone.receiver_count() == 0 {
+            return;
+        }
+
         if let Ok(payload) = serde_json::from_str::<serde_json::Value>(event.payload()) {
             let msg = json!({
                 "type": "sentinel-intervention",

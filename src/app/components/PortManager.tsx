@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { 
   X, 
   RefreshCw, 
@@ -31,7 +31,7 @@ export function PortManager({ isOpen, onClose, onPortsUpdate }: PortManagerProps
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchPorts = async () => {
+  const fetchPorts = useCallback(async () => {
     setLoading(true);
     try {
       const result = await invoke<PortInfo[]>("get_active_ports");
@@ -44,7 +44,7 @@ export function PortManager({ isOpen, onClose, onPortsUpdate }: PortManagerProps
     } finally {
       setLoading(false);
     }
-  };
+  }, [onPortsUpdate]);
 
   const handleKill = async (pid: number) => {
     try {
@@ -56,10 +56,12 @@ export function PortManager({ isOpen, onClose, onPortsUpdate }: PortManagerProps
   };
 
   useEffect(() => {
+    if (!isOpen) return;
+
     fetchPorts();
     const interval = setInterval(fetchPorts, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchPorts, isOpen]);
 
   const filteredPorts = ports.filter(p => 
     p.process_name.toLowerCase().includes(searchTerm.toLowerCase()) ||

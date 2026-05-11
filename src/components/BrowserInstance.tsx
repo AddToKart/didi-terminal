@@ -16,6 +16,10 @@ export function BrowserInstance({ id, url: initialUrl = "", onRemove, dragAttrib
   const [isLoading, setIsLoading] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const boundsFrameRef = useRef<number | null>(null);
+  const boundsInFlightRef = useRef(false);
+  const pendingBoundsUpdateRef = useRef(false);
+  const lastBoundsRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
   const viewId = `browser-${id}`;
 
   const getFullUrl = (raw: string) => {
@@ -28,16 +32,21 @@ export function BrowserInstance({ id, url: initialUrl = "", onRemove, dragAttrib
   const openView = useCallback(async (targetUrl: string) => {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
+    const bounds = {
+      x: Math.round(rect.left),
+      y: Math.round(rect.top),
+      w: Math.round(rect.width),
+      h: Math.round(rect.height),
+    };
+
     setIsLoading(true);
     try {
       await invoke("open_browser_view", { 
         id: viewId, 
         url: targetUrl, 
-        x: rect.left, 
-        y: rect.top, 
-        w: rect.width, 
-        h: rect.height 
+        ...bounds,
       });
+      lastBoundsRef.current = bounds;
       setIsViewOpen(true);
     } catch (e) {
       console.error("Failed to open browser view:", e);
@@ -49,27 +58,74 @@ export function BrowserInstance({ id, url: initialUrl = "", onRemove, dragAttrib
   const updateBounds = useCallback(async () => {
     if (!containerRef.current || !isViewOpen) return;
     const rect = containerRef.current.getBoundingClientRect();
+    const bounds = {
+      x: Math.round(rect.left),
+      y: Math.round(rect.top),
+      w: Math.round(rect.width),
+      h: Math.round(rect.height),
+    };
+    const last = lastBoundsRef.current;
+
+    if (
+      last &&
+      last.x === bounds.x &&
+      last.y === bounds.y &&
+      last.w === bounds.w &&
+      last.h === bounds.h
+    ) {
+      return;
+    }
+
+    if (boundsInFlightRef.current) {
+      pendingBoundsUpdateRef.current = true;
+      return;
+    }
+
+    boundsInFlightRef.current = true;
+
     try {
       await invoke("update_browser_bounds", {
         id: viewId,
-        x: rect.left,
-        y: rect.top,
-        w: rect.width,
-        h: rect.height,
+        ...bounds,
       });
+      lastBoundsRef.current = bounds;
     } catch (e) {
       // Silently ignore if view isn't open yet
+    } finally {
+      boundsInFlightRef.current = false;
+      if (pendingBoundsUpdateRef.current) {
+        pendingBoundsUpdateRef.current = false;
+        void updateBounds();
+      }
     }
   }, [viewId, isViewOpen]);
+
+  const scheduleBoundsUpdate = useCallback(() => {
+    if (boundsFrameRef.current !== null) return;
+
+    boundsFrameRef.current = requestAnimationFrame(() => {
+      boundsFrameRef.current = null;
+      void updateBounds();
+    });
+  }, [updateBounds]);
 
   // Observe resize of the container to keep the webview in sync
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const observer = new ResizeObserver(() => updateBounds());
+    const observer = new ResizeObserver(scheduleBoundsUpdate);
     observer.observe(el);
-    return () => observer.disconnect();
-  }, [updateBounds]);
+    window.addEventListener("resize", scheduleBoundsUpdate);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", scheduleBoundsUpdate);
+      if (boundsFrameRef.current !== null) {
+        cancelAnimationFrame(boundsFrameRef.current);
+        boundsFrameRef.current = null;
+      }
+    };
+  }, [scheduleBoundsUpdate]);
 
   // Close the child webview on unmount
   useEffect(() => {
