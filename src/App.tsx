@@ -36,6 +36,7 @@ import { AppTopbar } from "./app/components/AppTopbar";
 import { AppTerminalArea } from "./app/components/AppTerminalArea";
 
 import { AppTerminalTabs } from "./app/components/AppTerminalTabs";
+import { AmbientMode } from "./app/components/AmbientMode";
 import { loadWorkspaces, saveWorkspaces, getSetting, setSetting } from "./services/db-service";
 
 const NetworkGraph = lazy(() => import("./components/NetworkGraph").then(module => ({ default: module.NetworkGraph })));
@@ -789,6 +790,7 @@ function App() {
           activity={activity}
         />
       )}
+      <AmbientMode />
     </main>
   );
 }
