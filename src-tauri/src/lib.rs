@@ -268,6 +268,7 @@ pub fn run() {
             services::packages::run_package_update,
             services::ports::get_active_ports,
             services::ports::kill_process,
+            services::graph::get_project_graph,
             initialize_project,
             open_browser_view,
             update_browser_bounds,

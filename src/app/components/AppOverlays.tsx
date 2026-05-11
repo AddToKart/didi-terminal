@@ -2,6 +2,7 @@ import { Suspense, type ComponentType } from "react";
 import { ApprovalModal } from "../../components/ApprovalModal";
 import { BrainstormModal, type BrainstormSession } from "../../components/BrainstormModal";
 import { MasterPlanPanel } from "../../components/MasterPlanPanel";
+import { MonorepoGraph } from "./MonorepoGraph";
 import type { TaskRecord, HitlApprovalRequest, MasterPlanTaskDispatch } from "../../services/app-core";
 
 interface AppOverlaysProps {
@@ -15,6 +16,9 @@ interface AppOverlaysProps {
     onInjectHint?: (agent: string, hint: string) => void;
     onQuickDispatch?: (target: string, task: string) => void;
   }>;
+  showMonorepoGraph: boolean;
+  onCloseMonorepoGraph: () => void;
+  onOpenInTerminal: (path: string, name: string) => void;
   agents: string[];
   tasks: TaskRecord[];
   onCloseNetworkGraph: () => void;
@@ -50,6 +54,9 @@ export function AppOverlays({
   onInterruptAgent,
   onInjectHint,
   onQuickDispatch,
+  showMonorepoGraph,
+  onCloseMonorepoGraph,
+  onOpenInTerminal,
   showSettings,
   SettingsModalComponent,
   onCloseSettings,
@@ -81,6 +88,14 @@ export function AppOverlays({
             onQuickDispatch={onQuickDispatch}
           />
         </Suspense>
+      )}
+
+      {showMonorepoGraph && (
+        <MonorepoGraph
+          currentProject={currentProject}
+          onClose={onCloseMonorepoGraph}
+          onOpenInTerminal={onOpenInTerminal}
+        />
       )}
 
       {showSettings && (

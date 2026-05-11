@@ -162,6 +162,7 @@ function App() {
   const [showEnvManager, setShowEnvManager] = useState(false);
   const [showPackageManager, setShowPackageManager] = useState(false);
   const [showApiLab, setShowApiLab] = useState(false);
+  const [showMonorepoGraph, setShowMonorepoGraph] = useState(false);
   const [portCount, setPortCount] = useState(0);
   const [codeReviewStats, setCodeReviewStats] = useState({ additions: 0, deletions: 0 });
   const [isActivityCollapsed, setIsActivityCollapsed] = useState(false);
@@ -528,6 +529,20 @@ function App() {
     addLog(`Spawned terminal: ${name}`, "system");
   };
 
+  const handleOpenProjectInTerminal = useCallback((_path: string, name: string) => {
+    // Generate unique name
+    let agentName = name;
+    let counter = 1;
+    while (findMatchingAgent(allAgents, agentName)) {
+      counter++;
+      agentName = `${name}-${counter}`;
+    }
+
+    setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, agents: [...t.agents, agentName] } : t));
+    addLog(`Opening ${name} in terminal...`, "system");
+    setShowMonorepoGraph(false);
+  }, [allAgents, activeTabId]);
+
   const removeAgent = (agentToRemove: string) => {
     const agentKey = `${activeWorkspaceId}::${getPtyKey(agentToRemove)}`;
     invoke("close_pty", { agent: agentKey }).catch(console.error);
@@ -653,6 +668,9 @@ function App() {
         onInterruptAgent={handleInterruptAgent}
         onInjectHint={handleInjectHint}
         onQuickDispatch={handleQuickDispatch}
+        showMonorepoGraph={showMonorepoGraph}
+        onCloseMonorepoGraph={() => setShowMonorepoGraph(false)}
+        onOpenInTerminal={handleOpenProjectInTerminal}
         showSettings={showSettings}
         SettingsModalComponent={SettingsModal}
         onCloseSettings={() => setShowSettings(false)}
@@ -693,6 +711,7 @@ function App() {
           onToggleEnvManager={() => setShowEnvManager(!showEnvManager)}
           onTogglePackageManager={() => setShowPackageManager(!showPackageManager)}
           onToggleApiLab={() => setShowApiLab(!showApiLab)}
+          onToggleMonorepoGraph={() => setShowMonorepoGraph(!showMonorepoGraph)}
           currentProject={currentProject}
         />
 
