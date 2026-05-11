@@ -37,7 +37,7 @@ axum = { version = "0.8.1", features = ["ws"] }
 tower-http = { version = "0.6.2", features = ["fs", "cors"] }
 futures-util = "0.3"
 local-ip-address = "0.6.3"
-totp-rs = { version = "5.6", features = ["qr"] }
+totp-rs = { version = "5.6", features = ["qr", "gen_secret"] }
 base64 = "0.22"
 rusqlite = { version = "0.31", features = ["bundled"] }
 

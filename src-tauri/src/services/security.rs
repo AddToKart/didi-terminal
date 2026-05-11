@@ -2,7 +2,6 @@ use totp_rs::{Algorithm, TOTP, Secret};
 use tauri::{AppHandle, Manager};
 use rusqlite::Connection;
 use serde::Serialize;
-use base64::{engine::general_purpose, Engine as _};
 
 #[derive(Serialize)]
 pub struct TotpSetup {
@@ -15,24 +14,23 @@ fn get_db_path(app: &AppHandle) -> std::path::PathBuf {
 }
 
 #[tauri::command]
-pub async fn generate_2fa_setup(app: AppHandle, workspace_name: String) -> Result<TotpSetup, String> {
-    let secret = Secret::generate_base32();
+pub async fn generate_2fa_setup(_app: AppHandle, workspace_name: String) -> Result<TotpSetup, String> {
+    let secret_str = Secret::generate_secret().to_string();
     let totp = TOTP::new(
         Algorithm::SHA1,
         6,
         1,
         30,
-        secret.bytes().to_vec(),
+        Secret::Encoded(secret_str.clone()).to_bytes().map_err(|e| e.to_string())?,
         Some("DidiTerminal".to_string()),
         workspace_name,
     ).map_err(|e| e.to_string())?;
 
-    let qr_code = totp.get_qr().map_err(|e| e.to_string())?;
-    let qr_base64 = general_purpose::STANDARD.encode(qr_code);
+    let qr_base64 = totp.get_qr_base64().map_err(|e| e.to_string())?;
 
     Ok(TotpSetup {
-        secret,
-        qr_code: format!("data:image/png;base64,{}", qr_base64),
+        secret: secret_str,
+        qr_code: qr_base64,
     })
 }
 
@@ -48,7 +46,7 @@ pub async fn verify_and_enable_2fa(
         6,
         1,
         30,
-        Secret::from_base32(&secret).map_err(|e| e.to_string())?.to_bytes().to_vec(),
+        Secret::Encoded(secret.clone()).to_bytes().map_err(|e| e.to_string())?,
         None,
         "".to_string(),
     ).map_err(|e| e.to_string())?;
@@ -89,7 +87,7 @@ pub async fn verify_workspace_2fa(
             6,
             1,
             30,
-            Secret::from_base32(&secret_str).map_err(|e| e.to_string())?.to_bytes().to_vec(),
+            Secret::Encoded(secret_str).to_bytes().map_err(|e| e.to_string())?,
             None,
             "".to_string(),
         ).map_err(|e| e.to_string())?;
@@ -100,6 +98,7 @@ pub async fn verify_workspace_2fa(
         Ok(true)
     }
 }
+
 
 #[tauri::command]
 pub async fn is_2fa_enabled(app: AppHandle, workspace_id: String) -> Result<bool, String> {
