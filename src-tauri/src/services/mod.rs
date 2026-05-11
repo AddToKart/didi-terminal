@@ -11,3 +11,4 @@ pub mod http;
 pub mod packages;
 pub mod graph;
 pub mod security;
+pub mod db_client;
