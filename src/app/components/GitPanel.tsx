@@ -35,6 +35,7 @@ interface GitPanelProps {
   currentProject: string | null;
   isOpen: boolean;
   onClose: () => void;
+  onOpenFullscreen?: () => void;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

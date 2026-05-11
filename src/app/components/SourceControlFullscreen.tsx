@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   GitBranch, X, RefreshCw, Plus, Minus, RotateCcw, Upload, Download,
   Check, Loader2, GitMerge, AlertCircle, FileText,
   GitPullRequest, GitCommit, LayoutDashboard, Search, Clock, ShieldAlert,
-  ChevronRight, Trash2
+  Trash2
 } from "lucide-react";
 import { FileIcon } from "./FileIcon";
 

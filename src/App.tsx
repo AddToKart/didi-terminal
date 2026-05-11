@@ -742,7 +742,7 @@ function App() {
           onClose={() => setShowGitFullscreen(false)}
         />
         <PersonalKanban
-          currentProject={currentProject}
+          workspaceId={activeWorkspaceId}
           isOpen={showPersonalKanban}
           onClose={() => setShowPersonalKanban(false)}
         />

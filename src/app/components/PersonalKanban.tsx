@@ -4,8 +4,9 @@ import {
   CircleDot, CheckCircle2, Circle
 } from "lucide-react";
 import { 
-  DndContext, DragOverlay, closestCorners, KeyboardSensor, 
-  PointerSensor, useSensor, useSensors, DragStartEvent, DragEndEvent
+  DndContext, DragOverlay, pointerWithin, KeyboardSensor, 
+  PointerSensor, useSensor, useSensors, DragStartEvent, DragEndEvent,
+  useDroppable, DragOverEvent
 } from "@dnd-kit/core";
 import { 
   SortableContext, arrayMove, sortableKeyboardCoordinates, 
@@ -21,7 +22,7 @@ import {
 const uuidv4 = () => crypto.randomUUID();
 
 interface PersonalKanbanProps {
-  currentProject: string | null;
+  workspaceId: string;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -80,16 +81,21 @@ function SortableTask({
   );
 }
 
+function KanbanColumnBody({ id, children }: { id: string; children: React.ReactNode }) {
+  const { setNodeRef } = useDroppable({ id });
+  return (
+    <div ref={setNodeRef} className="flex-1 overflow-y-auto p-3 flex flex-col gap-2 min-h-[150px]">
+      {children}
+    </div>
+  );
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
-export function PersonalKanban({ currentProject, isOpen, onClose }: PersonalKanbanProps) {
+export function PersonalKanban({ workspaceId, isOpen, onClose }: PersonalKanbanProps) {
   const [tasks, setTasks] = useState<PersonalTask[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [editingTask, setEditingTask] = useState<PersonalTask | null>(null);
-  
-  // New task form state
-  const [newTaskTitle, setNewTaskTitle] = useState("");
-  const [isAddingTask, setIsAddingTask] = useState<ColumnType | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -97,15 +103,45 @@ export function PersonalKanban({ currentProject, isOpen, onClose }: PersonalKanb
   );
 
   useEffect(() => {
-    if (isOpen && currentProject) {
-      loadPersonalTasks(currentProject).then(setTasks).catch(console.error);
+    if (isOpen && workspaceId) {
+      loadPersonalTasks(workspaceId).then(setTasks).catch(console.error);
     }
-  }, [isOpen, currentProject]);
+  }, [isOpen, workspaceId]);
 
   if (!isOpen) return null;
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
+  };
+
+  const findContainer = (id: string) => {
+    if (["todo", "in_progress", "done"].includes(id)) return id;
+    const task = tasks.find((t) => t.id === id);
+    return task ? task.status : null;
+  };
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    const activeContainer = findContainer(activeId);
+    const overContainer = findContainer(overId);
+
+    if (!activeContainer || !overContainer || activeContainer === overContainer) {
+      return;
+    }
+
+    setTasks((prev) => {
+      const activeIndex = prev.findIndex((t) => t.id === activeId);
+      if (activeIndex === -1) return prev;
+      
+      const newTasks = [...prev];
+      newTasks[activeIndex] = { ...newTasks[activeIndex], status: overContainer as ColumnType };
+      return newTasks;
+    });
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -121,11 +157,9 @@ export function PersonalKanban({ currentProject, isOpen, onClose }: PersonalKanb
 
     // Handle dropping on an empty column
     if (["todo", "in_progress", "done"].includes(overId)) {
-      if (activeTask.status !== overId) {
-        const newTasks = tasks.map(t => t.id === activeId ? { ...t, status: overId as ColumnType } : t);
-        setTasks(newTasks);
-        await updatePersonalTasksOrder(newTasks);
-      }
+      // The status was already updated in state by handleDragOver, 
+      // but we still need to save the new order/status to the database.
+      await updatePersonalTasksOrder(tasks);
       return;
     }
 
@@ -147,25 +181,17 @@ export function PersonalKanban({ currentProject, isOpen, onClose }: PersonalKanb
     await updatePersonalTasksOrder(newTasks);
   };
 
-  const handleAddTask = async (status: ColumnType) => {
-    if (!newTaskTitle.trim() || !currentProject) return;
-    
-    const newTask: PersonalTask = {
+  const handleOpenAddTask = (status: ColumnType) => {
+    if (!workspaceId) return;
+    setEditingTask({
       id: uuidv4(),
-      workspace_id: currentProject,
-      title: newTaskTitle.trim(),
+      workspace_id: workspaceId,
+      title: "",
       description: "",
       status,
       order_index: tasks.filter(t => t.status === status).length,
       created_at: Date.now()
-    };
-
-    const newTasks = [...tasks, newTask];
-    setTasks(newTasks);
-    setNewTaskTitle("");
-    setIsAddingTask(null);
-    
-    await savePersonalTask(newTask);
+    });
   };
 
   const handleDelete = async (id: string) => {
@@ -175,7 +201,16 @@ export function PersonalKanban({ currentProject, isOpen, onClose }: PersonalKanb
 
   const handleSaveEdit = async () => {
     if (!editingTask) return;
-    const newTasks = tasks.map(t => t.id === editingTask.id ? editingTask : t);
+    
+    const exists = tasks.some(t => t.id === editingTask.id);
+    let newTasks;
+    
+    if (exists) {
+      newTasks = tasks.map(t => t.id === editingTask.id ? editingTask : t);
+    } else {
+      newTasks = [...tasks, editingTask];
+    }
+    
     setTasks(newTasks);
     await savePersonalTask(editingTask);
     setEditingTask(null);
@@ -205,9 +240,14 @@ export function PersonalKanban({ currentProject, isOpen, onClose }: PersonalKanb
         </button>
       </div>
 
-      {/* Kanban Board */}
       <div className="flex-1 overflow-hidden p-5 bg-black/20">
-        <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <DndContext 
+          sensors={sensors} 
+          collisionDetection={pointerWithin} 
+          onDragStart={handleDragStart} 
+          onDragOver={handleDragOver}
+          onDragEnd={handleDragEnd}
+        >
           <div className="flex gap-4 h-full">
             {columns.map(col => {
               const colTasks = tasks.filter(t => t.status === col.id);
@@ -223,67 +263,32 @@ export function PersonalKanban({ currentProject, isOpen, onClose }: PersonalKanb
                       </span>
                     </div>
                     <button 
-                      onClick={() => setIsAddingTask(col.id)}
+                      onClick={() => handleOpenAddTask(col.id)}
                       className="p-1 rounded text-zinc-500 hover:text-white hover:bg-zinc-700 transition-colors"
                     >
                       <Plus size={14} />
                     </button>
                   </div>
 
+
                   {/* Column Body */}
-                  <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
+                  <KanbanColumnBody id={col.id}>
                     <SortableContext id={col.id} items={colTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
                       {colTasks.map(task => (
                         <SortableTask key={task.id} task={task} onDelete={handleDelete} onEdit={setEditingTask} />
                       ))}
                       
                       {/* Empty state drop zone */}
-                      {colTasks.length === 0 && !isAddingTask && (
+                      {colTasks.length === 0 && (
                         <div className="h-20 border-2 border-dashed border-zinc-800/50 rounded-lg flex items-center justify-center text-[11px] font-medium text-zinc-600">
                           Drop tasks here
                         </div>
                       )}
                     </SortableContext>
+                  </KanbanColumnBody>
 
-                    {/* Add Task Input */}
-                    {isAddingTask === col.id && (
-                      <div className="p-2 border border-brand-accent/40 bg-brand-accent/5 rounded-lg flex flex-col gap-2 animate-in slide-in-from-top-2">
-                        <textarea
-                          autoFocus
-                          value={newTaskTitle}
-                          onChange={e => setNewTaskTitle(e.target.value)}
-                          placeholder="Task title..."
-                          className="w-full bg-transparent text-sm text-zinc-200 placeholder:text-zinc-600 outline-none resize-none leading-tight"
-                          rows={2}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
-                              e.preventDefault();
-                              handleAddTask(col.id);
-                            } else if (e.key === 'Escape') {
-                              setIsAddingTask(null);
-                              setNewTaskTitle("");
-                            }
-                          }}
-                        />
-                        <div className="flex items-center justify-end gap-1">
-                          <button 
-                            onClick={() => { setIsAddingTask(null); setNewTaskTitle(""); }}
-                            className="px-2 py-1 rounded text-[10px] font-bold text-zinc-500 hover:bg-zinc-800 transition-colors"
-                          >
-                            Cancel
-                          </button>
-                          <button 
-                            onClick={() => handleAddTask(col.id)}
-                            disabled={!newTaskTitle.trim()}
-                            className="px-2 py-1 rounded text-[10px] font-bold bg-brand-accent/20 text-brand-accent hover:bg-brand-accent/30 disabled:opacity-40 transition-colors"
-                          >
-                            Add Task
-                          </button>
-                        </div>
-                      </div>
-                    )}
+
                   </div>
-                </div>
               );
             })}
           </div>
@@ -304,7 +309,9 @@ export function PersonalKanban({ currentProject, isOpen, onClose }: PersonalKanb
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="w-[450px] bg-[#121214] border border-zinc-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="px-5 py-4 border-b border-zinc-800/60 flex items-center justify-between bg-zinc-900/30">
-              <h3 className="text-sm font-bold text-white">Edit Task</h3>
+              <h3 className="text-sm font-bold text-white">
+                {tasks.some(t => t.id === editingTask.id) ? "Edit Task" : "New Task"}
+              </h3>
               <button onClick={() => setEditingTask(null)} className="text-zinc-500 hover:text-white transition-colors">
                 <X size={16} />
               </button>

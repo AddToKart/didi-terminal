@@ -43,6 +43,7 @@ export function AppTopbar({
   currentProject,
 }: AppTopbarProps) {
   const [isExtraLayoutsOpen, setIsExtraLayoutsOpen] = useState(false);
+  const [isToolsOpen, setIsToolsOpen] = useState(true);
 
   // Auto-expand if current orientation is one of the "extra" ones
   const isExtraActive = ["focus", "presentation", "dynamic", "canvas", "waterfall"].includes(layoutOrientation);
@@ -98,40 +99,49 @@ export function AppTopbar({
             </button>
           </>
         )}
-
         {currentProject && (
-          <>
-            <button
-              onClick={onToggleFileExplorer}
-              className="flex items-center gap-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all ml-2 text-[11px] font-bold"
-              title="Project Explorer"
-            >
-              <FolderSearch size={12} />
-              <span>Files</span>
-            </button>
+          <div className="flex items-center bg-zinc-900/60 border border-zinc-800/80 rounded-xl p-1 gap-1 shadow-sm ml-2">
+            <div className={`flex items-center gap-1 transition-all duration-700 ease-in-out overflow-hidden ${isToolsOpen ? "max-w-[500px] opacity-100 px-0.5" : "max-w-0 opacity-0"}`}>
+              <button
+                onClick={onToggleFileExplorer}
+                className="flex items-center gap-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all text-[11px] font-bold shrink-0"
+                title="Project Explorer"
+              >
+                <FolderSearch size={12} />
+                <span>Files</span>
+              </button>
+
+              <button
+                onClick={onTogglePersonalKanban}
+                className="flex items-center gap-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all text-[11px] font-bold shrink-0"
+                title="My Tasks"
+              >
+                <LayoutList size={12} />
+                <span>My Tasks</span>
+              </button>
+
+              <button
+                onClick={onToggleGitPanel}
+                className="flex items-center gap-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all text-[11px] font-bold shrink-0"
+                title="Source Control"
+              >
+                <GitMerge size={12} />
+                <span>Source Control</span>
+              </button>
+            </div>
 
             <button
-              onClick={onTogglePersonalKanban}
-              className="flex items-center gap-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all ml-2 text-[11px] font-bold"
-              title="My Tasks"
+              onClick={() => setIsToolsOpen(!isToolsOpen)}
+              className={`p-1 rounded-md transition-all ${isToolsOpen ? "bg-white/5 text-zinc-300" : "text-zinc-500 hover:text-zinc-300"}`}
+              title={isToolsOpen ? "Collapse Tools" : "Expand Tools"}
             >
-              <LayoutList size={12} />
-              <span>My Tasks</span>
-            </button>
-
-            <button
-              onClick={onToggleGitPanel}
-              className="flex items-center gap-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all ml-2 text-[11px] font-bold"
-              title="Source Control"
-            >
-              <GitMerge size={12} />
-              <span>Source Control</span>
+              {isToolsOpen ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
             </button>
 
             {codeReviewStats && (
               <button
                 onClick={onToggleCodeReview}
-                className="flex items-center group relative overflow-hidden bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-700/50 hover:border-zinc-600 rounded-full px-3 py-1 transition-all ml-2 shadow-lg"
+                className="flex items-center group relative overflow-hidden bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-700/50 hover:border-zinc-600 rounded-full px-3 py-1 transition-all ml-1 shadow-lg shrink-0"
                 title="Open Code Review"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 to-red-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -145,7 +155,7 @@ export function AppTopbar({
                 </div>
               </button>
             )}
-          </>
+          </div>
         )}
 
         <div className="flex items-center bg-zinc-900/60 border border-zinc-800/80 rounded-xl p-1 gap-1 shadow-sm ml-2">
@@ -171,7 +181,7 @@ export function AppTopbar({
             <Grid2X2 size={14} strokeWidth={2.5} />
           </button>
 
-          <div className={`flex items-center gap-1 transition-all duration-300 overflow-hidden ${showExtras ? "max-w-[200px] opacity-100 ml-1 border-l border-zinc-800 pl-1" : "max-w-0 opacity-0"}`}>
+          <div className={`flex items-center gap-1 transition-all duration-700 ease-in-out overflow-hidden ${showExtras ? "max-w-[200px] opacity-100 ml-1 border-l border-zinc-800 pl-1" : "max-w-0 opacity-0"}`}>
             <button
               onClick={() => onSetLayoutOrientation("dynamic")}
               className={`p-1.5 rounded-lg transition-colors shrink-0 ${layoutOrientation === "dynamic" ? "bg-brand-accent/30 text-white" : "text-zinc-400 hover:text-white"}`}
