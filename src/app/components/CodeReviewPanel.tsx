@@ -104,12 +104,12 @@ export function CodeReviewPanel({ currentProject, isOpen, onClose, onStatsUpdate
   };
 
   useEffect(() => {
-    if (currentProject) {
-      fetchStatus();
-      const interval = setInterval(fetchStatus, 5000);
-      return () => clearInterval(interval);
-    }
-  }, [currentProject]);
+    if (!isOpen || !currentProject) return;
+
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 5000);
+    return () => clearInterval(interval);
+  }, [isOpen, currentProject]);
 
   if (!isOpen) return null;
 

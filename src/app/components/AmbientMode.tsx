@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Monitor, Clock, Cpu } from 'lucide-react';
 
+const IDLE_DELAY_MS = 15_000;
+const CLOCK_REFRESH_MS = 60_000;
+
 export function AmbientMode() {
   const [isIdle, setIsIdle] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -12,55 +15,51 @@ export function AmbientMode() {
       clearTimeout(idleTimerRef.current);
     }
     idleTimerRef.current = setTimeout(() => {
+      setCurrentTime(new Date());
       setIsIdle(true);
-    }, 15000); // 15 seconds
+    }, IDLE_DELAY_MS);
   }, []);
 
   useEffect(() => {
-    // Initial timer
     idleTimerRef.current = setTimeout(() => {
+      setCurrentTime(new Date());
       setIsIdle(true);
-    }, 15000);
+    }, IDLE_DELAY_MS);
 
     const events = ['mousemove', 'keydown', 'mousedown', 'scroll', 'touchstart'];
     events.forEach(event => {
       window.addEventListener(event, resetTimer);
     });
 
-    const timeInterval = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-
     return () => {
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
       events.forEach(event => {
         window.removeEventListener(event, resetTimer);
       });
-      clearInterval(timeInterval);
     };
   }, [resetTimer]);
+
+  useEffect(() => {
+    if (!isIdle) return;
+
+    const timeInterval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, CLOCK_REFRESH_MS);
+
+    return () => clearInterval(timeInterval);
+  }, [isIdle]);
 
   if (!isIdle) return null;
 
   return (
     <div className="fixed inset-0 z-[9999] pointer-events-none select-none flex flex-col items-center justify-center animate-in fade-in duration-1000">
-      {/* Backdrop Blur Layer */}
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-md transition-all duration-1000" />
+      <div className="absolute inset-0 bg-black/55 transition-opacity duration-1000" />
       
-      {/* Animated Gradient Background */}
-      <div className="absolute inset-0 bg-gradient-to-tr from-brand-accent/5 via-transparent to-brand-accent/5 opacity-50 animate-pulse" />
-      
-      {/* Floating Particles Animation (Simplified) */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-brand-accent/10 rounded-full blur-[120px] animate-blob" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-brand-accent/10 rounded-full blur-[120px] animate-blob animation-delay-2000" />
-      </div>
+      <div className="absolute inset-0 bg-brand-accent/[0.03]" />
 
-      {/* Ambient Content */}
       <div className="relative z-10 flex flex-col items-center gap-8 animate-in zoom-in-95 slide-in-from-bottom-4 duration-1000 delay-300">
         <div className="flex flex-col items-center gap-2">
-          <div className="p-6 rounded-full bg-white/[0.03] border border-white/5 backdrop-blur-xl shadow-2xl relative group">
-            <div className="absolute inset-0 rounded-full bg-brand-accent/20 blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
+          <div className="p-6 rounded-full bg-white/[0.04] border border-white/5 shadow-2xl relative group">
             <Monitor size={48} className="text-brand-accent animate-pulse relative z-10" />
           </div>
           <div className="mt-4 flex flex-col items-center">
@@ -77,8 +76,7 @@ export function AmbientMode() {
           </div>
         </div>
 
-        {/* System Stats Footer */}
-        <div className="flex items-center gap-12 px-8 py-3 rounded-2xl bg-black/40 border border-white/5 backdrop-blur-md">
+        <div className="flex items-center gap-12 px-8 py-3 rounded-2xl bg-black/45 border border-white/5">
           <div className="flex flex-col items-center gap-1">
             <Clock size={14} className="text-zinc-500" />
             <span className="text-[8px] font-bold text-zinc-600 uppercase tracking-tighter">Uptime</span>
@@ -93,27 +91,11 @@ export function AmbientMode() {
         </div>
       </div>
 
-      {/* Snap back hint */}
       <div className="absolute bottom-12 left-0 right-0 flex justify-center pointer-events-none">
         <div className="text-[9px] font-bold text-zinc-500 uppercase tracking-[0.3em] opacity-40 animate-bounce text-center">
           Press any key to resume
         </div>
       </div>
-
-      <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes blob {
-          0% { transform: translate(0px, 0px) scale(1); }
-          33% { transform: translate(30px, -50px) scale(1.1); }
-          66% { transform: translate(-20px, 20px) scale(0.9); }
-          100% { transform: translate(0px, 0px) scale(1); }
-        }
-        .animate-blob {
-          animation: blob 7s infinite;
-        }
-        .animation-delay-2000 {
-          animation-delay: 2s;
-        }
-      `}} />
     </div>
   );
 }
