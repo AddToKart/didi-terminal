@@ -61,17 +61,26 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
 
   const handleConnectRemote = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
+    setError(null);
     try {
       let url = remoteUrl;
       if (!useConnectionString) {
         const { host, port, username, password, database } = connDetails;
         const protocol = dbType === "mysql" ? "mysql" : "postgres";
-        url = `${protocol}://${username}:${password}@${host}:${port}/${database}`;
+        // Properly encode credentials
+        const encodedUser = encodeURIComponent(username);
+        const encodedPass = encodeURIComponent(password);
+        url = `${protocol}://${encodedUser}:${encodedPass}@${host}:${port}/${database}`;
       }
 
-      if (url.startsWith("postgres://")) setDbType("postgres");
-      else if (url.startsWith("mysql://")) setDbType("mysql");
-      else throw new Error("URL must start with postgres:// or mysql://");
+      if (!url.startsWith("postgres://") && !url.startsWith("mysql://")) {
+        throw new Error("Invalid protocol. Must be postgres:// or mysql://");
+      }
+      
+      // Test the connection immediately
+      const db = await SqlDatabase.load(url);
+      await db.execute("SELECT 1"); // Simple probe
       
       setDbPath(url);
       setSelectedTable(null);
@@ -80,7 +89,10 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
       setShowRemoteForm(false);
       await loadTables(url);
     } catch (err) {
-      setError(String(err));
+      console.error("Connection failed:", err);
+      setError(`Connection failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -253,7 +265,7 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
             {showRemoteForm ? (
               <div className="absolute inset-0 z-20 bg-zinc-900/95 backdrop-blur flex items-center justify-center p-8 animate-in fade-in duration-200 overflow-y-auto">
                 <form onSubmit={handleConnectRemote} className="w-full max-w-xl bg-zinc-950 border border-white/10 rounded-xl p-8 shadow-2xl space-y-6">
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
                         <Server size={24} />
@@ -287,6 +299,13 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
                       </button>
                     </div>
                   </div>
+
+                  {error && (
+                    <div className="p-3 bg-red-400/5 border border-red-400/20 rounded-xl flex items-center gap-3 text-red-400 text-[11px] animate-in shake duration-300">
+                      <X size={14} className="shrink-0" />
+                      {error}
+                    </div>
+                  )}
                   
                   <div className="space-y-5">
                     {useConnectionString ? (
@@ -375,9 +394,11 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
                       </button>
                       <button 
                         type="submit"
-                        className="flex-1 px-6 py-3 rounded-xl font-bold text-xs bg-blue-500 hover:bg-blue-400 text-white shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2"
+                        disabled={isLoading}
+                        className="flex-1 px-6 py-3 rounded-xl font-bold text-xs bg-blue-500 hover:bg-blue-400 disabled:opacity-50 disabled:cursor-not-allowed text-white shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2"
                       >
-                        <Link2 size={16} /> CONNECT
+                        {isLoading ? <RefreshCw size={16} className="animate-spin" /> : <Link2 size={16} />} 
+                        {isLoading ? 'CONNECTING...' : 'CONNECT'}
                       </button>
                     </div>
                   </div>
