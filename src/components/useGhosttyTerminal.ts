@@ -55,27 +55,35 @@ export function useGhosttyTerminal(
       await loadWasm();
       if (!isMounted || !containerRef.current) return;
 
+      const terminalOptions: ITerminalOptions = { ...options };
+      delete (terminalOptions as Partial<UseGhosttyTerminalOptions>).agentName;
+      const terminalTheme = terminalOptions.theme;
+      delete terminalOptions.theme;
       term = new Terminal({
         fontFamily: '"JetBrains Mono", "Fira Code", monospace',
         cursorBlink: false,
         cursorStyle: 'block',
         fontSize: 13,
+        scrollback: 100000,
+        smoothScrollDuration: 70,
         allowTransparency: false,
+        ...terminalOptions,
         theme: {
           background: '#09090b',
           foreground: '#e2e8f0',
           cursor: '#00f0ff',
           selectionBackground: "#00f0ff40",
-          ...options.theme,
+          ...terminalTheme,
         },
-        ...options,
       });
 
       fitAddon = new FitAddon();
       term.loadAddon(fitAddon);
 
       // Wait for any web fonts to load so the Canvas renderer measures character sizes correctly
-      await document.fonts.ready;
+      if ("fonts" in document) {
+        await document.fonts.ready;
+      }
 
       term.open(containerRef.current);
       terminalRef.current = term;

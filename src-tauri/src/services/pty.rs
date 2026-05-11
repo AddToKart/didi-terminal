@@ -1,14 +1,32 @@
-use tauri::{AppHandle, Emitter, State};
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use portable_pty::{Child, CommandBuilder, NativePtySystem, PtySize, PtySystem};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
 use crate::AppState;
 
+const PTY_READ_BUFFER_SIZE: usize = 16 * 1024;
+const PTY_SCROLLBACK_LIMIT: usize = 4 * 1024 * 1024;
+
 pub struct PtyProcess {
     pub child: Box<dyn Child + Send + Sync>,
     pub pid: Option<u32>,
+}
+
+#[derive(serde::Serialize, Clone)]
+struct PtyPayload {
+    agent: String,
+    workspace: String,
+    data: String,
+    bytes: String,
+}
+
+#[derive(serde::Serialize)]
+pub struct PtyScrollback {
+    data: String,
+    bytes: String,
 }
 
 pub fn normalize_agent(agent: &str) -> String {
@@ -22,39 +40,88 @@ fn agent_event_key(agent: &str) -> String {
         .collect()
 }
 
+fn emit_pty_output(app_handle: &AppHandle, agent: &str, chunk: Vec<u8>) {
+    let mut workspace = "Default".to_string();
+    if let Some(state) = app_handle.try_state::<AppState>() {
+        if let Ok(mut scrollbacks) = state.pty_scrollbacks.lock() {
+            if let Some(sb) = scrollbacks.get_mut(agent) {
+                sb.extend_from_slice(&chunk);
+                if sb.len() > PTY_SCROLLBACK_LIMIT {
+                    let excess = sb.len() - PTY_SCROLLBACK_LIMIT;
+                    sb.drain(0..excess);
+                }
+            }
+        }
+        if let Ok(workspaces) = state.pty_workspaces.lock() {
+            if let Some(ws) = workspaces.get(agent) {
+                workspace = ws.clone();
+            }
+        }
+    }
+
+    let data = String::from_utf8_lossy(&chunk).into_owned();
+    let payload = PtyPayload {
+        agent: agent.to_string(),
+        workspace,
+        data,
+        bytes: BASE64.encode(&chunk),
+    };
+    let _ = app_handle.emit("pty-output", payload.clone());
+    let output_event = format!("pty-output-agent-{}", agent_event_key(agent));
+    let _ = app_handle.emit(output_event.as_str(), payload);
+}
+
 pub fn cleanup_pty(agent: &str, state: &State<'_, AppState>) {
     let agent_key = normalize_agent(agent);
     state.pty_writers.lock().unwrap().remove(&agent_key);
     state.pty_resizers.lock().unwrap().remove(&agent_key);
     state.pty_scrollbacks.lock().unwrap().remove(&agent_key);
+    state.pty_workspaces.lock().unwrap().remove(&agent_key);
 
     if let Some(mut process) = state.pty_processes.lock().unwrap().remove(&agent_key) {
         let _ = process.child.kill();
     }
 }
 
-pub fn configure_workspace(cmd: &mut CommandBuilder, shell: &str, cwd: Option<String>) -> Result<(), String> {
-    let Some(raw_cwd) = cwd else {
-        return Ok(());
-    };
+pub fn configure_workspace(
+    cmd: &mut CommandBuilder,
+    shell: &str,
+    cwd: Option<String>,
+) -> Result<(), String> {
+    cmd.env("TERM", "xterm-256color");
+    cmd.env("COLORTERM", "truecolor");
+    cmd.env("FORCE_COLOR", "1");
+    cmd.env("PYTHONIOENCODING", "utf-8");
+    cmd.env("LANG", "en_US.UTF-8");
+    cmd.env("LC_ALL", "en_US.UTF-8");
 
-    let workspace = PathBuf::from(raw_cwd);
-    if !workspace.is_dir() {
-        return Err(format!("Workspace does not exist or is not a directory: {}", workspace.display()));
-    }
+    let workspace_string = if let Some(raw_cwd) = cwd {
+        let workspace = PathBuf::from(raw_cwd);
+        if !workspace.is_dir() {
+            return Err(format!(
+                "Workspace does not exist or is not a directory: {}",
+                workspace.display()
+            ));
+        }
 
-    let workspace = if workspace.is_absolute() {
-        workspace
+        let workspace = if workspace.is_absolute() {
+            workspace
+        } else {
+            std::env::current_dir()
+                .map_err(|e| e.to_string())?
+                .join(workspace)
+        };
+        let workspace_string = workspace.to_string_lossy().to_string();
+        cmd.cwd(&workspace_string);
+        cmd.env("DIDI_WORKSPACE", &workspace_string);
+        cmd.env("DIDI_AGENT_ROOT", &workspace_string);
+        cmd.env("PROJECT_ROOT", &workspace_string);
+        cmd.env("INIT_CWD", &workspace_string);
+        cmd.env("PWD", &workspace_string);
+        Some(workspace_string)
     } else {
-        std::env::current_dir().map_err(|e| e.to_string())?.join(workspace)
+        None
     };
-    let workspace_string = workspace.to_string_lossy().to_string();
-    cmd.cwd(&workspace_string);
-    cmd.env("DIDI_WORKSPACE", &workspace_string);
-    cmd.env("DIDI_AGENT_ROOT", &workspace_string);
-    cmd.env("PROJECT_ROOT", &workspace_string);
-    cmd.env("INIT_CWD", &workspace_string);
-    cmd.env("PWD", &workspace_string);
 
     let shell_name = Path::new(shell)
         .file_name()
@@ -62,10 +129,24 @@ pub fn configure_workspace(cmd: &mut CommandBuilder, shell: &str, cwd: Option<St
         .unwrap_or(shell)
         .to_lowercase();
 
-    if shell_name == "pwsh.exe" || shell_name == "pwsh" || shell_name == "powershell.exe" || shell_name == "powershell" {
-        cmd.args(["-NoExit", "-Command", "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; [Console]::InputEncoding = [System.Text.Encoding]::UTF8; Set-Location -LiteralPath $env:DIDI_WORKSPACE"]);
+    if shell_name == "pwsh.exe"
+        || shell_name == "pwsh"
+        || shell_name == "powershell.exe"
+        || shell_name == "powershell"
+    {
+        let command = if workspace_string.is_some() {
+            "[Console]::InputEncoding = [System.Text.UTF8Encoding]::new($false); [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); $OutputEncoding = [Console]::OutputEncoding; Set-Location -LiteralPath $env:DIDI_WORKSPACE"
+        } else {
+            "[Console]::InputEncoding = [System.Text.UTF8Encoding]::new($false); [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); $OutputEncoding = [Console]::OutputEncoding"
+        };
+        cmd.args(["-NoLogo", "-NoExit", "-Command", command]);
     } else if shell_name == "cmd.exe" || shell_name == "cmd" {
-        cmd.args(["/K", "chcp 65001 >nul & cd /d \"%DIDI_WORKSPACE%\""]);
+        let command = if workspace_string.is_some() {
+            "chcp 65001 >nul & cd /d \"%DIDI_WORKSPACE%\""
+        } else {
+            "chcp 65001 >nul"
+        };
+        cmd.args(["/K", command]);
     }
 
     Ok(())
@@ -73,71 +154,109 @@ pub fn configure_workspace(cmd: &mut CommandBuilder, shell: &str, cwd: Option<St
 
 #[tauri::command]
 pub fn spawn_pty(
-    agent: String, 
-    cwd: Option<String>, 
+    agent: String,
+    cwd: Option<String>,
     workspace_name: Option<String>,
-    app_handle: AppHandle, 
-    state: State<'_, AppState>
-) -> Result<String, String> {
+    app_handle: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<PtyScrollback, String> {
     let agent = normalize_agent(&agent);
-    
+
     // Associate agent with workspace if provided
     if let Some(ws) = workspace_name {
-        state.pty_workspaces.lock().unwrap().insert(agent.clone(), ws);
+        state
+            .pty_workspaces
+            .lock()
+            .unwrap()
+            .insert(agent.clone(), ws);
     } else {
         // Fallback to "Default" or based on CWD if possible
-        let ws_name = cwd.as_ref()
+        let ws_name = cwd
+            .as_ref()
             .and_then(|p| Path::new(p).file_name())
             .and_then(|n| n.to_str())
             .unwrap_or("Default")
             .to_string();
-        state.pty_workspaces.lock().unwrap().insert(agent.clone(), ws_name);
+        state
+            .pty_workspaces
+            .lock()
+            .unwrap()
+            .insert(agent.clone(), ws_name);
     }
 
     // Check if the process already exists, returning its scrollback if so.
     if state.pty_processes.lock().unwrap().contains_key(&agent) {
         let scrollbacks = state.pty_scrollbacks.lock().unwrap();
         if let Some(sb) = scrollbacks.get(&agent) {
-            return Ok(String::from_utf8_lossy(sb).into_owned());
+            return Ok(PtyScrollback {
+                data: String::from_utf8_lossy(sb).into_owned(),
+                bytes: BASE64.encode(sb),
+            });
         }
-        return Ok(String::new());
+        return Ok(PtyScrollback {
+            data: String::new(),
+            bytes: String::new(),
+        });
     }
 
     cleanup_pty(&agent, &state);
 
     let pty_system = NativePtySystem::default();
-    
-    let pair = pty_system.openpty(PtySize {
-        rows: 24,
-        cols: 80,
-        pixel_width: 0,
-        pixel_height: 0,
-    }).map_err(|e| format!("{:?}", e))?;
+
+    let pair = pty_system
+        .openpty(PtySize {
+            rows: 24,
+            cols: 80,
+            pixel_width: 0,
+            pixel_height: 0,
+        })
+        .map_err(|e| format!("{:?}", e))?;
 
     let shell = state.config.lock().unwrap().shell.clone();
     let mut cmd = CommandBuilder::new(&shell);
     configure_workspace(&mut cmd, &shell, cwd)?;
     cmd.env("AGENT_NAME", agent.clone());
-    let child = pair.slave.spawn_command(cmd).map_err(|e| format!("{:?}", e))?;
+    let child = pair
+        .slave
+        .spawn_command(cmd)
+        .map_err(|e| format!("{:?}", e))?;
     let pid = child.process_id();
 
     let master = pair.master;
     let writer = master.take_writer().map_err(|e| format!("{:?}", e))?;
     let mut reader = master.try_clone_reader().map_err(|e| format!("{:?}", e))?;
-    
-    state.pty_writers.lock().unwrap().insert(agent.clone(), writer);
-    state.pty_resizers.lock().unwrap().insert(agent.clone(), master);
-    state.pty_processes.lock().unwrap().insert(agent.clone(), PtyProcess { child, pid });
-    state.pty_scrollbacks.lock().unwrap().insert(agent.clone(), Vec::new());
+
+    state
+        .pty_writers
+        .lock()
+        .unwrap()
+        .insert(agent.clone(), writer);
+    state
+        .pty_resizers
+        .lock()
+        .unwrap()
+        .insert(agent.clone(), master);
+    state
+        .pty_processes
+        .lock()
+        .unwrap()
+        .insert(agent.clone(), PtyProcess { child, pid });
+    state
+        .pty_scrollbacks
+        .lock()
+        .unwrap()
+        .insert(agent.clone(), Vec::new());
 
     let agent_clone = agent.clone();
     std::thread::spawn(move || {
-        let mut buf = [0; 4096];
+        let mut buf = [0; PTY_READ_BUFFER_SIZE];
         let mut pending = Vec::new();
         while let Ok(n) = reader.read(&mut buf) {
-            if n == 0 { break; }
+            if n == 0 {
+                break;
+            }
             pending.extend_from_slice(&buf[..n]);
-            
+
             let mut process_len = pending.len();
             match std::str::from_utf8(&pending) {
                 Ok(_) => {}
@@ -148,50 +267,29 @@ pub fn spawn_pty(
                     }
                 }
             }
-            
+
             if process_len > 0 {
                 let chunk: Vec<u8> = pending.drain(..process_len).collect();
-                
-                // Store in scrollback buffer
-                use tauri::Manager;
-                let mut workspace = "Default".to_string();
-                if let Some(state) = app_handle.try_state::<AppState>() {
-                    if let Ok(mut scrollbacks) = state.pty_scrollbacks.lock() {
-                        if let Some(sb) = scrollbacks.get_mut(&agent_clone) {
-                            sb.extend_from_slice(&chunk);
-                            // Keep max 64KB in scrollback to prevent memory bloat
-                            if sb.len() > 65536 {
-                                let excess = sb.len() - 65536;
-                                sb.drain(0..excess);
-                            }
-                        }
-                    }
-                    if let Ok(workspaces) = state.pty_workspaces.lock() {
-                        if let Some(ws) = workspaces.get(&agent_clone) {
-                            workspace = ws.clone();
-                        }
-                    }
-                }
+                emit_pty_output(&app_handle, &agent_clone, chunk);
+            }
+        }
 
-                let data = String::from_utf8_lossy(&chunk).into_owned();
-                
-                #[derive(serde::Serialize, Clone)]
-                struct PtyPayload {
-                    agent: String,
-                    workspace: String,
-                    data: String,
-                }
-                let payload = PtyPayload {
-                    agent: agent_clone.clone(),
-                    workspace,
-                    data,
-                };
-                let _ = app_handle.emit("pty-output", payload.clone());
-                let output_event = format!("pty-output-agent-{}", agent_event_key(&agent_clone));
-                let _ = app_handle.emit(
-                    output_event.as_str(),
-                    payload,
-                );
+        if !pending.is_empty() {
+            emit_pty_output(&app_handle, &agent_clone, pending);
+        }
+
+        if let Some(state) = app_handle.try_state::<AppState>() {
+            if let Ok(mut writers) = state.pty_writers.lock() {
+                writers.remove(&agent_clone);
+            }
+            if let Ok(mut resizers) = state.pty_resizers.lock() {
+                resizers.remove(&agent_clone);
+            }
+            if let Ok(mut processes) = state.pty_processes.lock() {
+                processes.remove(&agent_clone);
+            }
+            if let Ok(mut workspaces) = state.pty_workspaces.lock() {
+                workspaces.remove(&agent_clone);
             }
         }
 
@@ -199,23 +297,27 @@ pub fn spawn_pty(
         struct PtyExitPayload {
             agent: String,
         }
-        let payload = PtyExitPayload { agent: agent_clone.clone() };
+        let payload = PtyExitPayload {
+            agent: agent_clone.clone(),
+        };
         let _ = app_handle.emit("pty-exit", payload.clone());
         let exit_event = format!("pty-exit-agent-{}", agent_event_key(&agent_clone));
-        let _ = app_handle.emit(
-            exit_event.as_str(),
-            payload,
-        );
+        let _ = app_handle.emit(exit_event.as_str(), payload);
     });
 
-    Ok(String::new())
+    Ok(PtyScrollback {
+        data: String::new(),
+        bytes: String::new(),
+    })
 }
 
 #[tauri::command]
 pub fn write_pty(agent: String, data: String, state: State<'_, AppState>) -> Result<(), String> {
     let agent = normalize_agent(&agent);
     if let Some(writer) = state.pty_writers.lock().unwrap().get_mut(&agent) {
-        writer.write_all(data.as_bytes()).map_err(|e| e.to_string())?;
+        writer
+            .write_all(data.as_bytes())
+            .map_err(|e| e.to_string())?;
         writer.flush().map_err(|e| e.to_string())?;
     }
     Ok(())
@@ -228,10 +330,20 @@ pub fn close_pty(agent: String, state: State<'_, AppState>) -> Result<(), String
 }
 
 #[tauri::command]
-pub fn resize_pty(agent: String, cols: u16, rows: u16, state: State<'_, AppState>) -> Result<(), String> {
+pub fn resize_pty(
+    agent: String,
+    cols: u16,
+    rows: u16,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
     let agent = normalize_agent(&agent);
     if let Some(master) = state.pty_resizers.lock().unwrap().get_mut(&agent) {
-        let _ = master.resize(PtySize { cols, rows, pixel_width: 0, pixel_height: 0 });
+        let _ = master.resize(PtySize {
+            cols,
+            rows,
+            pixel_width: 0,
+            pixel_height: 0,
+        });
     }
     Ok(())
 }
@@ -274,7 +386,7 @@ pub fn get_project_context(cwd: Option<String>) -> Result<String, String> {
             .hidden(true)
             .git_ignore(true)
             .build();
-            
+
         let mut files = Vec::new();
         // Take at most 150 files to prevent blowing up the LLM context window
         for result in walker.filter_map(|e| e.ok()).take(150) {
