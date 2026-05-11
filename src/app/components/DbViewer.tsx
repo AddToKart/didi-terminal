@@ -62,6 +62,9 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
   const [customQuery, setCustomQuery] = useState("");
   const [queryResult, setQueryResult] = useState<QueryResult | null>(null);
   const [queryError, setQueryError] = useState<string | null>(null);
+  
+  const [editingCell, setEditingCell] = useState<{ rowIndex: number; colName: string } | null>(null);
+  const [editValue, setEditValue] = useState("");
 
   // ── SQLite (local file) ──────────────────────────────────────────
   const handleSelectDb = async () => {
@@ -247,6 +250,67 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
         const t = await invoke<TableInfo[]>("db_get_mysql_tables", { connectionString: dbPath });
         setTables(t);
       } catch (err) { setError(String(err)); } finally { setIsLoading(false); }
+    }
+  };
+
+  const handleCellEdit = (rowIndex: number, colName: string, value: any) => {
+    setEditingCell({ rowIndex, colName });
+    setEditValue(value === null ? "" : String(value));
+  };
+
+  const handleCellSave = async () => {
+    if (!editingCell || !selectedTable || !dbPath) return;
+    const { rowIndex, colName } = editingCell;
+    const row = filteredData[rowIndex];
+    const oldVal = row[colName];
+    if (String(oldVal) === editValue || (oldVal === null && editValue === "")) {
+      setEditingCell(null);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    try {
+      const tableIdent = selectedTable.schema ? `"${selectedTable.schema}"."${selectedTable.name}"` : `"${selectedTable.name}"`;
+      const tableIdentMysql = selectedTable.schema ? `\`${selectedTable.schema}\`.\`${selectedTable.name}\`` : `\`${selectedTable.name}\``;
+
+      const formatVal = (val: any) => {
+        if (val === null || val === "") return "NULL";
+        if (typeof val === "number" && !isNaN(val)) return val;
+        return `'${String(val).replace(/'/g, "''")}'`;
+      };
+
+      const setClause = dbMode === "mysql" ? `\`${colName}\` = ${formatVal(editValue)}` : `"${colName}" = ${formatVal(editValue)}`;
+      
+      const whereClauses = columns.map(col => {
+        const val = row[col];
+        const colIdent = dbMode === "mysql" ? `\`${col}\`` : `"${col}"`;
+        if (val === null || val === "") return `${colIdent} IS NULL`;
+        return `${colIdent} = ${formatVal(val)}`;
+      }).join(" AND ");
+
+      const query = `UPDATE ${dbMode === "mysql" ? tableIdentMysql : tableIdent} SET ${setClause} WHERE ${whereClauses}`;
+
+      if (dbMode === "sqlite") {
+        const db = await SqlDatabase.load(`sqlite:${dbPath}`);
+        await db.execute(query);
+      } else if (dbMode === "postgres") {
+        await invoke("db_query_postgres", { connectionString: dbPath, query });
+      } else {
+        await invoke("db_query_mysql", { connectionString: dbPath, query });
+      }
+
+      const newData = [...data];
+      const actualIndex = data.findIndex(r => r === row);
+      if (actualIndex !== -1) {
+        newData[actualIndex] = { ...row, [colName]: editValue === "" ? null : editValue };
+        setData(newData);
+      }
+    } catch (err) {
+      setError(`Failed to save: ${err}`);
+    } finally {
+      setIsLoading(false);
+      setEditingCell(null);
     }
   };
 
@@ -549,11 +613,33 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
                       <tbody className="divide-y divide-white/[0.03]">
                         {filteredData.map((row, i) => (
                           <tr key={i} className="hover:bg-white/[0.02] transition-colors group">
-                            {columns.map(col => (
-                              <td key={col} className="px-4 py-2.5 text-xs text-zinc-400 font-mono whitespace-nowrap overflow-hidden text-ellipsis max-w-xs group-hover:text-zinc-200">
-                                {row[col] === null ? <span className="text-zinc-600 italic">null</span> : String(row[col])}
-                              </td>
-                            ))}
+                            {columns.map(col => {
+                              const isEditing = editingCell?.rowIndex === i && editingCell?.colName === col;
+                              return (
+                                <td 
+                                  key={col} 
+                                  onDoubleClick={() => handleCellEdit(i, col, row[col])}
+                                  className="px-4 py-2.5 text-xs text-zinc-400 font-mono whitespace-nowrap overflow-hidden text-ellipsis max-w-xs group-hover:text-zinc-200"
+                                >
+                                  {isEditing ? (
+                                    <input
+                                      type="text"
+                                      autoFocus
+                                      value={editValue}
+                                      onChange={(e) => setEditValue(e.target.value)}
+                                      onBlur={handleCellSave}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleCellSave();
+                                        if (e.key === 'Escape') setEditingCell(null);
+                                      }}
+                                      className="w-full bg-zinc-950 text-white border border-blue-500/50 rounded px-2 py-1 outline-none shadow-inner"
+                                    />
+                                  ) : (
+                                    row[col] === null ? <span className="text-zinc-600 italic select-none">null</span> : String(row[col])
+                                  )}
+                                </td>
+                              );
+                            })}
                           </tr>
                         ))}
                       </tbody>
