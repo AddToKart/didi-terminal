@@ -244,6 +244,7 @@ pub fn run() {
             services::git::rewind_git_snapshot,
             services::git::get_git_diff,
             services::git::get_git_branch,
+            services::git::get_git_diff_stats,
             services::git::get_git_status_structured,
             services::git::git_panel_get_status,
             services::git::git_panel_stage,

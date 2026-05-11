@@ -63,6 +63,11 @@ export interface WorkspaceState {
   activeTabId: string;
 }
 
+interface GitDiffStats {
+  totalAdditions: number;
+  totalDeletions: number;
+}
+
 function App() {
   const params = new URLSearchParams(window.location.search);
   const standaloneAgent = params.get("agent");
@@ -292,6 +297,44 @@ function App() {
     resetMasterPlanWorkflow();
     refreshSnapshots(currentProject);
   }, [currentProject, refreshSnapshots]);
+
+  useEffect(() => {
+    if (!currentProject) {
+      setCodeReviewStats({ additions: 0, deletions: 0 });
+      return;
+    }
+
+    let cancelled = false;
+    let isRefreshing = false;
+
+    const refreshCodeReviewStats = async () => {
+      if (isRefreshing) return;
+      isRefreshing = true;
+
+      try {
+        const stats = await invoke<GitDiffStats>("get_git_diff_stats", { cwd: currentProject });
+        if (!cancelled) {
+          setCodeReviewStats({
+            additions: stats.totalAdditions,
+            deletions: stats.totalDeletions,
+          });
+        }
+      } catch {
+        if (!cancelled) {
+          setCodeReviewStats({ additions: 0, deletions: 0 });
+        }
+      } finally {
+        isRefreshing = false;
+      }
+    };
+
+    refreshCodeReviewStats();
+    const interval = setInterval(refreshCodeReviewStats, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [currentProject]);
 
   useEffect(() => {
     invoke<any>("get_config").then(config => {

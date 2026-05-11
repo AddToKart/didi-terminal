@@ -184,6 +184,48 @@ pub struct GitStatusResponse {
     pub files: Vec<GitFileDiff>,
 }
 
+#[derive(serde::Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct GitDiffStats {
+    pub total_additions: usize,
+    pub total_deletions: usize,
+    pub changed_files: usize,
+}
+
+fn parse_numstat(value: &str) -> (usize, usize, usize) {
+    let mut additions = 0;
+    let mut deletions = 0;
+    let mut files = 0;
+
+    for line in value.lines() {
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() < 3 {
+            continue;
+        }
+
+        files += 1;
+        additions += parts[0].parse::<usize>().unwrap_or(0);
+        deletions += parts[1].parse::<usize>().unwrap_or(0);
+    }
+
+    (additions, deletions, files)
+}
+
+fn count_untracked_file_lines(repo_path: &Path, path: &str) -> usize {
+    let full_path = repo_path.join(path);
+    let Ok(metadata) = std::fs::metadata(&full_path) else {
+        return 0;
+    };
+
+    if !metadata.is_file() || metadata.len() > 1_000_000 {
+        return 0;
+    }
+
+    std::fs::read_to_string(&full_path)
+        .map(|content| content.lines().count())
+        .unwrap_or(0)
+}
+
 #[tauri::command]
 pub fn get_git_diff(cwd: String) -> Result<String, String> {
     let cwd_path = Path::new(&cwd);
@@ -217,6 +259,34 @@ pub fn get_git_branch(cwd: String) -> Result<String, String> {
         Ok(branch) if !branch.trim().is_empty() => Ok(branch.trim().to_string()),
         _ => Err("Not a git repository or no branch".into()),
     }
+}
+
+#[tauri::command]
+pub fn get_git_diff_stats(cwd: String) -> Result<GitDiffStats, String> {
+    let cwd_path = Path::new(&cwd);
+    ensure_git_repo(cwd_path)?;
+
+    let repo_root = run_git(cwd_path, &["rev-parse", "--show-toplevel"], None)?;
+    let repo_path = PathBuf::from(repo_root);
+    let numstat_out = run_git(&repo_path, &["diff", "HEAD", "--numstat"], None).unwrap_or_default();
+    let status_out = run_git_raw(&repo_path, &["status", "--porcelain"], None)?;
+
+    let (mut total_additions, total_deletions, mut changed_files) = parse_numstat(&numstat_out);
+
+    for line in status_out.lines() {
+        if line.len() < 4 || !line.starts_with("?? ") {
+            continue;
+        }
+
+        changed_files += 1;
+        total_additions += count_untracked_file_lines(&repo_path, line[3..].trim());
+    }
+
+    Ok(GitDiffStats {
+        total_additions,
+        total_deletions,
+        changed_files,
+    })
 }
 
 #[tauri::command]
