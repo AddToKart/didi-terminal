@@ -314,6 +314,18 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
     }
   };
 
+  const handleDisconnect = () => {
+    setDbPath(null);
+    setTables([]);
+    setSelectedTable(null);
+    setData([]);
+    setColumns([]);
+    setConnectionLabel(null);
+    setActiveTab("table");
+    setError(null);
+    setShowRemoteForm(false);
+  };
+
   const filteredData = data.filter(row =>
     Object.values(row).some(val =>
       String(val).toLowerCase().includes(searchQuery.toLowerCase())
@@ -371,13 +383,15 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
                 LOCAL SQLITE
               </button>
               <button
-                onClick={() => { setShowRemoteForm(!showRemoteForm); setError(null); }}
+                onClick={dbPath ? handleDisconnect : () => { setShowRemoteForm(!showRemoteForm); setError(null); }}
                 className={`w-full flex items-center justify-center gap-2 px-4 py-2 border rounded-lg text-xs font-bold transition-all ${
-                  showRemoteForm ? 'bg-blue-500/20 border-blue-500/50 text-blue-400' : 'bg-white/5 hover:bg-white/10 border-white/10 text-zinc-300'
+                  dbPath 
+                    ? 'bg-red-500/10 hover:bg-red-500/20 border-red-500/30 text-red-500' 
+                    : showRemoteForm ? 'bg-blue-500/20 border-blue-500/50 text-blue-400' : 'bg-white/5 hover:bg-white/10 border-white/10 text-zinc-300'
                 }`}
               >
-                <Globe size={14} />
-                REMOTE SERVER
+                {dbPath ? <X size={14} /> : <Globe size={14} />}
+                {dbPath ? 'DISCONNECT' : 'REMOTE SERVER'}
               </button>
               <button
                 onClick={() => { setActiveTab("query"); setSelectedTable(null); }}
