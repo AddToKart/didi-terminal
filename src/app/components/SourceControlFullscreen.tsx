@@ -235,7 +235,7 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
 
               <div className="w-px h-8 bg-white/10 mx-2" />
 
-              <div className="flex bg-black/40 p-1 rounded-xl border border-white/5">
+              <div className="flex bg-black/40 p-1 rounded-xl border border-white/5 w-[500px]">
                 {TABS.map(tab => {
                   const Icon = tab.icon;
                   const isActive = activeTab === tab.id;
@@ -243,13 +243,13 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id as any)}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                      className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all duration-200 ${
                         isActive 
-                          ? "bg-white/10 text-white shadow-sm" 
+                          ? "bg-brand-accent text-white shadow-[0_0_15px_rgba(var(--brand-accent-rgb),0.3)]" 
                           : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
                       }`}
                     >
-                      <Icon size={16} className={isActive ? "text-brand-accent" : ""} />
+                      <Icon size={14} />
                       {tab.label}
                     </button>
                   );
@@ -310,26 +310,26 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
                       <button
                         onClick={commit}
                         disabled={!commitMsg.trim() || !!busy}
-                        className="flex-1 flex items-center justify-center gap-2 bg-brand-accent/90 hover:bg-brand-accent disabled:opacity-40 text-white text-sm font-bold py-2.5 rounded-xl transition-all active:scale-[0.98]"
+                        className="flex-[2] flex items-center justify-center gap-2 bg-brand-accent/90 hover:bg-brand-accent disabled:opacity-40 text-white text-xs font-bold py-2.5 rounded-xl transition-all active:scale-[0.98] shadow-lg shadow-brand-accent/20"
                       >
                         {busy === "commit" ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
-                        Commit Changes
+                        Commit
                       </button>
                       <button
                         onClick={pull}
                         disabled={!!busy}
-                        className="p-2.5 bg-white/5 hover:bg-white/10 border border-white/5 text-zinc-300 rounded-xl transition-all disabled:opacity-40"
-                        title="Pull"
+                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-white/5 hover:bg-white/10 border border-white/5 text-zinc-300 rounded-xl transition-all disabled:opacity-40 text-xs font-bold"
                       >
-                        {busy === "pull" ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                        {busy === "pull" ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                        Pull
                       </button>
                       <button
                         onClick={push}
                         disabled={!!busy}
-                        className="p-2.5 bg-white/5 hover:bg-white/10 border border-white/5 text-zinc-300 rounded-xl transition-all disabled:opacity-40"
-                        title="Push"
+                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-white/5 hover:bg-white/10 border border-white/5 text-zinc-300 rounded-xl transition-all disabled:opacity-40 text-xs font-bold"
                       >
-                        {busy === "push" ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+                        {busy === "push" ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                        Push
                       </button>
                     </div>
                   </div>
