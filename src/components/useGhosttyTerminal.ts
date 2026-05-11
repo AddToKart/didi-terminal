@@ -41,6 +41,15 @@ export function useGhosttyTerminal(
     let isMounted = true;
     let resizeFrame: number | null = null;
     let resizeObserver: ResizeObserver | null = null;
+    let lastResize: { cols: number; rows: number } | null = null;
+
+    const emitResize = () => {
+      if (!term || !onResizeRef.current || !term.cols || !term.rows) return;
+      if (lastResize && lastResize.cols === term.cols && lastResize.rows === term.rows) return;
+
+      lastResize = { cols: term.cols, rows: term.rows };
+      onResizeRef.current(term.cols, term.rows);
+    };
 
     async function mountTerminal() {
       await loadWasm();
@@ -81,17 +90,13 @@ export function useGhosttyTerminal(
 
       // Initial fit
       fitAddon.fit();
-      if (onResizeRef.current && term.cols && term.rows) {
-        onResizeRef.current(term.cols, term.rows);
-      }
+      emitResize();
 
       const fitTerminal = () => {
         resizeFrame = null;
         if (!term || !fitAddon) return;
         fitAddon.fit();
-        if (onResizeRef.current && term.cols && term.rows) {
-          onResizeRef.current(term.cols, term.rows);
-        }
+        emitResize();
       };
 
       resizeObserver = new ResizeObserver(() => {
@@ -109,6 +114,8 @@ export function useGhosttyTerminal(
       isMounted = false;
       if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
       if (resizeObserver) resizeObserver.disconnect();
+      terminalRef.current = null;
+      setTermLoaded(false);
       if (term) term.dispose();
     };
   }, [options.agentName]);

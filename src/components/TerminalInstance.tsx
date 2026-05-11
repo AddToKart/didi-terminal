@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, emit } from "@tauri-apps/api/event";
 import { readText } from "@tauri-apps/plugin-clipboard-manager";
-import { Terminal as TerminalIcon, X, Zap, Eraser, Play, ExternalLink, Plus } from "lucide-react";
+import { Terminal as TerminalIcon, X, Zap, Eraser, Play, ExternalLink, Plus, GripVertical } from "lucide-react";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { useGhosttyTerminal } from "./useGhosttyTerminal";
 import {
@@ -46,7 +46,21 @@ const isPromptReady = (value: string) =>
 const getAgentId = (agentName: string) =>
   agentName.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
 
+const getPtyEventKey = (agent: string) => agent.replace(/[^a-zA-Z0-9]/g, "_");
 const STATS_REFRESH_MS = 10000;
+
+const getNextLaneIndex = (lanes: TerminalLane[]) => {
+  const usedIndexes = new Set(
+    lanes
+      .map(lane => lane.agentName.match(/\slane\s(\d+)$/i)?.[1])
+      .filter((value): value is string => Boolean(value))
+      .map(value => Number(value))
+  );
+
+  let index = 2;
+  while (usedIndexes.has(index)) index += 1;
+  return index;
+};
 
 interface Props {
   agentName: string;
@@ -64,40 +78,72 @@ interface Props {
 interface TerminalLaneStripProps {
   lanes: TerminalLane[];
   activeLaneId: string;
+  editingLaneId: string | null;
+  editLaneLabel: string;
   onSelectLane: (laneId: string) => void;
   onAddLane: (event: React.MouseEvent) => void;
   onCloseLane: (event: React.MouseEvent, laneId: string) => void;
+  onStartRenameLane: (lane: TerminalLane) => void;
+  onEditLaneLabelChange: (value: string) => void;
+  onCommitRenameLane: () => void;
+  onCancelRenameLane: () => void;
 }
 
-const TerminalLaneStrip = ({
+const TerminalLaneStrip = memo(({
   lanes,
   activeLaneId,
+  editingLaneId,
+  editLaneLabel,
   onSelectLane,
   onAddLane,
   onCloseLane,
+  onStartRenameLane,
+  onEditLaneLabelChange,
+  onCommitRenameLane,
+  onCancelRenameLane,
 }: TerminalLaneStripProps) => (
   <div
-    className="h-9 flex items-center bg-app-bg border-b border-app-border shrink-0 overflow-x-auto custom-scrollbar"
+    className="h-full flex items-center min-w-0 flex-1 overflow-x-auto custom-scrollbar border-l border-app-border"
     onPointerDown={(event) => event.stopPropagation()}
     onContextMenu={(event) => event.stopPropagation()}
   >
     <div className="flex items-center h-full">
       {lanes.map((lane) => {
         const isActive = lane.id === activeLaneId;
+        const isEditing = lane.id === editingLaneId;
         return (
           <div
             key={lane.id}
-            onClick={() => onSelectLane(lane.id)}
-            className={`group flex items-center gap-2 px-4 h-full border-r border-app-border cursor-pointer select-none min-w-[120px] max-w-[200px] transition-all ${
+            onClick={() => {
+              if (!isEditing) onSelectLane(lane.id);
+            }}
+            onDoubleClick={() => onStartRenameLane(lane)}
+            className={`group flex items-center gap-2 px-3 h-full border-r border-app-border cursor-pointer select-none min-w-[92px] max-w-[160px] transition-all ${
               isActive
                 ? "bg-app-panel text-white shadow-[inset_0_-2px_0_0_var(--tw-colors-brand-accent)]"
                 : "bg-transparent text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
             }`}
             title={`Switch to ${lane.label}`}
           >
-            <span className={`text-xs truncate flex-1 ${isActive ? "font-bold" : "font-medium"}`}>
-              {lane.label}
-            </span>
+            {isEditing ? (
+              <input
+                value={editLaneLabel}
+                onChange={(event) => onEditLaneLabelChange(event.target.value)}
+                onBlur={onCommitRenameLane}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") onCommitRenameLane();
+                  if (event.key === "Escape") onCancelRenameLane();
+                }}
+                onClick={(event) => event.stopPropagation()}
+                onPointerDown={(event) => event.stopPropagation()}
+                autoFocus
+                className="bg-transparent border-none outline-none text-xs font-bold text-white flex-1 min-w-0"
+              />
+            ) : (
+              <span className={`text-xs truncate flex-1 ${isActive ? "font-bold" : "font-medium"}`}>
+                {lane.label}
+              </span>
+            )}
             {lane.id !== ROOT_TERMINAL_LANE_ID && (
               <button
                 type="button"
@@ -121,13 +167,13 @@ const TerminalLaneStrip = ({
       type="button"
       onClick={onAddLane}
       onPointerDown={(event) => event.stopPropagation()}
-      className="h-full px-3 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/5 transition-colors border-r border-app-border shrink-0"
+      className="h-full w-10 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/5 transition-colors border-r border-app-border shrink-0"
       title="New Lane"
     >
       <Plus size={16} strokeWidth={2.5} />
     </button>
   </div>
-);
+));
 
 export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, dragAttributes, dragListeners, workspaceName, workspaceId, isZenMode }: Props) {
   const terminalRef = useRef<HTMLDivElement>(null);
@@ -138,13 +184,14 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
   const [sentinelPaused, setSentinelPaused] = useState(false);
   const [lanes, setLanes] = useState<TerminalLane[]>(() => loadTerminalLanes(agentName, workspaceId));
   const [activeLaneId, setActiveLaneId] = useState(ROOT_TERMINAL_LANE_ID);
+  const [editingLaneId, setEditingLaneId] = useState<string | null>(null);
+  const [editLaneLabel, setEditLaneLabel] = useState("");
 
   const [isFocused, setIsFocused] = useState(false);
   const isReadyRef = useRef(isReady);
   const statsRef = useRef(stats);
   const pulseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sentinelTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const laneCounterRef = useRef(1);
   const lanesRef = useRef(lanes);
 
   const activeLane = lanes.find(lane => lane.id === activeLaneId) ?? lanes[0] ?? { id: ROOT_TERMINAL_LANE_ID, label: "Main", agentName };
@@ -154,6 +201,7 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
 
   // The globally unique identifier for the active lane's process in the Rust backend
   const ptyKey = getLanePtyKey(activeLane.agentName);
+  const ptyEventKey = getPtyEventKey(ptyKey);
 
   const setReadyState = useCallback((nextReady: boolean) => {
     if (isReadyRef.current === nextReady) return;
@@ -176,7 +224,8 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
     const restoredLanes = loadTerminalLanes(agentName, workspaceId);
     setLanes(restoredLanes);
     setActiveLaneId(ROOT_TERMINAL_LANE_ID);
-    laneCounterRef.current = restoredLanes.length;
+    setEditingLaneId(null);
+    setEditLaneLabel("");
     setReadyState(false);
     setStatsState({ cpu: 0, mem: 0 });
   }, [agentName, workspaceId, setReadyState, setStatsState]);
@@ -185,17 +234,16 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
     saveTerminalLanes(agentName, workspaceId, lanes);
   }, [agentName, workspaceId, lanes]);
 
-  const handleSelectLane = (laneId: string) => {
+  const handleSelectLane = useCallback((laneId: string) => {
     if (laneId === activeLaneId) return;
     setActiveLaneId(laneId);
     setReadyState(false);
     setStatsState({ cpu: 0, mem: 0 });
-  };
+  }, [activeLaneId, setReadyState, setStatsState]);
 
-  const handleAddLane = (event: React.MouseEvent) => {
+  const handleAddLane = useCallback((event: React.MouseEvent) => {
     event.stopPropagation();
-    const nextIndex = laneCounterRef.current + 1;
-    laneCounterRef.current = nextIndex;
+    const nextIndex = getNextLaneIndex(lanesRef.current);
 
     const lane: TerminalLane = {
       id: crypto.randomUUID(),
@@ -207,9 +255,9 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
     setActiveLaneId(lane.id);
     setReadyState(false);
     setStatsState({ cpu: 0, mem: 0 });
-  };
+  }, [agentName, setReadyState, setStatsState]);
 
-  const handleCloseLane = (event: React.MouseEvent, laneId: string) => {
+  const handleCloseLane = useCallback((event: React.MouseEvent, laneId: string) => {
     event.stopPropagation();
     const currentLanes = lanesRef.current;
     const laneIndex = currentLanes.findIndex(lane => lane.id === laneId);
@@ -225,20 +273,44 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
       setReadyState(false);
       setStatsState({ cpu: 0, mem: 0 });
     }
-  };
+  }, [activeLaneId, getLanePtyKey, setReadyState, setStatsState]);
 
-  const closeExtraLanes = () => {
+  const closeExtraLanes = useCallback(() => {
     for (const lane of lanesRef.current) {
       if (lane.id === ROOT_TERMINAL_LANE_ID) continue;
       invoke("close_pty", { agent: getLanePtyKey(lane.agentName) }).catch(console.error);
     }
     clearTerminalLanes(agentName, workspaceId);
-  };
+  }, [agentName, getLanePtyKey, workspaceId]);
 
-  const handleRemovePane = () => {
+  const handleRemovePane = useCallback(() => {
     closeExtraLanes();
     onRemove?.();
-  };
+  }, [closeExtraLanes, onRemove]);
+
+  const handleStartRenameLane = useCallback((lane: TerminalLane) => {
+    setEditingLaneId(lane.id);
+    setEditLaneLabel(lane.label);
+  }, []);
+
+  const handleCommitRenameLane = useCallback(() => {
+    if (!editingLaneId) return;
+    const nextLabel = editLaneLabel.trim();
+    if (!nextLabel) {
+      setEditingLaneId(null);
+      return;
+    }
+
+    setLanes(prev => prev.map(lane => (
+      lane.id === editingLaneId ? { ...lane, label: nextLabel } : lane
+    )));
+    setEditingLaneId(null);
+  }, [editLaneLabel, editingLaneId]);
+
+  const handleCancelRenameLane = useCallback(() => {
+    setEditingLaneId(null);
+    setEditLaneLabel("");
+  }, []);
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -320,7 +392,7 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
   }, [agentName, setReadyState]);
 
   useEffect(() => {
-    const unlistenExit = listen<{ agent: string }>("pty-exit", (event) => {
+    const unlistenExit = listen<{ agent: string }>(`pty-exit-agent-${ptyEventKey}`, (event) => {
       if (event.payload.agent !== ptyKey) return;
       setReadyState(false);
       setStatsState({ cpu: 0, mem: 0 });
@@ -329,7 +401,7 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
     return () => {
       unlistenExit.then(f => f());
     };
-  }, [ptyKey, setReadyState, setStatsState]);
+  }, [ptyKey, ptyEventKey, setReadyState, setStatsState]);
 
   useEffect(() => {
     const unlistenSentinel = listen<{ agent: string }>("sentinel-intervention", (event) => {
@@ -411,24 +483,35 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
     let cancelled = false;
     const outputBuffer = { current: "" };
     const lastReadyEmitAt = { current: 0 };
-    terminal.reset();
+    try {
+      terminal.reset();
+    } catch (error) {
+      console.warn("Skipped reset for disposed terminal:", error);
+      return;
+    }
     setReadyState(false);
 
-    const unlistenPty = listen<{ agent: string, data: string }>("pty-output", (event) => {
-      if (event.payload.agent === ptyKey) {
+    const unlistenPty = listen<{ agent: string, data: string }>(`pty-output-agent-${ptyEventKey}`, (event) => {
+      if (cancelled) return;
+
+      try {
         terminal.write(event.payload.data);
+      } catch (error) {
+        cancelled = true;
+        console.warn("Skipped write for disposed terminal:", error);
+        return;
+      }
 
-        const text = stripTerminalControls(event.payload.data).replace(/\s+/g, " ");
-        outputBuffer.current = `${outputBuffer.current}${text}`.slice(-4000);
+      const text = stripTerminalControls(event.payload.data).replace(/\s+/g, " ");
+      outputBuffer.current = `${outputBuffer.current}${text}`.slice(-4000);
 
-        if (isPromptReady(outputBuffer.current)) {
-          const now = Date.now();
-          setReadyState(true);
+      if (isPromptReady(outputBuffer.current)) {
+        const now = Date.now();
+        setReadyState(true);
 
-          if (now - lastReadyEmitAt.current > 1000) {
-            lastReadyEmitAt.current = now;
-            emit("agent-prompt-ready", { agent: ptyKey });
-          }
+        if (now - lastReadyEmitAt.current > 1000) {
+          lastReadyEmitAt.current = now;
+          emit("agent-prompt-ready", { agent: ptyKey });
         }
       }
     });
@@ -438,9 +521,15 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
         if (cancelled || !terminal) return;
 
         if (scrollback) {
-          terminal.write(scrollback, () => {
-            terminal.scrollToBottom();
-          });
+          try {
+            terminal.write(scrollback, () => {
+              if (!cancelled) terminal.scrollToBottom();
+            });
+          } catch (error) {
+            cancelled = true;
+            console.warn("Skipped scrollback restore for disposed terminal:", error);
+            return;
+          }
           
           // Re-evaluate prompt readiness on scrollback restore
           const text = stripTerminalControls(scrollback).replace(/\s+/g, " ");
@@ -465,7 +554,7 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
       cancelled = true;
       unlistenPty.then(f => f());
     };
-  }, [isTerminalReady, terminal, ptyKey, cwd, workspaceName, setReadyState]);
+  }, [isTerminalReady, terminal, ptyKey, ptyEventKey, cwd, workspaceName, setReadyState]);
 
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
@@ -496,22 +585,40 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
       {/* Terminal Header & Macros */}
       {!isZenMode && (
         <div 
-          className={`flex items-center justify-between px-3 py-1.5 border-b transition-colors duration-300 ${dragListeners ? 'cursor-grab active:cursor-grabbing' : ''} ${sentinelPaused ? 'bg-red-500/10 border-red-400/50' : isPulsing ? 'bg-brand-accent/10 border-brand-accent/50' : isFocused ? 'bg-brand-accent/5 border-brand-accent/40' : 'bg-app-panel border-app-border'}`}
+          className={`h-9 flex items-center border-b overflow-hidden transition-colors duration-300 ${sentinelPaused ? 'bg-red-500/10 border-red-400/50' : isPulsing ? 'bg-brand-accent/10 border-brand-accent/50' : isFocused ? 'bg-brand-accent/5 border-brand-accent/40' : 'bg-app-panel border-app-border'}`}
           onContextMenu={handleContextMenu}
           title={dragListeners ? "Drag to reorder • Right-click to split pane" : "Right-click to split pane"}
-          {...dragAttributes}
-          {...dragListeners}
         >
-          <div className="flex items-center gap-2">
+          <div
+            className={`h-full flex items-center gap-2 px-3 shrink-0 select-none ${dragListeners ? 'cursor-grab active:cursor-grabbing' : ''}`}
+            title={dragListeners ? "Drag to reorder" : undefined}
+            {...dragAttributes}
+            {...dragListeners}
+          >
+            {dragListeners && <GripVertical size={12} className="text-slate-600" />}
             <TerminalIcon size={12} className={sentinelPaused ? 'text-red-300' : isPulsing ? 'text-brand-primary' : isFocused ? 'text-brand-accent' : 'text-slate-500'} />
             <span className={`text-[11px] font-bold tracking-widest uppercase ${sentinelPaused ? 'text-red-200' : isPulsing ? 'text-brand-primary' : isFocused ? 'text-brand-primary' : 'text-zinc-200'}`}>
               {agentName}
             </span>
             {(isPulsing || sentinelPaused) && <Zap size={12} className="text-brand-warn animate-pulse" />}
           </div>
+
+          <TerminalLaneStrip
+            lanes={lanes}
+            activeLaneId={activeLaneId}
+            editingLaneId={editingLaneId}
+            editLaneLabel={editLaneLabel}
+            onSelectLane={handleSelectLane}
+            onAddLane={handleAddLane}
+            onCloseLane={handleCloseLane}
+            onStartRenameLane={handleStartRenameLane}
+            onEditLaneLabelChange={setEditLaneLabel}
+            onCommitRenameLane={handleCommitRenameLane}
+            onCancelRenameLane={handleCancelRenameLane}
+          />
           
           {/* Macro Bar */}
-          <div className="flex flex-1 mx-4 justify-end gap-1 opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity">
+          <div className="hidden 2xl:flex mx-2 justify-end gap-1 opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity shrink-0">
              <button onClick={() => executeMacro("clear")} className="px-1.5 py-0.5 text-[9px] bg-app-panel hover:bg-zinc-800/60 text-zinc-300 hover:text-brand-primary border border-app-border rounded flex items-center gap-1 font-bold">
                <Eraser size={9} /> CLEAR
              </button>
@@ -520,7 +627,7 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
              </button>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="h-full flex items-center gap-3 px-3 shrink-0">
             <div className="hidden md:flex items-center gap-2 text-[9px] font-mono text-zinc-400 font-bold mr-2">
                <span title="CPU Usage">{stats.cpu.toFixed(1)}% CPU</span>
                <span title="Memory Usage">{(stats.mem / 1024 / 1024).toFixed(0)} MB</span>
@@ -551,16 +658,6 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
             )}
           </div>
         </div>
-      )}
-
-      {!isZenMode && (
-        <TerminalLaneStrip
-          lanes={lanes}
-          activeLaneId={activeLaneId}
-          onSelectLane={handleSelectLane}
-          onAddLane={handleAddLane}
-          onCloseLane={handleCloseLane}
-        />
       )}
       
       {/* Terminal Content */}

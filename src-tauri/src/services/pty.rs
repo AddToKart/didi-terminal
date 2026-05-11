@@ -15,6 +15,13 @@ pub fn normalize_agent(agent: &str) -> String {
     agent.trim().to_lowercase()
 }
 
+fn agent_event_key(agent: &str) -> String {
+    agent
+        .chars()
+        .map(|ch| if ch.is_ascii_alphanumeric() { ch } else { '_' })
+        .collect()
+}
+
 pub fn cleanup_pty(agent: &str, state: &State<'_, AppState>) {
     let agent_key = normalize_agent(agent);
     state.pty_writers.lock().unwrap().remove(&agent_key);
@@ -174,11 +181,17 @@ pub fn spawn_pty(
                     workspace: String,
                     data: String,
                 }
-                let _ = app_handle.emit("pty-output", PtyPayload {
+                let payload = PtyPayload {
                     agent: agent_clone.clone(),
                     workspace,
                     data,
-                });
+                };
+                let _ = app_handle.emit("pty-output", payload.clone());
+                let output_event = format!("pty-output-agent-{}", agent_event_key(&agent_clone));
+                let _ = app_handle.emit(
+                    output_event.as_str(),
+                    payload,
+                );
             }
         }
 
@@ -186,7 +199,13 @@ pub fn spawn_pty(
         struct PtyExitPayload {
             agent: String,
         }
-        let _ = app_handle.emit("pty-exit", PtyExitPayload { agent: agent_clone });
+        let payload = PtyExitPayload { agent: agent_clone.clone() };
+        let _ = app_handle.emit("pty-exit", payload.clone());
+        let exit_event = format!("pty-exit-agent-{}", agent_event_key(&agent_clone));
+        let _ = app_handle.emit(
+            exit_event.as_str(),
+            payload,
+        );
     });
 
     Ok(String::new())

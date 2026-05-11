@@ -38,8 +38,14 @@ export const loadStoredTerminalLanes = (agentName: string, workspaceId?: string 
     const lanes = parsed.filter(isTerminalLane);
     if (lanes.length === 0) return null;
 
+    const storedRoot = lanes.find(lane => lane.id === ROOT_TERMINAL_LANE_ID);
+    const rootLane = {
+      ...createRootTerminalLane(agentName),
+      label: storedRoot?.label?.trim() || "Main",
+    };
+
     return [
-      createRootTerminalLane(agentName),
+      rootLane,
       ...lanes.filter(lane => lane.id !== ROOT_TERMINAL_LANE_ID),
     ];
   } catch {
@@ -53,8 +59,12 @@ export const loadTerminalLanes = (agentName: string, workspaceId?: string | null
 
 export const saveTerminalLanes = (agentName: string, workspaceId: string | undefined | null, lanes: TerminalLane[]) => {
   try {
+    const currentRoot = lanes.find(lane => lane.id === ROOT_TERMINAL_LANE_ID);
     const normalizedLanes = [
-      createRootTerminalLane(agentName),
+      {
+        ...createRootTerminalLane(agentName),
+        label: currentRoot?.label?.trim() || "Main",
+      },
       ...lanes.filter(lane => lane.id !== ROOT_TERMINAL_LANE_ID),
     ];
     localStorage.setItem(getTerminalLaneStorageKey(workspaceId, agentName), JSON.stringify(normalizedLanes));
