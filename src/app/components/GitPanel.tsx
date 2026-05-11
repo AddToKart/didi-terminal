@@ -1,13 +1,18 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
-  GitBranch, X, RefreshCw, Plus, Minus, RotateCcw, Upload, Download,
+  GitBranch, X, Plus, Minus, RotateCcw, Upload, Download,
   ChevronDown, ChevronRight, Check, Loader2, GitMerge,
   AlertCircle
 } from "lucide-react";
 import { FileIcon } from "./FileIcon";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
+
+interface GitBranchInfo {
+  name: string;
+  isCurrent: boolean;
+}
 
 interface GitPanelFile {
   path: string;
@@ -51,48 +56,7 @@ function StatusIcon({ status }: { status: string }) {
   return <div className="w-3" />;
 }
 
-function RefBadge({ refs }: { refs: string }) {
-  if (!refs) return null;
-  
-  // Clean and deduplicate ref names
-  const rawParts = refs.split(",").map(r => r.trim()).filter(Boolean);
-  const uniqueRefs = new Map<string, { original: string, clean: string }>();
-  
-  rawParts.forEach(r => {
-    const clean = r.replace("HEAD -> ", "").replace("origin/", "").trim();
-    if (!uniqueRefs.has(clean)) {
-      uniqueRefs.set(clean, { original: r, clean });
-    } else {
-      // If we already have this name, but the new one has HEAD, prefer the HEAD version for styling
-      if (r.includes("HEAD")) {
-        uniqueRefs.set(clean, { original: r, clean });
-      }
-    }
-  });
 
-  const partsToRender = Array.from(uniqueRefs.values()).slice(0, 3);
-
-  return (
-    <div className="flex items-center gap-1 flex-wrap">
-      {partsToRender.map((refData, i) => {
-        const isHead = refData.original.includes("HEAD");
-        const isOrigin = refData.original.includes("origin");
-        const isMain = refData.original.includes("main") || refData.original.includes("master");
-        
-        let bg = "bg-zinc-800 text-zinc-400";
-        if (isHead) bg = "bg-brand-accent/20 text-brand-accent";
-        else if (isOrigin && isMain) bg = "bg-emerald-500/10 text-emerald-400";
-        else if (isOrigin) bg = "bg-blue-500/10 text-blue-400";
-        
-        return (
-          <span key={i} className={`text-[9px] font-mono px-1.5 py-0.5 rounded-full border border-white/5 ${bg}`}>
-            {refData.clean}
-          </span>
-        );
-      })}
-    </div>
-  );
-}
 
 // ── FileRow ───────────────────────────────────────────────────────────────────
 
@@ -191,7 +155,6 @@ export function GitPanel({ currentProject, isOpen, onClose, onOpenFullscreen }: 
   const [busy, setBusy] = useState<string | null>(null); // which action is running
   const [expandStaged, setExpandStaged] = useState(true);
   const [expandUnstaged, setExpandUnstaged] = useState(true);
-  const [expandHistory, setExpandHistory] = useState(true);
 
   const [activeTab, setActiveTab] = useState<"overview" | "branches" | "history">("overview");
 

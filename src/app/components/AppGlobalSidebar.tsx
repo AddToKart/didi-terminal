@@ -1,6 +1,5 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import { createPortal } from "react-dom";
-import { Code2, FolderOpen, Settings, Bell, Palette, Plus, TerminalSquare, Workflow, MoreVertical, Pencil, Trash2, Globe, Copy, Check, GitBranch } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Code2, FolderOpen, Settings, Bell, Palette, Plus, TerminalSquare, Workflow, MoreVertical, Pencil, Trash2, Globe, Copy, Check, GitBranch, Share2 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   DndContext,
@@ -19,6 +18,22 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { WorkspaceState } from "../../App";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
 
 interface AppGlobalSidebarProps {
   appMode: "terminal" | "orchestrator";
@@ -46,7 +61,9 @@ interface SortableWorkspaceItemProps {
   onEditWsName: (v: string) => void;
   onRenameSubmit: () => void;
   onRenameCancel: () => void;
-  onOpenMenu: (e: React.MouseEvent, wsId: string) => void;
+  onOpenDirectory: (id: string) => void;
+  onRenameStart: (id: string, name: string) => void;
+  onDelete: (id: string) => void;
   isDragOverlay?: boolean;
 }
 
@@ -60,13 +77,16 @@ function SortableWorkspaceItem({
   onEditWsName,
   onRenameSubmit,
   onRenameCancel,
-  onOpenMenu,
+  onOpenDirectory,
+  onRenameStart,
+  onDelete,
   isDragOverlay = false,
 }: SortableWorkspaceItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: ws.id });
 
   const [branch, setBranch] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     if (ws.directory) {
@@ -81,19 +101,8 @@ function SortableWorkspaceItem({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition: isDragOverlay ? undefined : transition,
-    // Ghost: nearly invisible placeholder where the item was
-    opacity: isDragging && !isDragOverlay ? 0.15 : 1,
+    zIndex: isDragging ? 50 : undefined,
   };
-
-  const containerClass = isDragOverlay
-    ? `flex items-center justify-between px-3 py-2.5 rounded-lg shadow-2xl border border-brand-accent/50 bg-app-panel ring-1 ring-brand-accent/30 cursor-grabbing select-none`
-    : `group relative flex items-center justify-between px-3 py-2.5 rounded-lg shadow-sm cursor-grab active:cursor-grabbing transition-all select-none ${
-        isDragging
-          ? "border border-transparent bg-transparent"
-          : isActive
-          ? "bg-brand-accent/5 border border-brand-accent/20"
-          : "hover:bg-app-panel/50 border border-transparent"
-      }`;
 
   return (
     <div
@@ -102,13 +111,34 @@ function SortableWorkspaceItem({
       {...attributes}
       {...listeners}
       onClick={onSelect}
-      className={containerClass}
+      className={cn(
+        "group relative flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer select-none transition-all duration-200 ease-out",
+        isDragOverlay
+          ? "bg-zinc-900/90 shadow-2xl ring-1 ring-white/10 backdrop-blur-xl scale-105"
+          : isDragging
+          ? "opacity-40 scale-95 grayscale"
+          : isActive
+          ? "bg-gradient-to-r from-zinc-800/80 to-zinc-800/40 shadow-sm ring-1 ring-white/10 text-white"
+          : "hover:bg-zinc-800/30 text-zinc-400 hover:text-zinc-200"
+      )}
     >
-      <div className="flex items-center gap-3 truncate flex-1 min-w-0">
-        <div className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${isActive ? "bg-brand-accent/20 text-brand-accent" : "bg-zinc-800/40 text-zinc-400"}`}>
-          <FolderOpen size={12} />
+      {/* Active Indicator Glow */}
+      {isActive && !isDragging && !isDragOverlay && (
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-brand-accent rounded-r-full shadow-[0_0_12px_rgba(255,255,255,0.3)]" />
+      )}
+
+      <div className="flex items-center gap-3 truncate flex-1 min-w-0 pl-1">
+        <div
+          className={cn(
+            "w-6 h-6 rounded-lg flex items-center justify-center shrink-0 transition-colors",
+            isActive
+              ? "bg-brand-accent/20 text-brand-accent shadow-[0_0_10px_rgba(var(--brand-accent-rgb),0.2)]"
+              : "bg-zinc-800/60 text-zinc-500 group-hover:text-zinc-300"
+          )}
+        >
+          <FolderOpen size={13} strokeWidth={2.5} />
         </div>
-        <div className="min-w-0 flex flex-col flex-1">
+        <div className="min-w-0 flex flex-col flex-1 justify-center gap-0.5">
           {editingWsId === ws.id ? (
             <input
               ref={inputRef}
@@ -121,43 +151,96 @@ function SortableWorkspaceItem({
               }}
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => e.stopPropagation()}
-              className="text-xs font-bold bg-app-panel border border-brand-accent/50 rounded px-1 outline-none text-brand-accent w-full"
+              className="text-xs font-semibold bg-zinc-950/50 border border-white/10 rounded-md px-1.5 py-0.5 outline-none text-white w-full focus:ring-1 focus:ring-brand-accent"
             />
           ) : (
-            <div className={`text-xs font-bold truncate transition-colors ${isActive ? "text-white" : "text-zinc-300 group-hover:text-white"}`}>
+            <div
+              className={cn(
+                "text-xs font-medium truncate transition-colors",
+                isActive ? "text-zinc-100" : "text-zinc-400 group-hover:text-zinc-200"
+              )}
+            >
               {ws.name}
             </div>
           )}
           {ws.directory ? (
-            <div className={`flex items-center gap-1.5 text-[9px] truncate font-bold ${isActive ? "text-brand-accent/80" : "text-zinc-400"}`} title={ws.directory}>
-              <span className="truncate">{ws.directory.split("\\").pop()?.split("/").pop()}</span>
+            <div className="flex items-center gap-1.5 text-[10px] truncate">
+              <span className={cn("truncate opacity-70", isActive ? "text-zinc-300" : "text-zinc-500")}>
+                {ws.directory.split("\\").pop()?.split("/").pop()}
+              </span>
               {branch && (
                 <>
-                  <span className="text-zinc-600/50">•</span>
-                  <span className="flex items-center gap-0.5 text-zinc-500 font-mono tracking-tighter truncate" title={`Branch: ${branch}`}>
+                  <span className="text-zinc-700 mx-0.5">•</span>
+                  <span
+                    className={cn(
+                      "flex items-center gap-1 font-mono tracking-tighter truncate px-1 py-0.5 rounded-md",
+                      isActive ? "bg-white/5 text-zinc-300" : "bg-zinc-900/50 text-zinc-500"
+                    )}
+                    title={`Branch: ${branch}`}
+                  >
                     <GitBranch size={9} />
                     {branch}
                   </span>
                 </>
               )}
             </div>
-
           ) : (
-            <div className="text-[9px] text-zinc-500 italic font-medium">No directory</div>
+            <div className="text-[10px] text-zinc-600 italic">No directory</div>
           )}
         </div>
       </div>
 
-      <div className="flex items-center gap-2 shrink-0">
-        <div className={`w-2 h-2 rounded-full ${ws.directory ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]"}`} title={ws.directory ? "Configured" : "Unconfigured"} />
-        <button
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => { e.stopPropagation(); onOpenMenu(e, ws.id); }}
-          className="p-1 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/40 rounded transition-colors opacity-0 group-hover:opacity-100"
-          title="Workspace Options"
-        >
-          <MoreVertical size={14} />
-        </button>
+      <div className="flex items-center gap-1.5 shrink-0 pr-1">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div
+              className={cn(
+                "w-2 h-2 rounded-full transition-all duration-300",
+                ws.directory
+                  ? "bg-emerald-400/80 shadow-[0_0_8px_rgba(52,211,153,0.4)]"
+                  : "bg-amber-400/80 shadow-[0_0_8px_rgba(251,191,36,0.4)]"
+              )}
+            />
+          </TooltipTrigger>
+          <TooltipContent side="right" className="text-xs">
+            {ws.directory ? "Configured" : "Unconfigured"}
+          </TooltipContent>
+        </Tooltip>
+
+        <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "size-6 rounded-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-zinc-700/50",
+                menuOpen && "opacity-100 bg-zinc-700/50"
+              )}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <MoreVertical size={14} className="text-zinc-400" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48 rounded-xl shadow-2xl border-white/10 bg-zinc-900/95 backdrop-blur-md">
+            <DropdownMenuItem onClick={() => onOpenDirectory(ws.id)} className="gap-2 cursor-pointer text-xs focus:bg-white/10">
+              <FolderOpen size={14} className="text-zinc-400" /> Open Directory
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => onRenameStart(ws.id, ws.name)}
+              className="gap-2 cursor-pointer text-xs focus:bg-white/10"
+            >
+              <Pencil size={14} className="text-zinc-400" /> Rename
+            </DropdownMenuItem>
+            <DropdownMenuSeparator className="bg-white/5" />
+            <DropdownMenuItem
+              onClick={() => onDelete(ws.id)}
+              className="gap-2 cursor-pointer text-xs text-red-400 focus:bg-red-500/10 focus:text-red-300"
+            >
+              <Trash2 size={14} /> Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
@@ -178,18 +261,11 @@ export function AppGlobalSidebar({
   onWorkspaceRename,
   onWorkspaceDelete,
 }: AppGlobalSidebarProps) {
-  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
-  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const [editingWsId, setEditingWsId] = useState<string | null>(null);
   const [editWsName, setEditWsName] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [showShareTooltip, setShowShareTooltip] = useState(false);
   const [copied, setCopied] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    // Localhost only for now
-  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -211,13 +287,6 @@ export function AppGlobalSidebar({
     setEditingWsId(null);
   };
 
-  const openMenu = useCallback((e: React.MouseEvent, wsId: string) => {
-    e.stopPropagation();
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setMenuPos({ top: rect.top, left: rect.right + 8 });
-    setMenuOpenId((prev) => (prev === wsId ? null : wsId));
-  }, []);
-
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
   };
@@ -234,168 +303,203 @@ export function AppGlobalSidebar({
   };
 
   return (
-    <>
-      {menuOpenId &&
-        createPortal(
-          <>
-            <div className="fixed inset-0 z-[90]" onClick={() => setMenuOpenId(null)} />
-            <div
-              className="fixed w-44 bg-app-panel border border-zinc-700/50 rounded-lg shadow-2xl py-1 z-[91]"
-              style={{ top: menuPos.top, left: menuPos.left }}
-            >
-              {(() => {
-                const ws = workspaces.find((w) => w.id === menuOpenId);
-                if (!ws) return null;
-                return (
-                  <>
-                    <button onClick={() => { onOpenDirectory(ws.id); setMenuOpenId(null); }} className="w-full px-3 py-2 text-left text-xs font-medium text-zinc-300 hover:bg-zinc-800/40 hover:text-zinc-100 flex items-center gap-2 transition-colors">
-                      <FolderOpen size={12} /> Open Directory
-                    </button>
-                    <button onClick={() => { setEditingWsId(ws.id); setEditWsName(ws.name); setMenuOpenId(null); }} className="w-full px-3 py-2 text-left text-xs font-medium text-zinc-300 hover:bg-zinc-800/40 hover:text-zinc-100 flex items-center gap-2 transition-colors">
-                      <Pencil size={12} /> Rename
-                    </button>
-                    <div className="my-1 border-t border-zinc-800/50" />
-                    <button onClick={() => { onWorkspaceDelete(ws.id); setMenuOpenId(null); }} className="w-full px-3 py-2 text-left text-xs font-medium text-red-400 hover:bg-red-500/10 hover:text-red-300 flex items-center gap-2 transition-colors">
-                      <Trash2 size={12} /> Delete
-                    </button>
-                  </>
-                );
-              })()}
-            </div>
-          </>,
-          document.body
-        )}
+    <TooltipProvider delayDuration={300}>
+      <aside className="w-64 border-r border-white/5 bg-zinc-950/80 backdrop-blur-2xl flex flex-col shadow-2xl z-20 shrink-0 relative overflow-hidden">
+        {/* Decorative background glow */}
+        <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-brand-accent/5 to-transparent pointer-events-none" />
 
-      <aside className="w-64 border-r border-app-border bg-app-panel flex flex-col shadow-xl z-20 shrink-0">
-        <div className="p-4 border-b border-app-border/50">
-          <div className="flex items-center gap-2.5 text-zinc-200 font-bold tracking-wide">
-            <Code2 className="text-brand-accent" size={22} />
-            <span>DidiTerminal</span>
+        <div className="p-5 flex items-center gap-3 relative">
+          <div className="size-8 rounded-xl bg-gradient-to-br from-brand-accent to-brand-accent/60 flex items-center justify-center shadow-lg shadow-brand-accent/20 ring-1 ring-white/20">
+            <Code2 className="text-white" size={18} strokeWidth={2.5} />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-sm font-bold text-zinc-100 tracking-tight leading-none">DidiTerminal</span>
+            <span className="text-[10px] text-zinc-500 font-medium mt-0.5 tracking-wider">WORKSPACE MANAGER</span>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-3 space-y-6">
-          <div>
-            <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 px-1">Workspaces</div>
-            <div className="space-y-1">
-      <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext items={workspaces.map((w) => w.id)} strategy={verticalListSortingStrategy}>
-                  {workspaces.map((ws) => (
-                    <SortableWorkspaceItem
-                      key={ws.id}
-                      ws={ws}
-                      isActive={ws.id === activeWorkspaceId}
-                      editingWsId={editingWsId}
-                      editWsName={editWsName}
-                      inputRef={inputRef}
-                      onSelect={() => onWorkspaceSelect(ws.id)}
-                      onEditWsName={setEditWsName}
-                      onRenameSubmit={handleRenameSubmit}
-                      onRenameCancel={() => setEditingWsId(null)}
-                      onOpenMenu={openMenu}
-                      isDragOverlay={false}
-                    />
-                  ))}
-                </SortableContext>
+        <ScrollArea className="flex-1 px-3">
+          <div className="space-y-6 pb-6">
+            <div>
+              <div className="flex items-center justify-between px-2 mb-3">
+                <span className="text-[10px] font-semibold text-zinc-500 tracking-widest uppercase">Projects</span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={onCreateWorkspace}
+                      className="size-5 rounded-md hover:bg-white/10 text-zinc-400 hover:text-zinc-200"
+                    >
+                      <Plus size={12} strokeWidth={3} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">New Workspace</TooltipContent>
+                </Tooltip>
+              </div>
 
-                <DragOverlay dropAnimation={null}>
-                  {activeId ? (() => {
-                    const ws = workspaces.find(w => w.id === activeId);
-                    return ws ? (
+              <div className="space-y-1">
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext items={workspaces.map((w) => w.id)} strategy={verticalListSortingStrategy}>
+                    {workspaces.map((ws) => (
                       <SortableWorkspaceItem
+                        key={ws.id}
                         ws={ws}
                         isActive={ws.id === activeWorkspaceId}
-                        editingWsId={null}
-                        editWsName=""
+                        editingWsId={editingWsId}
+                        editWsName={editWsName}
                         inputRef={inputRef}
-                        onSelect={() => {}}
-                        onEditWsName={() => {}}
-                        onRenameSubmit={() => {}}
-                        onRenameCancel={() => {}}
-                        onOpenMenu={() => {}}
-                        isDragOverlay
-                      />
-                    ) : null;
-                  })() : null}
-                </DragOverlay>
-              </DndContext>
-
-              <button
-                onClick={onCreateWorkspace}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200 transition-all border border-transparent hover:border-zinc-800/50 mt-2"
-              >
-                <div className="w-5 h-5 rounded-md bg-zinc-800/40 flex items-center justify-center shrink-0">
-                  <Plus size={12} />
-                </div>
-                New Workspace
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="p-3 border-t border-app-border/50 flex flex-col gap-3">
-          <div className="flex items-center justify-between bg-app-panel/50 p-1.5 rounded-xl border border-zinc-700/30 shadow-inner">
-            <button
-              onClick={() => onSetAppMode("terminal")}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all ${appMode === "terminal" ? "bg-white/10 text-white shadow-sm ring-1 ring-white/10" : "text-zinc-400 hover:text-white"}`}
-            >
-              <TerminalSquare size={14} strokeWidth={2.5} /> Terminal
-            </button>
-            <button
-              onClick={() => onSetAppMode("orchestrator")}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all ${appMode === "orchestrator" ? "bg-purple-500/30 text-white shadow-sm ring-1 ring-purple-500/20" : "text-zinc-400 hover:text-white"}`}
-            >
-              <Workflow size={14} strokeWidth={2.5} /> Orchestrator
-            </button>
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1">
-              <button 
-                onClick={() => setShowShareTooltip(!showShareTooltip)}
-                className={`p-2 rounded-lg transition-all relative ${showShareTooltip ? "bg-brand-accent/20 text-brand-accent" : "text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/50"}`}
-                title="Remote Access Dashboard"
-              >
-                <Globe size={16} />
-                {showShareTooltip && (
-                  <div className="absolute bottom-full left-0 mb-2 w-56 p-3 bg-[#18181b] border border-brand-accent/30 rounded-xl shadow-2xl z-[100] animate-in fade-in slide-in-from-bottom-2">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-brand-accent mb-2">Local Dashboard</p>
-                    <div className="bg-black/40 p-2 rounded-lg border border-white/5 mb-2 group/url relative">
-                      <p className="text-[10px] font-mono break-all text-zinc-300 pr-8">http://localhost:1420/dashboard</p>
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const url = `http://localhost:1420/dashboard`;
-                          navigator.clipboard.writeText(url);
-                          setCopied(true);
-                          setTimeout(() => setCopied(false), 2000);
+                        onSelect={() => onWorkspaceSelect(ws.id)}
+                        onEditWsName={setEditWsName}
+                        onRenameSubmit={handleRenameSubmit}
+                        onRenameCancel={() => setEditingWsId(null)}
+                        onOpenDirectory={onOpenDirectory}
+                        onRenameStart={(id, name) => {
+                          setEditingWsId(id);
+                          setEditWsName(name);
                         }}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md bg-zinc-800 text-zinc-400 hover:text-white transition-all border border-zinc-700/50 shadow-lg"
-                      >
-                        {copied ? <Check size={10} className="text-emerald-400" /> : <Copy size={10} />}
-                      </button>
-                    </div>
-                    <p className="text-[9px] text-zinc-500 leading-relaxed">Open this URL on any device in your network to monitor your agents live.</p>
-                  </div>
-                )}
-              </button>
-              <button className="p-2 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/50 rounded-lg transition-colors">
-                <Palette size={16} />
-              </button>
-              <button className="p-2 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/50 rounded-lg transition-colors">
-                <Bell size={16} />
-              </button>
+                        onDelete={onWorkspaceDelete}
+                      />
+                    ))}
+                  </SortableContext>
+
+                  <DragOverlay dropAnimation={null}>
+                    {activeId ? (() => {
+                      const ws = workspaces.find((w) => w.id === activeId);
+                      return ws ? (
+                        <SortableWorkspaceItem
+                          ws={ws}
+                          isActive={ws.id === activeWorkspaceId}
+                          editingWsId={null}
+                          editWsName=""
+                          inputRef={inputRef}
+                          onSelect={() => {}}
+                          onEditWsName={() => {}}
+                          onRenameSubmit={() => {}}
+                          onRenameCancel={() => {}}
+                          onOpenDirectory={() => {}}
+                          onRenameStart={() => {}}
+                          onDelete={() => {}}
+                          isDragOverlay
+                        />
+                      ) : null;
+                    })() : null}
+                  </DragOverlay>
+                </DndContext>
+              </div>
             </div>
-            <button onClick={onOpenSettings} className="p-2 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/50 rounded-lg transition-colors">
-              <Settings size={16} />
-            </button>
+          </div>
+        </ScrollArea>
+
+        <div className="p-4 bg-zinc-950/90 border-t border-white/5 backdrop-blur-md relative z-10 space-y-4">
+          <div className="bg-zinc-900/50 p-1 rounded-xl flex gap-1 ring-1 ring-white/5 shadow-inner">
+            <Button
+              variant={appMode === "terminal" ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => onSetAppMode("terminal")}
+              className={cn(
+                "flex-1 h-8 rounded-lg text-xs font-semibold transition-all",
+                appMode === "terminal"
+                  ? "bg-white/10 text-white shadow-sm hover:bg-white/15"
+                  : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
+              )}
+            >
+              <TerminalSquare size={14} className="mr-1.5" strokeWidth={2.5} /> Terminal
+            </Button>
+            <Button
+              variant={appMode === "orchestrator" ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => onSetAppMode("orchestrator")}
+              className={cn(
+                "flex-1 h-8 rounded-lg text-xs font-semibold transition-all",
+                appMode === "orchestrator"
+                  ? "bg-purple-500/20 text-purple-200 shadow-sm ring-1 ring-purple-500/30 hover:bg-purple-500/30"
+                  : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
+              )}
+            >
+              <Workflow size={14} className="mr-1.5" strokeWidth={2.5} /> Orchestrator
+            </Button>
+          </div>
+
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-1.5">
+              <DropdownMenu>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="size-8 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 data-[state=open]:bg-white/10 data-[state=open]:text-white">
+                        <Share2 size={16} />
+                      </Button>
+                    </DropdownMenuTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent>Remote Dashboard</TooltipContent>
+                </Tooltip>
+                <DropdownMenuContent align="start" sideOffset={12} className="w-64 p-3 rounded-2xl border-white/10 shadow-2xl bg-zinc-950/95 backdrop-blur-xl">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Globe size={14} className="text-brand-accent" />
+                    <p className="text-xs font-semibold text-zinc-200">Local Network Access</p>
+                  </div>
+                  <div className="bg-black/50 p-2 rounded-xl border border-white/5 flex items-center justify-between gap-2 group">
+                    <p className="text-[10px] font-mono text-zinc-400 truncate pl-1">http://localhost:1420/dashboard</p>
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      className="size-6 rounded-md shrink-0 bg-white/5 hover:bg-white/10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigator.clipboard.writeText("http://localhost:1420/dashboard");
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                      }}
+                    >
+                      {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} className="text-zinc-400 group-hover:text-white" />}
+                    </Button>
+                  </div>
+                  <p className="text-[10px] text-zinc-500 mt-2 leading-relaxed px-1">Open this URL on any device in your network to monitor agents live.</p>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="size-8 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10">
+                    <Palette size={16} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Theme</TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="size-8 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10">
+                    <Bell size={16} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Notifications</TooltipContent>
+              </Tooltip>
+            </div>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onOpenSettings}
+                  className="size-8 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10"
+                >
+                  <Settings size={16} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Settings</TooltipContent>
+            </Tooltip>
           </div>
         </div>
       </aside>
-    </>
+    </TooltipProvider>
   );
 }
+
