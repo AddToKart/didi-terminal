@@ -11,7 +11,8 @@ import {
   Globe,
   Link2,
   Server,
-  CheckCircle2
+  CheckCircle2,
+  Terminal
 } from 'lucide-react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
@@ -25,14 +26,20 @@ interface DbViewerProps {
 interface QueryResult {
   columns: string[];
   rows: Array<Array<string | number | boolean | null>>;
+  rows_affected: number | null;
+}
+
+interface TableInfo {
+  schema?: string;
+  name: string;
 }
 
 type DbMode = "sqlite" | "postgres" | "mysql";
 
 export function DbViewer({ isOpen, onClose }: DbViewerProps) {
   const [dbPath, setDbPath] = useState<string | null>(null);
-  const [tables, setTables] = useState<string[]>([]);
-  const [selectedTable, setSelectedTable] = useState<string | null>(null);
+  const [tables, setTables] = useState<TableInfo[]>([]);
+  const [selectedTable, setSelectedTable] = useState<TableInfo | null>(null);
   const [data, setData] = useState<any[]>([]);
   const [columns, setColumns] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -50,6 +57,11 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
     database: "postgres"
   });
   const [connectionLabel, setConnectionLabel] = useState<string | null>(null);
+  
+  const [activeTab, setActiveTab] = useState<"table" | "query">("table");
+  const [customQuery, setCustomQuery] = useState("");
+  const [queryResult, setQueryResult] = useState<QueryResult | null>(null);
+  const [queryError, setQueryError] = useState<string | null>(null);
 
   // ── SQLite (local file) ──────────────────────────────────────────
   const handleSelectDb = async () => {
@@ -80,7 +92,7 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
       const result = await db.select<{ name: string }[]>(
         "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
       );
-      setTables(result.map(r => r.name));
+      setTables(result.map(r => ({ name: r.name })));
     } catch (err) {
       setError(`Failed to load tables: ${err}`);
     } finally {
@@ -115,8 +127,8 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
       
       // Use our custom Rust commands — bypass the plugin allowlist entirely
       const tables = isPostgres
-        ? await invoke<string[]>("db_get_postgres_tables", { connectionString: url })
-        : await invoke<string[]>("db_get_mysql_tables",   { connectionString: url });
+        ? await invoke<TableInfo[]>("db_get_postgres_tables", { connectionString: url })
+        : await invoke<TableInfo[]>("db_get_mysql_tables",   { connectionString: url });
 
       setDbPath(url);
       setDbMode(mode);
@@ -136,27 +148,31 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
   };
 
   // ── Load table data ───────────────────────────────────────────────
-  const loadTableData = async (table: string) => {
+  const loadTableData = async (tableInfo: TableInfo) => {
     if (!dbPath) return;
     setIsLoading(true);
     setError(null);
-    setSelectedTable(table);
+    setSelectedTable(tableInfo);
+    setActiveTab("table");
+
+    const tableIdent = tableInfo.schema ? `"${tableInfo.schema}"."${tableInfo.name}"` : `"${tableInfo.name}"`;
+    const tableIdentMysql = tableInfo.schema ? `\`${tableInfo.schema}\`.\`${tableInfo.name}\`` : `\`${tableInfo.name}\``;
+
     try {
       if (dbMode === "sqlite") {
         const db = await SqlDatabase.load(`sqlite:${dbPath}`);
-        const result = await db.select<any[]>(`SELECT * FROM "${table}" LIMIT 100`);
+        const result = await db.select<any[]>(`SELECT * FROM "${tableInfo.name}" LIMIT 100`);
         setData(result);
         if (result.length > 0) {
           setColumns(Object.keys(result[0]));
         } else {
-          const cols = await db.select<{ name: string }[]>(`PRAGMA table_info("${table}")`);
+          const cols = await db.select<{ name: string }[]>(`PRAGMA table_info("${tableInfo.name}")`);
           setColumns(cols.map(c => c.name));
         }
       } else if (dbMode === "postgres") {
-        const quote = '"';
         const result = await invoke<QueryResult>("db_query_postgres", {
           connectionString: dbPath,
-          query: `SELECT * FROM ${quote}${table}${quote} LIMIT 100`
+          query: `SELECT * FROM ${tableIdent} LIMIT 100`
         });
         setColumns(result.columns);
         setData(result.rows.map(row =>
@@ -165,7 +181,7 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
       } else {
         const result = await invoke<QueryResult>("db_query_mysql", {
           connectionString: dbPath,
-          query: `SELECT * FROM \`${table}\` LIMIT 100`
+          query: `SELECT * FROM ${tableIdentMysql} LIMIT 100`
         });
         setColumns(result.columns);
         setData(result.rows.map(row =>
@@ -179,6 +195,40 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
     }
   };
 
+  const runCustomQuery = async () => {
+    if (!dbPath || !customQuery.trim()) return;
+    setIsLoading(true);
+    setQueryError(null);
+    setQueryResult(null);
+    try {
+      if (dbMode === "sqlite") {
+        const db = await SqlDatabase.load(`sqlite:${dbPath}`);
+        const isSelect = customQuery.trim().toUpperCase().startsWith("SELECT") || customQuery.trim().toUpperCase().startsWith("PRAGMA") || customQuery.trim().toUpperCase().startsWith("WITH");
+        if (isSelect) {
+          const result = await db.select<any[]>(customQuery);
+          if (result.length > 0) {
+            setQueryResult({ columns: Object.keys(result[0]), rows: result.map(r => Object.values(r)), rows_affected: null });
+          } else {
+            setQueryResult({ columns: [], rows: [], rows_affected: null });
+          }
+        } else {
+          const result = await db.execute(customQuery);
+          setQueryResult({ columns: [], rows: [], rows_affected: result.rowsAffected });
+        }
+      } else if (dbMode === "postgres") {
+        const result = await invoke<QueryResult>("db_query_postgres", { connectionString: dbPath, query: customQuery });
+        setQueryResult(result);
+      } else {
+        const result = await invoke<QueryResult>("db_query_mysql", { connectionString: dbPath, query: customQuery });
+        setQueryResult(result);
+      }
+    } catch (err) {
+      setQueryError(String(err));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const refreshTables = async () => {
     if (!dbPath) return;
     if (dbMode === "sqlite") {
@@ -187,14 +237,14 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
       setIsLoading(true);
       setError(null);
       try {
-        const t = await invoke<string[]>("db_get_postgres_tables", { connectionString: dbPath });
+        const t = await invoke<TableInfo[]>("db_get_postgres_tables", { connectionString: dbPath });
         setTables(t);
       } catch (err) { setError(String(err)); } finally { setIsLoading(false); }
     } else {
       setIsLoading(true);
       setError(null);
       try {
-        const t = await invoke<string[]>("db_get_mysql_tables", { connectionString: dbPath });
+        const t = await invoke<TableInfo[]>("db_get_mysql_tables", { connectionString: dbPath });
         setTables(t);
       } catch (err) { setError(String(err)); } finally { setIsLoading(false); }
     }
@@ -265,6 +315,16 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
                 <Globe size={14} />
                 REMOTE SERVER
               </button>
+              <button
+                onClick={() => { setActiveTab("query"); setSelectedTable(null); }}
+                disabled={!dbPath}
+                className={`w-full flex items-center justify-center gap-2 px-4 py-2 border rounded-lg text-xs font-bold transition-all ${
+                  activeTab === "query" ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-400' : 'bg-white/5 hover:bg-white/10 border-white/10 text-zinc-300'
+                } ${!dbPath ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <Terminal size={14} />
+                SQL CONSOLE
+              </button>
             </div>
 
             <div className="flex-1 overflow-y-auto px-2 pb-4">
@@ -273,23 +333,30 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
                   <p className="px-3 text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-2">
                     Tables ({tables.length})
                   </p>
-                  {tables.map(table => (
+                  {tables.map(table => {
+                    const fullTableName = table.schema ? `${table.schema}.${table.name}` : table.name;
+                    const isSelected = selectedTable?.name === table.name && selectedTable?.schema === table.schema;
+                    return (
                     <button
-                      key={table}
+                      key={fullTableName}
                       onClick={() => loadTableData(table)}
                       className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm transition-all group ${
-                        selectedTable === table
+                        isSelected
                           ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
                           : 'text-zinc-400 hover:text-white hover:bg-white/5 border border-transparent'
                       }`}
                     >
                       <div className="flex items-center gap-2 overflow-hidden">
-                        <TableIcon size={14} className={selectedTable === table ? 'text-amber-500' : 'text-zinc-600'} />
-                        <span className="truncate">{table}</span>
+                        <TableIcon size={14} className={isSelected ? 'text-amber-500' : 'text-zinc-600'} />
+                        <span className="truncate text-left" title={fullTableName}>
+                          {table.schema && <span className="text-zinc-500 mr-1">{table.schema}.</span>}
+                          {table.name}
+                        </span>
                       </div>
-                      <ChevronRight size={14} className={`opacity-0 group-hover:opacity-100 transition-opacity ${selectedTable === table ? 'opacity-100' : ''}`} />
+                      <ChevronRight size={14} className={`opacity-0 group-hover:opacity-100 transition-opacity ${isSelected ? 'opacity-100' : ''}`} />
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center h-full opacity-30 px-6 text-center">
@@ -445,7 +512,9 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
                 <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-2 text-zinc-300">
                     <TableIcon size={16} />
-                    <span className="font-bold text-sm tracking-tight">{selectedTable}</span>
+                    <span className="font-bold text-sm tracking-tight">
+                      {selectedTable.schema ? `${selectedTable.schema}.${selectedTable.name}` : selectedTable.name}
+                    </span>
                     <span className="text-[10px] bg-white/5 px-1.5 py-0.5 rounded text-zinc-500">{data.length} rows</span>
                   </div>
                   <div className="relative flex-1 max-w-sm">
@@ -492,6 +561,66 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
                   )}
                 </div>
               </>
+            ) : activeTab === "query" ? (
+              <div className="flex-1 flex flex-col min-h-0 bg-zinc-950">
+                <div className="p-4 border-b border-white/5 bg-zinc-900/50">
+                  <textarea
+                    value={customQuery}
+                    onChange={e => setCustomQuery(e.target.value)}
+                    placeholder="Enter SQL query here... (e.g. SELECT * FROM users)"
+                    className="w-full h-28 bg-black/50 border border-white/10 rounded-xl p-4 text-sm font-mono text-zinc-300 focus:outline-none focus:border-indigo-500/50 transition-colors resize-none shadow-inner"
+                  />
+                  <div className="flex justify-end mt-3">
+                    <button
+                      onClick={runCustomQuery}
+                      disabled={isLoading || !customQuery.trim()}
+                      className="px-6 py-2 bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs rounded-lg shadow-lg shadow-indigo-500/20 transition-colors flex items-center gap-2"
+                    >
+                      {isLoading ? <RefreshCw size={14} className="animate-spin" /> : null}
+                      RUN QUERY
+                    </button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-auto bg-black/20 p-4">
+                  {queryError && (
+                    <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs font-mono animate-in fade-in">
+                      {queryError}
+                    </div>
+                  )}
+                  {queryResult && (
+                    queryResult.rows_affected !== null ? (
+                      <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-xl text-green-400 text-sm font-bold flex items-center gap-3 animate-in fade-in">
+                        <CheckCircle2 size={18} />
+                        Query executed successfully. {queryResult.rows_affected} rows affected.
+                      </div>
+                    ) : (
+                      <div className="border border-white/10 rounded-xl overflow-hidden animate-in fade-in">
+                        <table className="w-full border-collapse text-left">
+                          <thead className="bg-zinc-900">
+                            <tr>
+                              {queryResult.columns.map((col, i) => (
+                                <th key={i} className="px-4 py-3 text-[10px] font-black text-zinc-500 uppercase tracking-widest border-b border-white/5">{col}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-white/[0.03]">
+                            {queryResult.rows.map((row, i) => (
+                              <tr key={i} className="hover:bg-white/[0.02]">
+                                {row.map((cell, j) => (
+                                  <td key={j} className="px-4 py-2 text-xs text-zinc-400 font-mono whitespace-nowrap overflow-hidden text-ellipsis max-w-xs">{cell === null ? <span className="italic opacity-50">null</span> : String(cell)}</td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        {queryResult.rows.length === 0 && (
+                          <div className="p-8 text-center text-sm text-zinc-500">No rows returned.</div>
+                        )}
+                      </div>
+                    )
+                  )}
+                </div>
+              </div>
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center text-zinc-500 gap-4">
                 {dbPath && !showRemoteForm ? (
@@ -524,7 +653,8 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
         <div className="px-6 py-2 border-t border-white/5 bg-white/[0.02] flex items-center justify-between text-[10px] text-zinc-600 font-bold uppercase tracking-widest">
           <div className="flex items-center gap-4">
             <span className={`uppercase ${dbBadgeColor}`}>{dbMode} driver</span>
-            {selectedTable && <span>Table: {selectedTable}</span>}
+            {selectedTable && activeTab === "table" && <span>Table: {selectedTable.schema ? `${selectedTable.schema}.${selectedTable.name}` : selectedTable.name}</span>}
+            {activeTab === "query" && <span className="text-indigo-400">SQL CONSOLE</span>}
           </div>
           {isLoading && (
             <div className="flex items-center gap-2 text-amber-500/80 animate-pulse">
