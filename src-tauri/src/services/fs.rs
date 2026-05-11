@@ -3,6 +3,59 @@ use std::fs;
 use std::path::Path;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct EnvConfig {
+    pub path: String,
+    pub name: String,
+}
+
+#[tauri::command]
+pub fn scan_env_files(cwd: String) -> Result<Vec<EnvConfig>, String> {
+    let mut configs = Vec::new();
+    let root = Path::new(&cwd);
+    
+    if !root.exists() {
+        return Err("Directory does not exist".to_string());
+    }
+
+    scan_env_recursive(root, root, 0, &mut configs);
+
+    Ok(configs)
+}
+
+fn scan_env_recursive(dir: &Path, root: &Path, depth: u8, configs: &mut Vec<EnvConfig>) {
+    if depth > 3 {
+        return;
+    }
+
+    if dir.join(".env").exists() {
+        let name = if dir == root {
+            "root".to_string()
+        } else {
+            dir.strip_prefix(root)
+                .unwrap_or(dir)
+                .to_string_lossy()
+                .replace('\\', "/")
+        };
+        
+        configs.push(EnvConfig {
+            path: dir.join(".env").to_string_lossy().to_string(),
+            name,
+        });
+    }
+
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+                if name != "node_modules" && name != "target" && name != "dist" && name != "build" && !name.starts_with('.') {
+                    scan_env_recursive(&path, root, depth + 1, configs);
+                }
+            }
+        }
+    }
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FileEntry {
     pub name: String,
     pub path: String,

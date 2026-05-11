@@ -2,20 +2,55 @@ import { useState, useEffect } from "react";
 import { 
   X, 
   Package,
-  Play,
-  Box,
   RefreshCw,
   Search,
-  ExternalLink
+  ExternalLink,
+  ShieldCheck,
+  AlertTriangle,
+  Loader2
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 
-interface PackageJson {
-  name?: string;
-  version?: string;
-  scripts?: Record<string, string>;
-  dependencies?: Record<string, string>;
-  devDependencies?: Record<string, string>;
+interface ProjectConfig {
+  path: string;
+  name: string;
+  manager: string;
+  file_type: string;
+}
+
+interface OutdatedPackage {
+  current: string;
+  wanted: string;
+  latest: string;
+  type: string; // dependencies, devDependencies
+}
+
+interface PackageItem {
+  name: string;
+  installed: string;
+  latest?: string;
+  type?: string;
+  status: "up-to-date" | "minor" | "major" | "patch" | "unknown";
+  manager: string;
 }
 
 interface PackageManagerProps {
@@ -25,198 +60,360 @@ interface PackageManagerProps {
 }
 
 export function PackageManager({ currentProject, isOpen, onClose }: PackageManagerProps) {
-  const [pkg, setPkg] = useState<PackageJson | null>(null);
+  const [configs, setConfigs] = useState<ProjectConfig[]>([]);
+  const [activeConfig, setActiveConfig] = useState<ProjectConfig | null>(null);
+  
+  const [packages, setPackages] = useState<PackageItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [scanProgress, setScanProgress] = useState(0);
+  const [updating, setUpdating] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState<"scripts" | "dependencies" | "devDependencies">("scripts");
 
-  const fetchPackage = async () => {
+  // 1. Scan for projects
+  useEffect(() => {
+    if (isOpen && currentProject) {
+      scanProjects();
+    }
+  }, [isOpen, currentProject]);
+
+  const scanProjects = async () => {
     if (!currentProject) return;
     setLoading(true);
     try {
-      const content = await invoke<string>("read_file_content", { path: `${currentProject}/package.json` });
-      setPkg(JSON.parse(content));
-      setError(null);
+      const res = await invoke<ProjectConfig[]>("scan_project_configs", { cwd: currentProject });
+      setConfigs(res);
+      if (res.length > 0) {
+        setActiveConfig(res[0]);
+      }
     } catch (err) {
-      console.error("Failed to read package.json:", err);
-      setError("Failed to read package.json file");
-      setPkg(null);
+      console.error(err);
+      setError(String(err));
     } finally {
       setLoading(false);
     }
   };
 
+  // 2. Fetch packages for active project
   useEffect(() => {
-    if (isOpen) {
-      fetchPackage();
+    if (activeConfig) {
+      fetchPackages(activeConfig);
     }
-  }, [isOpen, currentProject]);
+  }, [activeConfig]);
+
+  // Simulated progress bar for heavy scanning (like npm outdated)
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    if (loading) {
+      setScanProgress(0);
+      interval = setInterval(() => {
+        setScanProgress(prev => {
+          if (prev >= 90) return prev;
+          return prev + Math.floor(Math.random() * 10) + 1;
+        });
+      }, 500);
+    } else {
+      setScanProgress(100);
+      setTimeout(() => setScanProgress(0), 500);
+    }
+    return () => clearInterval(interval);
+  }, [loading]);
+
+  const fetchPackages = async (config: ProjectConfig) => {
+    setLoading(true);
+    setError(null);
+    setPackages([]);
+    
+    try {
+      const content = await invoke<string>("read_file_content", { path: `${config.path}/${config.file_type}` });
+      let pkgs: PackageItem[] = [];
+
+      if (config.manager === "npm") {
+        const json = JSON.parse(content);
+        const deps = { ...json.dependencies, ...json.devDependencies };
+        
+        // Fetch outdated via npm outdated --json
+        let outdatedData: Record<string, OutdatedPackage> = {};
+        try {
+          const outdatedStr = await invoke<string>("get_outdated_npm", { cwd: config.path });
+          if (outdatedStr) outdatedData = JSON.parse(outdatedStr);
+        } catch (e) {
+          // If npm outdated returns error code but prints json, it's caught here
+          if (typeof e === "string" && e.startsWith("{")) {
+             try { outdatedData = JSON.parse(e); } catch {}
+          }
+        }
+
+        pkgs = Object.entries(deps).map(([name, ver]) => {
+          const installed = String(ver);
+          const out = outdatedData[name];
+          let status: PackageItem["status"] = "up-to-date";
+          let latest = installed;
+
+          if (out) {
+            latest = out.latest;
+            const curParts = out.current ? out.current.split('.') : [];
+            const latParts = out.latest ? out.latest.split('.') : [];
+            if (curParts[0] !== latParts[0]) status = "major";
+            else if (curParts[1] !== latParts[1]) status = "minor";
+            else status = "patch";
+          }
+
+          return { name, installed, latest, status, manager: "npm" };
+        });
+
+      } else if (config.manager === "cargo") {
+        // Simple TOML parsing for Cargo
+        const lines = content.split('\n');
+        let inDeps = false;
+        for (const line of lines) {
+          if (line.trim().startsWith('[dependencies]') || line.trim().startsWith('[dev-dependencies]')) {
+            inDeps = true;
+            continue;
+          } else if (line.trim().startsWith('[')) {
+            inDeps = false;
+          }
+
+          if (inDeps && line.includes('=')) {
+            const parts = line.split('=');
+            if (parts.length >= 2) {
+              const name = parts[0].trim();
+              const version = parts[1].split('#')[0].trim().replace(/['"{}]/g, ''); // Crude parsing
+              if (name) {
+                pkgs.push({ name, installed: version, status: "unknown", manager: "cargo" });
+              }
+            }
+          }
+        }
+      } else if (config.manager === "pip") {
+        // requirements.txt
+        const lines = content.split('\n');
+        for (const line of lines) {
+          const clean = line.split('#')[0].trim();
+          if (clean) {
+            const parts = clean.split(/==|>=|<=|~/);
+            const name = parts[0];
+            const version = parts.length > 1 ? parts[1] : "latest";
+            if (name) pkgs.push({ name, installed: version, status: "unknown", manager: "pip" });
+          }
+        }
+      }
+
+      setPackages(pkgs);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load dependencies");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdate = async (pkgName: string) => {
+    if (!activeConfig) return;
+    const nextUpdating = new Set(updating);
+    nextUpdating.add(pkgName);
+    setUpdating(nextUpdating);
+
+    try {
+      await invoke("run_package_update", {
+        cwd: activeConfig.path,
+        manager: activeConfig.manager,
+        package: pkgName
+      });
+      // Refresh
+      await fetchPackages(activeConfig);
+    } catch (e) {
+      console.error(e);
+      alert(`Update failed: ${e}`);
+    } finally {
+      const next = new Set(updating);
+      next.delete(pkgName);
+      setUpdating(next);
+    }
+  };
+
+  const handleUpdateAll = async () => {
+    if (!activeConfig) return;
+    const toUpdate = packages.filter(p => p.status === "minor" || p.status === "patch" || p.status === "major");
+    for (const p of toUpdate) {
+      await handleUpdate(p.name);
+    }
+  };
 
   if (!isOpen) return null;
 
-  const scripts = Object.entries(pkg?.scripts || {});
-  const deps = Object.entries(pkg?.dependencies || {});
-  const devDeps = Object.entries(pkg?.devDependencies || {});
-
-  const renderScripts = () => {
-    const filtered = scripts.filter(([name]) => name.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    if (filtered.length === 0) return <div className="p-4 text-center text-zinc-500 text-xs">No scripts found.</div>;
-
-    return (
-      <div className="grid grid-cols-2 gap-2">
-        {filtered.map(([name, cmd]) => (
-          <div key={name} className="flex items-center justify-between p-3 bg-white/5 hover:bg-white/10 border border-white/5 rounded-lg transition-all group">
-            <div className="min-w-0 flex-1 pr-3">
-              <div className="text-xs font-bold text-zinc-200 truncate">{name}</div>
-              <div className="text-[10px] text-zinc-500 font-mono truncate mt-0.5">{cmd}</div>
-            </div>
-            <button 
-              className="p-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-md transition-all shrink-0 active:scale-90"
-              title={`Run ${name}`}
-              onClick={() => {
-                // In the future, this could trigger a new terminal tab running the script
-                navigator.clipboard.writeText(`npm run ${name}`);
-                alert(`Copied "npm run ${name}" to clipboard!`);
-              }}
-            >
-              <Play size={14} className="ml-0.5" />
-            </button>
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  const renderDeps = (dependencies: [string, string][]) => {
-    const filtered = dependencies.filter(([name]) => name.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    if (filtered.length === 0) return <div className="p-4 text-center text-zinc-500 text-xs">No dependencies found.</div>;
-
-    return (
-      <div className="space-y-1">
-        {filtered.map(([name, version]) => (
-          <div key={name} className="flex items-center justify-between px-4 py-2 bg-black/20 hover:bg-white/[0.02] border border-transparent hover:border-white/5 rounded-lg transition-all group">
-            <div className="flex items-center gap-3">
-              <Box size={14} className="text-zinc-600 group-hover:text-purple-400 transition-colors" />
-              <span className="text-xs font-semibold text-zinc-300 group-hover:text-white transition-colors">{name}</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-[10px] font-mono text-zinc-500 bg-white/5 px-2 py-0.5 rounded">{version}</span>
-              <button 
-                className="opacity-0 group-hover:opacity-100 p-1 text-zinc-500 hover:text-white transition-all"
-                onClick={() => window.open(`https://www.npmjs.com/package/${name}`, '_blank')}
-                title="View on NPM"
-              >
-                <ExternalLink size={12} />
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  };
+  const filteredPkgs = packages.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  const updatesAvailable = packages.filter(p => p.status === "minor" || p.status === "patch" || p.status === "major").length;
 
   return (
     <>
       <div 
-        className="fixed inset-0 bg-black/60 backdrop-blur-md z-[100] animate-in fade-in duration-500" 
+        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] animate-in fade-in duration-300" 
         onClick={onClose}
       />
 
       <div className="fixed inset-0 flex items-center justify-center z-[101] p-4 pointer-events-none">
-        <div className="bg-[#0b0b0d]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden w-full max-w-3xl h-[650px] flex flex-col pointer-events-auto animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
+        <div className="bg-[#121214]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden w-full max-w-5xl h-[800px] flex flex-col pointer-events-auto animate-in zoom-in-95 slide-in-from-bottom-4 duration-300 ring-1 ring-white/5">
           
-          <div className="p-5 border-b border-white/5 bg-zinc-900/40 shrink-0">
-            <div className="flex items-center justify-between mb-5">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-500/10 rounded-lg text-purple-400 border border-purple-500/20">
-                  <Package size={18} />
+          {/* Header */}
+          <div className="p-4 border-b border-white/5 bg-zinc-900/60 shrink-0 flex items-center justify-between">
+            <div className="flex items-center">
+              <div className="flex items-center gap-3 w-[280px] shrink-0">
+                <div className="p-2 bg-blue-500/10 rounded-lg border border-blue-500/20 shrink-0">
+                  <Package size={20} className="text-blue-400" />
                 </div>
-                <div>
-                  <h3 className="text-sm font-bold text-white tracking-tight flex items-center gap-2">
-                    Package Manager
-                    {pkg?.name && (
-                      <span className="px-1.5 py-0.5 rounded-md bg-white/10 text-[10px] text-zinc-300 border border-white/5 font-mono">
-                        {pkg.name} {pkg.version && `v${pkg.version}`}
-                      </span>
-                    )}
-                  </h3>
-                  <p className="text-[10px] text-zinc-500 font-medium uppercase tracking-wider mt-0.5">package.json Dashboard</p>
-                </div>
+                <h3 className="text-lg font-semibold text-white tracking-tight truncate">Visual Package Manager</h3>
               </div>
+              
+              <div className="h-6 w-px bg-white/10 mx-4 shrink-0" />
 
-              <div className="flex items-center gap-2">
-                <button 
-                  onClick={fetchPackage}
-                  disabled={loading}
-                  className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95 disabled:opacity-50"
-                  title="Reload from disk"
+              <div className="shrink-0">
+                <Select 
+                  value={activeConfig ? String(configs.findIndex(c => c.path === activeConfig.path && c.manager === activeConfig.manager)) : ""} 
+                  onValueChange={v => {
+                    const cfg = configs[parseInt(v)];
+                    if (cfg) setActiveConfig(cfg);
+                  }}
                 >
-                  <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-                </button>
-                <div className="w-px h-6 bg-white/10 mx-1" />
-                <button 
-                  onClick={onClose}
-                  className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95"
-                >
-                  <X size={14} />
-                </button>
+                  <SelectTrigger className="w-[200px] bg-black/40 border-white/10 text-xs font-bold text-blue-400 focus:ring-1 focus:ring-blue-500/50 shadow-inner h-9">
+                    <SelectValue placeholder="Select Workspace..." />
+                  </SelectTrigger>
+                  <SelectContent position="popper" sideOffset={4} className="bg-zinc-950 border-white/10 z-[200]">
+                    {configs.map((cfg, idx) => (
+                      <SelectItem key={idx} value={String(idx)} className="text-xs font-medium focus:bg-white/10 focus:text-white cursor-pointer">
+                        <span className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-[9px] uppercase px-1 border-white/10 text-zinc-500">{cfg.manager}</Badge>
+                          <span className="truncate max-w-[120px]">{cfg.name}</span>
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
-              <div className="flex bg-black/40 p-1 rounded-lg border border-white/5">
-                {(["scripts", "dependencies", "devDependencies"] as const).map(tab => (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    className={`px-4 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all duration-200 ${
-                      activeTab === tab 
-                        ? "bg-purple-500/20 text-purple-300 shadow-sm border border-purple-500/30" 
-                        : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5 border border-transparent"
-                    }`}
-                  >
-                    {tab}
-                    {tab === "scripts" && <span className="ml-1.5 text-[9px] bg-black/40 px-1 rounded">{scripts.length}</span>}
-                    {tab === "dependencies" && <span className="ml-1.5 text-[9px] bg-black/40 px-1 rounded">{deps.length}</span>}
-                    {tab === "devDependencies" && <span className="ml-1.5 text-[9px] bg-black/40 px-1 rounded">{devDeps.length}</span>}
-                  </button>
-                ))}
-              </div>
-
-              <div className="relative flex-1 group">
-                <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-zinc-600 group-focus-within:text-purple-500 transition-colors">
-                  <Search size={14} />
-                </div>
-                <input 
-                  type="text"
-                  placeholder="Filter scripts or dependencies..."
-                  className="w-full bg-black/40 border border-white/5 rounded-lg py-1.5 pl-9 pr-4 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-purple-500/30 transition-all shadow-inner h-[34px]"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
+            <div className="flex items-center gap-3">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => activeConfig && fetchPackages(activeConfig)}
+                disabled={loading}
+                className="h-9 border-white/10 bg-black/40 hover:bg-white/10 text-zinc-300"
+              >
+                <RefreshCw size={14} className={cn("mr-2", loading && "animate-spin")} />
+                Refresh
+              </Button>
+              
+              {updatesAvailable > 0 && (
+                <Button 
+                  onClick={handleUpdateAll}
+                  className="h-9 bg-blue-500 hover:bg-blue-600 text-white shadow-[0_0_15px_rgba(59,130,246,0.3)]"
+                >
+                  Update All ({updatesAvailable})
+                </Button>
+              )}
+              
+              <Button variant="ghost" size="icon" onClick={onClose} className="text-zinc-400 hover:text-white hover:bg-white/10 rounded-lg">
+                <X size={18} />
+              </Button>
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto custom-scrollbar bg-black/10 p-4">
-            {error ? (
-              <div className="h-full flex flex-col items-center justify-center text-center opacity-70">
-                <Package size={48} className="text-zinc-600 mb-3" />
-                <p className="text-sm font-bold text-white mb-2">{error}</p>
-                <p className="text-[11px] text-zinc-500 max-w-xs">Make sure you are in a Node.js project directory containing a valid package.json file.</p>
+          {/* Search & Filter Bar */}
+          <div className="p-4 border-b border-white/5 bg-black/20 flex items-center justify-between shrink-0 relative overflow-hidden">
+            {loading && <Progress value={scanProgress} className="absolute bottom-0 left-0 w-full h-[2px] rounded-none bg-transparent [&>div]:bg-blue-500 transition-all duration-300" />}
+            <div className="relative w-80 group z-10">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-blue-400 transition-colors" />
+              <input 
+                type="text"
+                placeholder="Filter packages..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="w-full bg-black/40 border border-white/5 rounded-lg py-2 pl-9 pr-4 text-xs font-medium text-white placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 transition-all shadow-inner"
+              />
+            </div>
+          </div>
+
+          {/* Table Area */}
+          <div className="flex-1 overflow-auto custom-scrollbar bg-[#0d0d0f]">
+            {loading && packages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-zinc-500 space-y-4">
+                <Loader2 size={32} className="animate-spin text-blue-500/50" />
+                <p className="text-sm font-medium">Scanning dependencies... ({scanProgress}%)</p>
+              </div>
+            ) : error ? (
+              <div className="flex flex-col items-center justify-center h-full text-red-400/80 space-y-2">
+                <AlertTriangle size={32} />
+                <p className="text-sm font-medium">{error}</p>
               </div>
             ) : (
-              <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                {activeTab === "scripts" && renderScripts()}
-                {activeTab === "dependencies" && renderDeps(deps)}
-                {activeTab === "devDependencies" && renderDeps(devDeps)}
-              </div>
+              <Table>
+                <TableHeader className="bg-zinc-950/50 sticky top-0 z-10 backdrop-blur-md">
+                  <TableRow className="border-white/5 hover:bg-transparent">
+                    <TableHead className="w-[300px] text-xs font-bold text-zinc-400">Package</TableHead>
+                    <TableHead className="text-xs font-bold text-zinc-400">Installed</TableHead>
+                    <TableHead className="text-xs font-bold text-zinc-400">Latest</TableHead>
+                    <TableHead className="text-xs font-bold text-zinc-400">Status</TableHead>
+                    <TableHead className="text-right text-xs font-bold text-zinc-400">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredPkgs.map((pkg) => {
+                    const isUpToDate = pkg.status === "up-to-date" || pkg.status === "unknown";
+                    const isUpdating = updating.has(pkg.name);
+                    
+                    return (
+                      <TableRow key={pkg.name} className="border-white/5 hover:bg-white/[0.02] transition-colors group">
+                        <TableCell className="font-mono text-xs font-medium text-blue-400">
+                          <div className="flex items-center gap-2">
+                            <span className="truncate max-w-[250px]">{pkg.name}</span>
+                            <a href={`https://www.npmjs.com/package/${pkg.name}`} target="_blank" rel="noreferrer" className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-white transition-all">
+                              <ExternalLink size={12} />
+                            </a>
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-mono text-[11px] text-zinc-400">{pkg.installed}</TableCell>
+                        <TableCell className="font-mono text-[11px] text-emerald-400">{pkg.latest || "-"}</TableCell>
+                        <TableCell>
+                          {pkg.status === "major" && <Badge variant="destructive" className="bg-red-500/20 text-red-400 border-red-500/30 text-[10px] uppercase font-bold tracking-wider">Major</Badge>}
+                          {pkg.status === "minor" && <Badge variant="outline" className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[10px] uppercase font-bold tracking-wider">Minor</Badge>}
+                          {pkg.status === "patch" && <Badge variant="outline" className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px] uppercase font-bold tracking-wider">Patch</Badge>}
+                          {isUpToDate && <ShieldCheck size={16} className="text-emerald-500/50" />}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button 
+                            variant={isUpToDate ? "ghost" : "default"}
+                            size="sm"
+                            disabled={isUpToDate || isUpdating}
+                            onClick={() => handleUpdate(pkg.name)}
+                            className={cn(
+                              "h-7 px-4 text-[11px] font-bold transition-all",
+                              isUpToDate ? "text-zinc-600 border border-transparent" : "bg-blue-500 hover:bg-blue-600 text-white shadow-md shadow-blue-500/20"
+                            )}
+                          >
+                            {isUpdating ? <Loader2 size={12} className="animate-spin" /> : (isUpToDate ? "Latest" : "Update")}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {filteredPkgs.length === 0 && (
+                    <TableRow className="hover:bg-transparent border-0">
+                      <TableCell colSpan={5} className="h-32 text-center text-zinc-500 text-sm">
+                        No packages match your search.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             )}
           </div>
-
+            
+          {/* Footer Status */}
+          <div className="p-3 border-t border-white/5 bg-black/40 text-[10px] text-zinc-500 font-medium flex justify-between items-center shrink-0">
+            <span>Showing {filteredPkgs.length} packages</span>
+            {updatesAvailable > 0 && <span className="text-amber-400">{updatesAvailable} updates available</span>}
+          </div>
         </div>
       </div>
     </>
