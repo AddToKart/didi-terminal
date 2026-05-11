@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, emit } from "@tauri-apps/api/event";
 import { readText } from "@tauri-apps/plugin-clipboard-manager";
-import { Terminal as TerminalIcon, X, Zap, Eraser, Play, ExternalLink, Plus, GripVertical } from "lucide-react";
+import { Terminal as TerminalIcon, X, Zap, ExternalLink, Plus, GripVertical } from "lucide-react";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { useGhosttyTerminal } from "./useGhosttyTerminal";
 import {
@@ -317,10 +317,6 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
     if (onSplit) onSplit();
   };
 
-  const executeMacro = (command: string) => {
-    invoke("write_pty", { agent: ptyKey, data: command + "\r" }).catch(console.error);
-    emit("agent-input", { agent: ptyKey, data: command + "\r" }).catch(console.error);
-  };
 
   const handlePopOut = async () => {
     const label = `agent-${ptyKey.replace(/[^a-zA-Z0-9_-]/g, '')}-${Date.now()}`;
@@ -617,15 +613,6 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
             onCancelRenameLane={handleCancelRenameLane}
           />
           
-          {/* Macro Bar */}
-          <div className="hidden 2xl:flex mx-2 justify-end gap-1 opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity shrink-0">
-             <button onClick={() => executeMacro("clear")} className="px-1.5 py-0.5 text-[9px] bg-app-panel hover:bg-zinc-800/60 text-zinc-300 hover:text-brand-primary border border-app-border rounded flex items-center gap-1 font-bold">
-               <Eraser size={9} /> CLEAR
-             </button>
-             <button onClick={() => executeMacro("npm run dev")} className="px-1.5 py-0.5 text-[9px] bg-app-panel hover:bg-zinc-800/60 text-zinc-300 hover:text-brand-primary border border-app-border rounded flex items-center gap-1 font-bold">
-               <Play size={9} /> DEV
-             </button>
-          </div>
 
           <div className="h-full flex items-center gap-3 px-3 shrink-0">
             <div className="hidden md:flex items-center gap-2 text-[9px] font-mono text-zinc-400 font-bold mr-2">
