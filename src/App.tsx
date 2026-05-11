@@ -31,6 +31,9 @@ import { PersonalKanban } from "./app/components/PersonalKanban";
 import { ProjectFileExplorer } from "./app/components/ProjectFileExplorer";
 import { StatusBar } from "./app/components/StatusBar";
 import { PortManager } from "./app/components/PortManager";
+import { EnvManager } from "./app/components/EnvManager";
+import { PackageManager } from "./app/components/PackageManager";
+import { ApiLab } from "./app/components/ApiLab";
 import { AppGlobalSidebar } from "./app/components/AppGlobalSidebar";
 import { AppTopbar } from "./app/components/AppTopbar";
 import { AppTerminalArea } from "./app/components/AppTerminalArea";
@@ -156,6 +159,9 @@ function App() {
   const [showPersonalKanban, setShowPersonalKanban] = useState(false);
   const [showFileExplorer, setShowFileExplorer] = useState(false);
   const [showPortManager, setShowPortManager] = useState(false);
+  const [showEnvManager, setShowEnvManager] = useState(false);
+  const [showPackageManager, setShowPackageManager] = useState(false);
+  const [showApiLab, setShowApiLab] = useState(false);
   const [portCount, setPortCount] = useState(0);
   const [codeReviewStats, setCodeReviewStats] = useState({ additions: 0, deletions: 0 });
   const [isActivityCollapsed, setIsActivityCollapsed] = useState(false);
@@ -684,6 +690,9 @@ function App() {
           onToggleGitPanel={() => setShowGitPanel(!showGitPanel)}
           onTogglePersonalKanban={() => setShowPersonalKanban(!showPersonalKanban)}
           onToggleFileExplorer={() => setShowFileExplorer(!showFileExplorer)}
+          onToggleEnvManager={() => setShowEnvManager(!showEnvManager)}
+          onTogglePackageManager={() => setShowPackageManager(!showPackageManager)}
+          onToggleApiLab={() => setShowApiLab(!showApiLab)}
           currentProject={currentProject}
         />
 
@@ -762,6 +771,20 @@ function App() {
         isOpen={showPortManager} 
         onClose={() => setShowPortManager(false)} 
         onPortsUpdate={setPortCount}
+      />
+      <EnvManager
+        currentProject={currentProject}
+        isOpen={showEnvManager}
+        onClose={() => setShowEnvManager(false)}
+      />
+      <PackageManager
+        currentProject={currentProject}
+        isOpen={showPackageManager}
+        onClose={() => setShowPackageManager(false)}
+      />
+      <ApiLab
+        isOpen={showApiLab}
+        onClose={() => setShowApiLab(false)}
       />
 
       {isSidebarOpen && appMode === "orchestrator" && (

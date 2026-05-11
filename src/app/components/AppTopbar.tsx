@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Brain, ClipboardList, Columns, Globe, Grid2X2, Network, PanelLeft, PanelLeftClose, Plus, Rows, Layers, AlignLeft, Sparkles, ChevronRight, ChevronLeft, GitMerge, LayoutList, FolderSearch } from "lucide-react";
+import { Brain, ClipboardList, Columns, Globe, Grid2X2, Network, PanelLeft, PanelLeftClose, Plus, Rows, Layers, AlignLeft, Sparkles, ChevronRight, ChevronLeft, GitMerge, LayoutList, FolderSearch, FileKey2, Package, Zap } from "lucide-react";
 
 interface AppTopbarProps {
   appMode: "terminal" | "orchestrator";
@@ -19,6 +19,9 @@ interface AppTopbarProps {
   onToggleGitPanel?: () => void;
   onTogglePersonalKanban?: () => void;
   onToggleFileExplorer?: () => void;
+  onToggleEnvManager?: () => void;
+  onTogglePackageManager?: () => void;
+  onToggleApiLab?: () => void;
   currentProject: string | null;
 }
 
@@ -40,6 +43,9 @@ export function AppTopbar({
   onToggleGitPanel,
   onTogglePersonalKanban,
   onToggleFileExplorer,
+  onToggleEnvManager,
+  onTogglePackageManager,
+  onToggleApiLab,
   currentProject,
 }: AppTopbarProps) {
   const [isExtraLayoutsOpen, setIsExtraLayoutsOpen] = useState(false);
@@ -101,7 +107,7 @@ export function AppTopbar({
         )}
         {currentProject && (
           <div className="flex items-center bg-zinc-900/60 border border-zinc-800/80 rounded-xl p-1 gap-1 shadow-sm ml-2">
-            <div className={`flex items-center gap-1 transition-all duration-700 ease-in-out overflow-hidden ${isToolsOpen ? "max-w-[500px] opacity-100 px-0.5" : "max-w-0 opacity-0"}`}>
+            <div className={`flex items-center gap-1 transition-all duration-700 ease-in-out overflow-hidden ${isToolsOpen ? "max-w-[700px] opacity-100 px-0.5" : "max-w-0 opacity-0"}`}>
               <button
                 onClick={onToggleFileExplorer}
                 className="flex items-center gap-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all text-[11px] font-bold shrink-0"
@@ -118,6 +124,33 @@ export function AppTopbar({
               >
                 <LayoutList size={12} />
                 <span>My Tasks</span>
+              </button>
+
+              <button
+                onClick={onToggleEnvManager}
+                className="flex items-center gap-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all text-[11px] font-bold shrink-0"
+                title="Env Manager"
+              >
+                <FileKey2 size={12} />
+                <span>.env</span>
+              </button>
+
+              <button
+                onClick={onTogglePackageManager}
+                className="flex items-center gap-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all text-[11px] font-bold shrink-0"
+                title="Package Manager"
+              >
+                <Package size={12} />
+                <span>Packages</span>
+              </button>
+
+              <button
+                onClick={onToggleApiLab}
+                className="flex items-center gap-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all text-[11px] font-bold shrink-0"
+                title="API Lab"
+              >
+                <Zap size={12} />
+                <span>API Lab</span>
               </button>
 
               <button

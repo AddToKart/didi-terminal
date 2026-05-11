@@ -7,3 +7,4 @@ pub mod pty;
 pub mod dashboard;
 pub mod fs;
 pub mod ports;
+pub mod http;
