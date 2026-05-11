@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ShieldCheck, ShieldAlert, X, Copy, Check, RefreshCw, Smartphone, Shield, Lock } from "lucide-react";
+import { ShieldCheck, ShieldAlert, X, RefreshCw, Lock, KeyRound, Eye, EyeOff } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 
 interface SecurityPanelProps {
@@ -11,56 +11,51 @@ interface SecurityPanelProps {
 
 export function SecurityPanel({ workspaceId, workspaceName, isOpen, onClose }: SecurityPanelProps) {
   const [isEnabled, setIsEnabled] = useState(false);
-  const [isSettingUp, setIsSettingUp] = useState(false);
-  const [setupData, setSetupData] = useState<{ secret: string; qr_code: string } | null>(null);
-  const [verificationCode, setVerificationCode] = useState("");
+  const [pin, setPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
+  const [showPin, setShowPin] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       checkStatus();
+      setError(null);
+      setSuccess(false);
+      setPin("");
+      setConfirmPin("");
     }
   }, [isOpen, workspaceId]);
 
   const checkStatus = async () => {
     try {
-      const enabled = await invoke<boolean>("is_2fa_enabled", { workspaceId });
+      const enabled = await invoke<boolean>("is_pin_enabled", { workspaceId });
       setIsEnabled(enabled);
     } catch (err) {
       console.error(err);
     }
   };
 
-  const startSetup = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const data = await invoke<{ secret: string; qr_code: string }>("generate_2fa_setup", { workspaceName });
-      setSetupData(data);
-      setIsSettingUp(true);
-    } catch (err) {
-      setError(String(err));
-    } finally {
-      setIsLoading(false);
+  const handleEnable = async () => {
+    if (pin.length < 4) {
+      setError("PIN must be at least 4 characters");
+      return;
     }
-  };
+    if (pin !== confirmPin) {
+      setError("PINs do not match");
+      return;
+    }
 
-  const handleVerifyAndEnable = async () => {
-    if (!setupData) return;
     setIsLoading(true);
     setError(null);
     try {
-      await invoke("verify_and_enable_2fa", {
-        workspaceId,
-        secret: setupData.secret,
-        code: verificationCode
-      });
+      await invoke("set_workspace_pin", { workspaceId, pin });
+      setSuccess(true);
       setIsEnabled(true);
-      setIsSettingUp(false);
-      setSetupData(null);
-      setVerificationCode("");
+      setPin("");
+      setConfirmPin("");
+      setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
       setError(String(err));
     } finally {
@@ -69,16 +64,19 @@ export function SecurityPanel({ workspaceId, workspaceName, isOpen, onClose }: S
   };
 
   const handleDisable = async () => {
-    if (!verificationCode) {
-        setError("Please enter your current code to disable 2FA");
-        return;
+    if (!pin) {
+      setError("Enter current PIN to disable");
+      return;
     }
+
     setIsLoading(true);
     setError(null);
     try {
-      await invoke("disable_workspace_2fa", { workspaceId, code: verificationCode });
+      await invoke("disable_workspace_pin", { workspaceId, pin });
       setIsEnabled(false);
-      setVerificationCode("");
+      setPin("");
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
       setError(String(err));
     } finally {
@@ -92,14 +90,14 @@ export function SecurityPanel({ workspaceId, workspaceName, isOpen, onClose }: S
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-zinc-950/90 backdrop-blur-md" onClick={onClose} />
       
-      <div className="relative w-full max-w-lg bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="relative w-full max-w-md bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-white/[0.02]">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-              <Lock size={18} className="text-emerald-500" />
+            <div className="p-2 rounded-lg bg-brand-accent/10 border border-brand-accent/20">
+              <Lock size={18} className="text-brand-accent" />
             </div>
             <div>
-              <h2 className="text-md font-bold text-white tracking-tight">Security Settings</h2>
+              <h2 className="text-md font-bold text-white tracking-tight">Workspace Lock</h2>
               <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">{workspaceName}</p>
             </div>
           </div>
@@ -108,132 +106,89 @@ export function SecurityPanel({ workspaceId, workspaceName, isOpen, onClose }: S
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="p-6 space-y-6">
           {error && (
-            <div className="mb-6 p-3 bg-red-400/5 border border-red-400/20 rounded-xl flex items-center gap-3 text-red-400 text-xs">
+            <div className="p-3 bg-red-400/5 border border-red-400/20 rounded-xl flex items-center gap-3 text-red-400 text-xs animate-in fade-in slide-in-from-top-2">
               <ShieldAlert size={14} className="shrink-0" />
               {error}
             </div>
           )}
 
-          {!isSettingUp ? (
-            <div className="space-y-6">
-              <div className="flex items-start justify-between gap-4 p-4 rounded-2xl bg-white/[0.02] border border-white/5">
-                <div className="space-y-1">
-                  <h3 className="text-sm font-bold text-white">Two-Factor Authentication (TOTP)</h3>
-                  <p className="text-xs text-zinc-400 leading-relaxed max-w-[280px]">
-                    Require a verification code from your mobile device every time you switch to this workspace. Recommended for production environments.
-                  </p>
-                </div>
-                <div className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${isEnabled ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/20' : 'bg-zinc-800 text-zinc-500'}`}>
-                  {isEnabled ? 'Enabled' : 'Disabled'}
-                </div>
-              </div>
-
-              {isEnabled ? (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest px-1">Enter Code to Disable</label>
-                    <input 
-                      type="text"
-                      placeholder="6-digit code"
-                      value={verificationCode}
-                      onChange={(e) => setVerificationCode(e.target.value)}
-                      className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-red-500/50 transition-all text-center tracking-[1em] font-mono"
-                      maxLength={6}
-                    />
-                  </div>
-                  <button
-                    onClick={handleDisable}
-                    disabled={isLoading}
-                    className="w-full py-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2"
-                  >
-                    {isLoading ? <RefreshCw size={14} className="animate-spin" /> : <ShieldAlert size={14} />}
-                    DISABLE TWO-FACTOR
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={startSetup}
-                  disabled={isLoading}
-                  className="w-full py-4 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-500 rounded-xl text-xs font-bold transition-all shadow-lg shadow-emerald-500/5 flex items-center justify-center gap-2"
-                >
-                  {isLoading ? <RefreshCw size={16} className="animate-spin" /> : <Smartphone size={16} />}
-                  SETUP AUTHENTICATOR
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
-              <div className="text-center space-y-2">
-                <h3 className="text-sm font-bold text-white">Scan QR Code</h3>
-                <p className="text-xs text-zinc-500">Scan this code with Google Authenticator, Authy, or any TOTP app.</p>
-              </div>
-
-              <div className="flex justify-center">
-                <div className="p-4 bg-white rounded-2xl shadow-2xl">
-                  <img src={setupData?.qr_code} alt="2FA QR Code" className="size-48" />
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest px-1">Or enter secret manually</label>
-                  <div className="flex gap-2">
-                    <code className="flex-1 bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-xs text-brand-primary font-mono select-all flex items-center justify-center">
-                      {setupData?.secret}
-                    </code>
-                    <button 
-                        onClick={() => {
-                            navigator.clipboard.writeText(setupData?.secret || "");
-                            setCopied(true);
-                            setTimeout(() => setCopied(false), 2000);
-                        }}
-                        className="p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-colors"
-                    >
-                        {copied ? <Check size={16} className="text-emerald-400" /> : <Copy size={16} className="text-zinc-400" />}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest px-1">Verify Verification Code</label>
-                  <input 
-                    type="text"
-                    placeholder="Enter 6-digit code"
-                    value={verificationCode}
-                    onChange={(e) => setVerificationCode(e.target.value)}
-                    className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-brand-accent transition-all text-center tracking-[1em] font-mono"
-                    maxLength={6}
-                  />
-                </div>
-
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => { setIsSettingUp(false); setSetupData(null); }}
-                    className="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-400 rounded-xl text-xs font-bold transition-all"
-                  >
-                    CANCEL
-                  </button>
-                  <button
-                    onClick={handleVerifyAndEnable}
-                    disabled={isLoading || verificationCode.length !== 6}
-                    className="flex-[2] py-3 bg-brand-accent hover:bg-brand-accent/90 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand-accent/20"
-                  >
-                    {isLoading ? <RefreshCw size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
-                    VERIFY AND ENABLE
-                  </button>
-                </div>
-              </div>
+          {success && (
+            <div className="p-3 bg-emerald-400/5 border border-emerald-400/20 rounded-xl flex items-center gap-3 text-emerald-400 text-xs animate-in fade-in slide-in-from-top-2">
+              <ShieldCheck size={14} className="shrink-0" />
+              Security settings updated successfully.
             </div>
           )}
+
+          <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center justify-between">
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold text-white">Encryption Status</h3>
+              <p className="text-[11px] text-zinc-500">Secure Argon2id Hashing</p>
+            </div>
+            <div className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${isEnabled ? 'bg-brand-accent/20 text-brand-accent border border-brand-accent/20' : 'bg-zinc-800 text-zinc-500'}`}>
+              {isEnabled ? 'Locked' : 'Unlocked'}
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest px-1">
+                {isEnabled ? 'Current PIN' : 'New PIN'}
+              </label>
+              <div className="relative">
+                <input 
+                  type={showPin ? "text" : "password"}
+                  placeholder="Enter PIN"
+                  value={pin}
+                  onChange={(e) => setPin(e.target.value)}
+                  className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-brand-accent transition-all font-mono tracking-widest"
+                />
+                <button 
+                  onClick={() => setShowPin(!showPin)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+                >
+                  {showPin ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+
+            {!isEnabled && (
+              <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest px-1">Confirm PIN</label>
+                <input 
+                  type={showPin ? "text" : "password"}
+                  placeholder="Repeat PIN"
+                  value={confirmPin}
+                  onChange={(e) => setConfirmPin(e.target.value)}
+                  className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-brand-accent transition-all font-mono tracking-widest"
+                />
+              </div>
+            )}
+
+            <button
+              onClick={isEnabled ? handleDisable : handleEnable}
+              disabled={isLoading}
+              className={`w-full py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-lg ${
+                isEnabled 
+                  ? 'bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400' 
+                  : 'bg-brand-accent hover:bg-brand-accent/90 text-white shadow-brand-accent/20'
+              }`}
+            >
+              {isLoading ? (
+                <RefreshCw size={14} className="animate-spin" />
+              ) : (
+                isEnabled ? <ShieldAlert size={14} /> : <KeyRound size={14} />
+              )}
+              {isEnabled ? 'DISABLE LOCK' : 'ENABLE LOCK'}
+            </button>
+          </div>
         </div>
 
-        <div className="px-6 py-4 bg-zinc-950/50 border-t border-white/5 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Shield size={12} className="text-zinc-600" />
-            <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest italic">Encrypted Local Vault</span>
-          </div>
+        <div className="px-6 py-4 bg-zinc-950/50 border-t border-white/5">
+          <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest text-center">
+            Your PIN is never stored in plain text.
+          </p>
         </div>
       </div>
     </div>

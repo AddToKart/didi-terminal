@@ -357,14 +357,14 @@ function App() {
     if (id === activeWorkspaceId) return;
     
     try {
-      const is2fa = await invoke<boolean>("is_2fa_enabled", { workspaceId: id });
-      if (is2fa) {
+      const isLocked = await invoke<boolean>("is_pin_enabled", { workspaceId: id });
+      if (isLocked) {
         setPendingWorkspaceId(id);
       } else {
         setActiveWorkspaceId(id);
       }
     } catch (err) {
-      console.error("2FA check failed:", err);
+      console.error("PIN check failed:", err);
       setActiveWorkspaceId(id);
     }
   };
