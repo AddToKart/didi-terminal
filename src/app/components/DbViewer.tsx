@@ -7,7 +7,10 @@ import {
   ChevronRight, 
   RefreshCw,
   FileSearch,
-  Database
+  Database,
+  Globe,
+  Link2,
+  Server
 } from 'lucide-react';
 import { open } from '@tauri-apps/plugin-dialog';
 import SqlDatabase from "@tauri-apps/plugin-sql";
@@ -26,6 +29,9 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showRemoteForm, setShowRemoteForm] = useState(false);
+  const [remoteUrl, setRemoteUrl] = useState("postgres://postgres:password@localhost:5432/postgres");
+  const [dbType, setDbType] = useState<"sqlite" | "postgres" | "mysql">("sqlite");
 
   const handleSelectDb = async () => {
     try {
@@ -45,14 +51,40 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
     }
   };
 
+  const handleConnectRemote = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (remoteUrl.startsWith("postgres://")) setDbType("postgres");
+      else if (remoteUrl.startsWith("mysql://")) setDbType("mysql");
+      else throw new Error("URL must start with postgres:// or mysql://");
+      
+      setDbPath(remoteUrl);
+      setSelectedTable(null);
+      setData([]);
+      setColumns([]);
+      setShowRemoteForm(false);
+      await loadTables(remoteUrl);
+    } catch (err) {
+      setError(String(err));
+    }
+  };
+
   const loadTables = async (path: string) => {
     setIsLoading(true);
     setError(null);
     try {
-      const db = await SqlDatabase.load(`sqlite:${path}`);
-      const result = await db.select<{ name: string }[]>(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
-      );
+      const db = await SqlDatabase.load(path.startsWith("sqlite:") ? path : (path.includes("://") ? path : `sqlite:${path}`));
+      
+      let query = "";
+      if (path.startsWith("postgres://")) {
+        query = "SELECT table_name as name FROM information_schema.tables WHERE table_schema = 'public'";
+      } else if (path.startsWith("mysql://")) {
+        query = "SELECT table_name as name FROM information_schema.tables WHERE table_schema = DATABASE()";
+      } else {
+        query = "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'";
+      }
+
+      const result = await db.select<{ name: string }[]>(query);
       setTables(result.map(r => r.name));
     } catch (err) {
       setError(`Failed to load tables: ${err}`);
@@ -67,15 +99,28 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
     setError(null);
     setSelectedTable(table);
     try {
-      const db = await SqlDatabase.load(`sqlite:${dbPath}`);
-      const result = await db.select<any[]>(`SELECT * FROM "${table}" LIMIT 100`);
+      const connectionStr = dbPath.startsWith("sqlite:") ? dbPath : (dbPath.includes("://") ? dbPath : `sqlite:${dbPath}`);
+      const db = await SqlDatabase.load(connectionStr);
+      
+      // Handle quoting differences
+      const quote = dbPath.startsWith("postgres://") ? '"' : (dbPath.startsWith("mysql://") ? '`' : '"');
+      const result = await db.select<any[]>(`SELECT * FROM ${quote}${table}${quote} LIMIT 100`);
+      
       setData(result);
       if (result.length > 0) {
         setColumns(Object.keys(result[0]));
       } else {
-        // If no data, try to get columns via PRAGMA
-        const columnsResult = await db.select<{ name: string }[]>(`PRAGMA table_info("${table}")`);
-        setColumns(columnsResult.map(c => c.name));
+        // Fallback column fetching if table is empty
+        if (dbPath.startsWith("postgres://")) {
+          const cols = await db.select<{ column_name: string }[]>(`SELECT column_name FROM information_schema.columns WHERE table_name = '${table}'`);
+          setColumns(cols.map(c => c.column_name));
+        } else if (dbPath.startsWith("mysql://")) {
+          const cols = await db.select<{ COLUMN_NAME: string }[]>(`SELECT COLUMN_NAME FROM information_schema.columns WHERE table_name = '${table}' AND table_schema = DATABASE()`);
+          setColumns(cols.map(c => c.COLUMN_NAME));
+        } else {
+          const cols = await db.select<{ name: string }[]>(`PRAGMA table_info("${table}")`);
+          setColumns(cols.map(c => c.name));
+        }
       }
     } catch (err) {
       setError(`Failed to load data: ${err}`);
@@ -109,7 +154,9 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
             <div>
               <h2 className="text-lg font-bold text-white tracking-tight">Database Viewer</h2>
               <p className="text-xs text-zinc-500 font-medium">
-                {dbPath ? dbPath.split(/[\\/]/).pop() : 'No database selected'}
+                {dbPath 
+                  ? (dbPath.includes("://") ? dbPath.split('@').pop() : dbPath.split(/[\\/]/).pop()) 
+                  : 'No database selected'}
               </p>
             </div>
           </div>
@@ -136,13 +183,22 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
         <div className="flex-1 flex min-h-0">
           {/* Sidebar - Tables List */}
           <div className="w-64 border-r border-white/5 bg-black/20 flex flex-col">
-            <div className="p-4">
+            <div className="p-4 space-y-2">
               <button 
                 onClick={handleSelectDb}
                 className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-500 rounded-lg text-xs font-bold transition-all"
               >
                 <FileSearch size={14} />
-                OPEN DATABASE
+                LOCAL SQLITE
+              </button>
+              <button 
+                onClick={() => setShowRemoteForm(!showRemoteForm)}
+                className={`w-full flex items-center justify-center gap-2 px-4 py-2 border rounded-lg text-xs font-bold transition-all ${
+                  showRemoteForm ? 'bg-blue-500/20 border-blue-500/50 text-blue-400' : 'bg-white/5 hover:bg-white/10 border-white/10 text-zinc-300'
+                }`}
+              >
+                <Globe size={14} />
+                REMOTE SERVER
               </button>
             </div>
             
@@ -178,7 +234,51 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
           </div>
 
           {/* Main Content - Table Data */}
-          <div className="flex-1 flex flex-col min-w-0 bg-black/10">
+          <div className="flex-1 flex flex-col min-w-0 bg-black/10 relative">
+            {showRemoteForm ? (
+              <div className="absolute inset-0 z-20 bg-zinc-900/95 backdrop-blur flex items-center justify-center p-8 animate-in fade-in duration-200">
+                <form onSubmit={handleConnectRemote} className="w-full max-w-md bg-zinc-950 border border-white/10 rounded-xl p-6 shadow-2xl">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400">
+                      <Server size={24} />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-white">Connect to Server</h3>
+                      <p className="text-xs text-zinc-500">PostgreSQL or MySQL</p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest px-1">Connection String</label>
+                      <input 
+                        type="text"
+                        value={remoteUrl}
+                        onChange={(e) => setRemoteUrl(e.target.value)}
+                        placeholder="postgres://user:pass@localhost:5432/db"
+                        className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors font-mono"
+                      />
+                    </div>
+                    <div className="pt-2 flex gap-3">
+                      <button 
+                        type="button"
+                        onClick={() => setShowRemoteForm(false)}
+                        className="flex-1 px-4 py-2 rounded-lg font-bold text-xs bg-white/5 hover:bg-white/10 text-zinc-300 transition-colors"
+                      >
+                        CANCEL
+                      </button>
+                      <button 
+                        type="submit"
+                        className="flex-1 px-4 py-2 rounded-lg font-bold text-xs bg-blue-500 hover:bg-blue-400 text-white shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2"
+                      >
+                        <Link2 size={14} /> CONNECT
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            ) : null}
+
             {selectedTable ? (
               <>
                 <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between gap-4">
@@ -201,7 +301,7 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
                 </div>
 
                 <div className="flex-1 overflow-auto">
-                  {error ? (
+                  {error && !showRemoteForm ? (
                     <div className="p-6 text-red-400 bg-red-400/5 border border-red-400/10 m-6 rounded-lg text-sm flex items-center gap-3">
                       <X className="shrink-0" size={16} />
                       {error}
@@ -239,7 +339,7 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
                 </div>
                 <div className="text-center">
                   <p className="text-sm font-medium text-zinc-400">Select a table to browse its data</p>
-                  <p className="text-xs opacity-50 mt-1">Didi DB Viewer supports any standard SQLite database</p>
+                  <p className="text-xs opacity-50 mt-1">Supports SQLite, PostgreSQL, and MySQL</p>
                 </div>
               </div>
             )}
@@ -249,7 +349,7 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
         {/* Footer */}
         <div className="px-6 py-2 border-t border-white/5 bg-white/[0.02] flex items-center justify-between text-[10px] text-zinc-600 font-bold uppercase tracking-widest">
           <div className="flex items-center gap-4">
-            <span>SQLite 3</span>
+            <span className="uppercase text-zinc-500">{dbType} Database</span>
             {selectedTable && <span>Active Table: {selectedTable}</span>}
           </div>
           {isLoading && (
