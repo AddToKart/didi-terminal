@@ -40,6 +40,7 @@ import { AppTerminalArea } from "./app/components/AppTerminalArea";
 
 import { AppTerminalTabs } from "./app/components/AppTerminalTabs";
 import { AmbientMode } from "./app/components/AmbientMode";
+import { DbViewer } from "./app/components/DbViewer";
 import { loadWorkspaces, saveWorkspaces, getSetting, setSetting } from "./services/db-service";
 
 const NetworkGraph = lazy(() => import("./components/NetworkGraph").then(module => ({ default: module.NetworkGraph })));
@@ -163,6 +164,7 @@ function App() {
   const [showPackageManager, setShowPackageManager] = useState(false);
   const [showApiLab, setShowApiLab] = useState(false);
   const [showMonorepoGraph, setShowMonorepoGraph] = useState(false);
+  const [showDbViewer, setShowDbViewer] = useState(false);
   const [portCount, setPortCount] = useState(0);
   const [codeReviewStats, setCodeReviewStats] = useState({ additions: 0, deletions: 0 });
   const [isActivityCollapsed, setIsActivityCollapsed] = useState(false);
@@ -823,6 +825,7 @@ function App() {
             <StatusBar 
               portCount={portCount} 
               onOpenPortManager={() => setShowPortManager(true)} 
+              onOpenDbViewer={() => setShowDbViewer(true)}
             />
           </>
         )}
@@ -848,6 +851,10 @@ function App() {
           <ApiLab
             isOpen={showApiLab}
             onClose={() => setShowApiLab(false)}
+          />
+          <DbViewer
+            isOpen={showDbViewer}
+            onClose={() => setShowDbViewer(false)}
           />
         </>
       )}
