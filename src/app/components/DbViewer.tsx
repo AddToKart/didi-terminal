@@ -30,8 +30,16 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showRemoteForm, setShowRemoteForm] = useState(false);
-  const [remoteUrl, setRemoteUrl] = useState("postgres://postgres:password@localhost:5432/postgres");
+  const [remoteUrl, setRemoteUrl] = useState("");
   const [dbType, setDbType] = useState<"sqlite" | "postgres" | "mysql">("sqlite");
+  const [useConnectionString, setUseConnectionString] = useState(false);
+  const [connDetails, setConnDetails] = useState({
+    host: "localhost",
+    port: "5432",
+    username: "postgres",
+    password: "",
+    database: "postgres"
+  });
 
   const handleSelectDb = async () => {
     try {
@@ -54,16 +62,23 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
   const handleConnectRemote = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      if (remoteUrl.startsWith("postgres://")) setDbType("postgres");
-      else if (remoteUrl.startsWith("mysql://")) setDbType("mysql");
+      let url = remoteUrl;
+      if (!useConnectionString) {
+        const { host, port, username, password, database } = connDetails;
+        const protocol = dbType === "mysql" ? "mysql" : "postgres";
+        url = `${protocol}://${username}:${password}@${host}:${port}/${database}`;
+      }
+
+      if (url.startsWith("postgres://")) setDbType("postgres");
+      else if (url.startsWith("mysql://")) setDbType("mysql");
       else throw new Error("URL must start with postgres:// or mysql://");
       
-      setDbPath(remoteUrl);
+      setDbPath(url);
       setSelectedTable(null);
       setData([]);
       setColumns([]);
       setShowRemoteForm(false);
-      await loadTables(remoteUrl);
+      await loadTables(url);
     } catch (err) {
       setError(String(err));
     }
@@ -236,42 +251,133 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
           {/* Main Content - Table Data */}
           <div className="flex-1 flex flex-col min-w-0 bg-black/10 relative">
             {showRemoteForm ? (
-              <div className="absolute inset-0 z-20 bg-zinc-900/95 backdrop-blur flex items-center justify-center p-8 animate-in fade-in duration-200">
-                <form onSubmit={handleConnectRemote} className="w-full max-w-md bg-zinc-950 border border-white/10 rounded-xl p-6 shadow-2xl">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400">
-                      <Server size={24} />
+              <div className="absolute inset-0 z-20 bg-zinc-900/95 backdrop-blur flex items-center justify-center p-8 animate-in fade-in duration-200 overflow-y-auto">
+                <form onSubmit={handleConnectRemote} className="w-full max-w-xl bg-zinc-950 border border-white/10 rounded-xl p-8 shadow-2xl space-y-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                        <Server size={24} />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-white tracking-tight">Connect to Server</h3>
+                        <p className="text-xs text-zinc-500 font-medium">PostgreSQL or MySQL/MariaDB</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-white">Connect to Server</h3>
-                      <p className="text-xs text-zinc-500">PostgreSQL or MySQL</p>
+                    
+                    <div className="flex bg-white/5 p-1 rounded-lg border border-white/10">
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          setDbType("postgres");
+                          setConnDetails(prev => ({ ...prev, port: "5432" }));
+                        }}
+                        className={`px-3 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all ${dbType === "postgres" ? "bg-blue-500 text-white shadow-lg shadow-blue-500/20" : "text-zinc-500 hover:text-zinc-300"}`}
+                      >
+                        PostgreSQL
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          setDbType("mysql");
+                          setConnDetails(prev => ({ ...prev, port: "3306" }));
+                        }}
+                        className={`px-3 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all ${dbType === "mysql" ? "bg-blue-500 text-white shadow-lg shadow-blue-500/20" : "text-zinc-500 hover:text-zinc-300"}`}
+                      >
+                        MySQL
+                      </button>
                     </div>
                   </div>
                   
-                  <div className="space-y-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest px-1">Connection String</label>
-                      <input 
-                        type="text"
-                        value={remoteUrl}
-                        onChange={(e) => setRemoteUrl(e.target.value)}
-                        placeholder="postgres://user:pass@localhost:5432/db"
-                        className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors font-mono"
-                      />
+                  <div className="space-y-5">
+                    {useConnectionString ? (
+                      <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                        <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest px-1">Connection String</label>
+                        <input 
+                          type="text"
+                          value={remoteUrl}
+                          onChange={(e) => setRemoteUrl(e.target.value)}
+                          placeholder={dbType === "mysql" ? "mysql://user:pass@localhost:3306/db" : "postgres://user:pass@localhost:5432/db"}
+                          className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors font-mono"
+                        />
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-12 gap-4 animate-in fade-in slide-in-from-top-2">
+                        <div className="col-span-8 space-y-2">
+                          <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest px-1">Host</label>
+                          <input 
+                            type="text"
+                            value={connDetails.host}
+                            onChange={(e) => setConnDetails(prev => ({ ...prev, host: e.target.value }))}
+                            className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+                          />
+                        </div>
+                        <div className="col-span-4 space-y-2">
+                          <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest px-1">Port</label>
+                          <input 
+                            type="text"
+                            value={connDetails.port}
+                            onChange={(e) => setConnDetails(prev => ({ ...prev, port: e.target.value }))}
+                            className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+                          />
+                        </div>
+                        <div className="col-span-6 space-y-2">
+                          <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest px-1">Username</label>
+                          <input 
+                            type="text"
+                            value={connDetails.username}
+                            onChange={(e) => setConnDetails(prev => ({ ...prev, username: e.target.value }))}
+                            className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+                          />
+                        </div>
+                        <div className="col-span-6 space-y-2">
+                          <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest px-1">Password</label>
+                          <input 
+                            type="password"
+                            value={connDetails.password}
+                            onChange={(e) => setConnDetails(prev => ({ ...prev, password: e.target.value }))}
+                            className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+                          />
+                        </div>
+                        <div className="col-span-12 space-y-2">
+                          <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest px-1">Database</label>
+                          <input 
+                            type="text"
+                            value={connDetails.database}
+                            onChange={(e) => setConnDetails(prev => ({ ...prev, database: e.target.value }))}
+                            className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between py-2 border-t border-white/5">
+                      <div className="flex items-center gap-3">
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            className="sr-only peer" 
+                            checked={useConnectionString}
+                            onChange={() => setUseConnectionString(!useConnectionString)}
+                          />
+                          <div className="w-9 h-5 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500 peer-checked:after:bg-white"></div>
+                        </label>
+                        <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Use Connection String</span>
+                      </div>
                     </div>
+
                     <div className="pt-2 flex gap-3">
                       <button 
                         type="button"
                         onClick={() => setShowRemoteForm(false)}
-                        className="flex-1 px-4 py-2 rounded-lg font-bold text-xs bg-white/5 hover:bg-white/10 text-zinc-300 transition-colors"
+                        className="flex-1 px-6 py-3 rounded-xl font-bold text-xs bg-white/5 hover:bg-white/10 text-zinc-300 transition-all border border-white/5"
                       >
                         CANCEL
                       </button>
                       <button 
                         type="submit"
-                        className="flex-1 px-4 py-2 rounded-lg font-bold text-xs bg-blue-500 hover:bg-blue-400 text-white shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2"
+                        className="flex-1 px-6 py-3 rounded-xl font-bold text-xs bg-blue-500 hover:bg-blue-400 text-white shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2"
                       >
-                        <Link2 size={14} /> CONNECT
+                        <Link2 size={16} /> CONNECT
                       </button>
                     </div>
                   </div>
