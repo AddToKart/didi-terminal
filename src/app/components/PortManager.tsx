@@ -7,7 +7,9 @@ import {
   Wifi,
   Trash2,
   ExternalLink,
-  Search
+  Search,
+  Command,
+  Server
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -72,179 +74,157 @@ export function PortManager({ isOpen, onClose, onPortsUpdate }: PortManagerProps
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-black/70 backdrop-blur-md z-[100] animate-in fade-in duration-500" 
+        className="fixed inset-0 bg-black/60 backdrop-blur-md z-[100] animate-in fade-in duration-500" 
         onClick={onClose}
       />
 
       {/* Modal Container */}
       <div className="fixed inset-0 flex items-center justify-center z-[101] p-4 pointer-events-none">
-        <div className="bg-zinc-950/90 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden w-full max-w-2xl h-[600px] flex flex-col pointer-events-auto animate-in zoom-in-95 slide-in-from-bottom-8 duration-300">
+        <div className="bg-[#0b0b0d]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden w-full max-w-2xl h-[650px] flex flex-col pointer-events-auto animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
           
           {/* Header Section */}
-          <div className="relative p-6 border-b border-white/5 bg-gradient-to-b from-white/[0.05] to-transparent">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full animate-pulse" />
-                  <div className="relative p-3 bg-emerald-500/10 rounded-2xl text-emerald-400 border border-emerald-500/20">
-                    <Activity size={24} />
-                  </div>
+          <div className="p-5 border-b border-white/5 bg-zinc-900/40">
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-400 border border-emerald-500/20">
+                  <Server size={18} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-white tracking-tight">System Port Monitor</h3>
-                  <div className="flex items-center gap-2 text-xs text-zinc-400">
-                    <span className="flex items-center gap-1">
-                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                      {ports.length} Active Listeners
+                  <h3 className="text-sm font-bold text-white tracking-tight flex items-center gap-2">
+                    Active Ports
+                    <span className="px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-[10px] text-emerald-400 border border-emerald-500/20 uppercase tracking-tighter">
+                      Live
                     </span>
-                    <span className="opacity-20">|</span>
-                    <span>Real-time Process Tracking</span>
-                  </div>
+                  </h3>
+                  <p className="text-[10px] text-zinc-500 font-medium uppercase tracking-wider mt-0.5">Network Process Monitor</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <button 
                   onClick={fetchPorts}
                   disabled={loading}
-                  className="p-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-zinc-400 hover:text-white transition-all active:scale-95 disabled:opacity-50"
-                  title="Refresh List"
+                  className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95 disabled:opacity-50"
+                  title="Refresh"
                 >
-                  <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
+                  <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
                 </button>
                 <button 
                   onClick={onClose}
-                  className="p-2.5 bg-white/5 hover:bg-red-500/20 rounded-xl text-zinc-400 hover:text-red-400 transition-all active:scale-95"
+                  className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95"
                 >
-                  <X size={18} />
+                  <X size={14} />
                 </button>
               </div>
             </div>
 
-            {/* Search Bar - Integrated into Header */}
+            {/* Search Bar */}
             <div className="relative group">
-              <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-zinc-500 group-focus-within:text-emerald-500 transition-colors">
-                <Search size={18} />
+              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-zinc-600 group-focus-within:text-emerald-500 transition-colors">
+                <Search size={14} />
               </div>
               <input 
                 type="text"
-                placeholder="Search by port, process name, or PID..."
-                className="w-full bg-black/40 border border-white/10 rounded-2xl py-3.5 pl-12 pr-4 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500/40 focus:ring-4 focus:ring-emerald-500/5 transition-all shadow-inner"
+                placeholder="Filter by port, process or PID..."
+                className="w-full bg-black/40 border border-white/5 rounded-lg py-2.5 pl-9 pr-4 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500/30 transition-all shadow-inner"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 autoFocus
               />
-              {searchTerm && (
-                <button 
-                  onClick={() => setSearchTerm("")}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 p-1 text-zinc-500 hover:text-white"
-                >
-                  <X size={14} />
-                </button>
-              )}
             </div>
           </div>
 
-          {/* Main Content - Fixed Height Area */}
-          <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-3 bg-black/20">
-            {error && (
-              <div className="h-full flex flex-col items-center justify-center text-center p-8">
-                <div className="p-4 bg-red-500/10 rounded-full text-red-500 mb-4">
-                  <ShieldAlert size={48} />
+          {/* Column Headers */}
+          <div className="px-6 py-2 bg-black/40 border-b border-white/5 flex items-center text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+            <div className="w-20">Port</div>
+            <div className="flex-1">Process</div>
+            <div className="w-24">PID</div>
+            <div className="w-24">Status</div>
+            <div className="w-20 text-right">Actions</div>
+          </div>
+
+          {/* Main Content Area */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar bg-black/10">
+            {error ? (
+              <div className="h-full flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-500">
+                <div className="p-3 bg-red-500/10 rounded-lg text-red-500 mb-3 border border-red-500/20">
+                  <ShieldAlert size={32} />
                 </div>
-                <p className="text-lg font-medium text-white mb-2">Monitor Error</p>
-                <p className="text-sm text-red-400/80 max-w-xs">{error}</p>
+                <p className="text-sm font-bold text-white mb-1">Monitor Sync Error</p>
+                <p className="text-[11px] text-zinc-500 max-w-xs">{error}</p>
                 <button 
                   onClick={fetchPorts}
-                  className="mt-6 px-6 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-sm transition-colors"
+                  className="mt-4 px-4 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs transition-colors"
                 >
-                  Try Again
+                  Reconnect
                 </button>
               </div>
-            )}
-
-            {filteredPorts.length === 0 && !loading && !error && (
-              <div className="h-full flex flex-col items-center justify-center text-center opacity-40">
-                <div className="relative mb-6">
-                  <Wifi size={80} className="text-zinc-700" />
-                  <Search size={32} className="absolute bottom-0 right-0 text-emerald-500" />
-                </div>
-                <p className="text-lg font-medium text-white">No matches found</p>
-                <p className="text-sm">Try searching for a different port or process</p>
+            ) : filteredPorts.length === 0 && !loading ? (
+              <div className="h-full flex flex-col items-center justify-center p-8 text-center opacity-30 animate-in fade-in duration-500">
+                <Wifi size={48} className="text-zinc-600 mb-3" />
+                <p className="text-sm font-bold text-white">No active listeners</p>
+                <p className="text-[11px] text-zinc-500">Search criteria yielded no matches</p>
               </div>
-            )}
-
-            <div className="grid grid-cols-1 gap-3">
-              {filteredPorts.map((port) => (
-                <div 
-                  key={`${port.port}-${port.pid}`}
-                  className="group relative flex items-center justify-between p-4 bg-white/[0.02] hover:bg-white/[0.06] border border-white/5 rounded-2xl transition-all duration-300 overflow-hidden"
-                >
-                  {/* Subtle Background Glow on Hover */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/0 via-emerald-500/0 to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  
-                  <div className="relative flex items-center gap-6">
-                    <div className="flex flex-col items-center justify-center min-w-[70px]">
-                      <span className="text-lg font-black font-mono text-emerald-400 leading-none mb-1">
+            ) : (
+              <div className="divide-y divide-white/[0.03]">
+                {filteredPorts.map((port, index) => (
+                  <div 
+                    key={`${port.port}-${port.pid}`}
+                    className="group flex items-center px-6 py-3.5 hover:bg-white/[0.02] transition-colors animate-in fade-in slide-in-from-top-1 duration-300"
+                    style={{ animationDelay: `${index * 30}ms` }}
+                  >
+                    <div className="w-20">
+                      <span className="text-xs font-mono font-bold text-emerald-400 group-hover:text-emerald-300 transition-colors">
                         {port.port}
                       </span>
-                      <span className="text-[9px] uppercase tracking-widest text-emerald-500/40 font-bold">PORT</span>
                     </div>
-
-                    <div className="h-10 w-px bg-white/5" />
-
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold text-zinc-100 group-hover:text-white transition-colors">
-                        {port.process_name}
-                      </span>
-                      <div className="flex items-center gap-3 mt-1.5">
-                        <div className="flex items-center gap-1.5 px-2 py-0.5 bg-black/40 rounded-lg border border-white/5">
-                          <span className="text-[10px] text-zinc-500 font-bold uppercase">PID</span>
-                          <span className="text-[10px] text-zinc-300 font-mono">{port.pid}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-500/10 rounded-lg border border-emerald-500/10">
-                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                          <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">{port.state}</span>
-                        </div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <Command size={10} className="text-zinc-600" />
+                        <span className="text-xs font-medium text-zinc-300 truncate group-hover:text-white transition-colors">
+                          {port.process_name}
+                        </span>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="relative flex items-center gap-2">
-                    <button 
-                      onClick={() => window.open(`http://localhost:${port.port}`)}
-                      className="p-3 bg-white/5 hover:bg-emerald-500/20 text-zinc-400 hover:text-emerald-400 rounded-xl transition-all active:scale-90"
-                      title="Open Localhost"
-                    >
-                      <ExternalLink size={18} />
-                    </button>
-                    <button 
-                      onClick={() => handleKill(port.pid)}
-                      className="p-3 bg-white/5 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 rounded-xl transition-all active:scale-90"
-                      title="Terminate Process"
-                    >
-                      <Trash2 size={18} />
-                    </button>
+                    <div className="w-24">
+                      <span className="text-[10px] font-mono text-zinc-500 px-1.5 py-0.5 rounded bg-white/5 border border-white/5">
+                        {port.pid}
+                      </span>
+                    </div>
+
+                    <div className="w-24">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-1 h-1 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
+                        <span className="text-[10px] font-bold text-emerald-500/80 uppercase tracking-tighter">
+                          {port.state}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="w-20 flex items-center justify-end gap-1">
+                      <button 
+                        onClick={() => window.open(`http://localhost:${port.port}`)}
+                        className="p-1.5 hover:bg-emerald-500/10 text-zinc-600 hover:text-emerald-400 rounded-md transition-all active:scale-90"
+                        title="Open in Browser"
+                      >
+                        <ExternalLink size={14} />
+                      </button>
+                      <button 
+                        onClick={() => handleKill(port.pid)}
+                        className="p-1.5 hover:bg-red-500/10 text-zinc-600 hover:text-red-400 rounded-md transition-all active:scale-90"
+                        title="Kill Process"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Bottom Bar */}
-          <div className="p-4 px-6 bg-zinc-950 border-t border-white/5 flex justify-between items-center">
-            <div className="flex items-center gap-4 text-[10px] font-bold tracking-widest text-zinc-500 uppercase">
-              <span className="flex items-center gap-1.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                Live
-              </span>
-              <span className="opacity-20 text-xs">|</span>
-              <span>Updated {new Date().toLocaleTimeString()}</span>
-            </div>
-            <div className="px-3 py-1 bg-white/5 rounded-full border border-white/10">
-              <span className="text-[9px] font-black text-zinc-400 tracking-tighter uppercase">Didi Security Engine v2.0</span>
-            </div>
-          </div>
         </div>
       </div>
     </>
