@@ -41,6 +41,8 @@ import { AppTerminalArea } from "./app/components/AppTerminalArea";
 import { AppTerminalTabs } from "./app/components/AppTerminalTabs";
 import { AmbientMode } from "./app/components/AmbientMode";
 import { DbViewer } from "./app/components/DbViewer";
+import { SecurityPanel } from "./app/components/SecurityPanel";
+import { TwoFactorModal } from "./components/TwoFactorModal";
 import { loadWorkspaces, saveWorkspaces, getSetting, setSetting } from "./services/db-service";
 
 const NetworkGraph = lazy(() => import("./components/NetworkGraph").then(module => ({ default: module.NetworkGraph })));
@@ -165,6 +167,8 @@ function App() {
   const [showApiLab, setShowApiLab] = useState(false);
   const [showMonorepoGraph, setShowMonorepoGraph] = useState(false);
   const [showDbViewer, setShowDbViewer] = useState(false);
+  const [showSecurityPanel, setShowSecurityPanel] = useState<string | null>(null);
+  const [pendingWorkspaceId, setPendingWorkspaceId] = useState<string | null>(null);
   const [portCount, setPortCount] = useState(0);
   const [codeReviewStats, setCodeReviewStats] = useState({ additions: 0, deletions: 0 });
   const [isActivityCollapsed, setIsActivityCollapsed] = useState(false);
@@ -349,8 +353,20 @@ function App() {
   }), [writeHandoff, queueHandoff, flushQueuedHandoff]);
 
 
-  const handleWorkspaceSelect = (id: string) => {
-    setActiveWorkspaceId(id);
+  const handleWorkspaceSelect = async (id: string) => {
+    if (id === activeWorkspaceId) return;
+    
+    try {
+      const is2fa = await invoke<boolean>("is_2fa_enabled", { workspaceId: id });
+      if (is2fa) {
+        setPendingWorkspaceId(id);
+      } else {
+        setActiveWorkspaceId(id);
+      }
+    } catch (err) {
+      console.error("2FA check failed:", err);
+      setActiveWorkspaceId(id);
+    }
   };
 
   const handleWorkspaceReorder = (dragIndex: number, dropIndex: number) => {
@@ -672,6 +688,7 @@ function App() {
           onWorkspaceReorder={handleWorkspaceReorder}
           onWorkspaceRename={handleWorkspaceRename}
           onWorkspaceDelete={handleWorkspaceDelete}
+          onOpenSecurity={(id) => setShowSecurityPanel(id)}
         />
       )}
 
@@ -856,6 +873,28 @@ function App() {
             isOpen={showDbViewer}
             onClose={() => setShowDbViewer(false)}
           />
+          {showSecurityPanel && (
+            <SecurityPanel 
+              workspaceId={showSecurityPanel}
+              workspaceName={workspaces.find(w => w.id === showSecurityPanel)?.name || ""}
+              isOpen={!!showSecurityPanel}
+              onClose={() => setShowSecurityPanel(null)}
+            />
+          )}
+          {pendingWorkspaceId && (
+            <TwoFactorModal
+              isOpen={!!pendingWorkspaceId}
+              workspaceId={pendingWorkspaceId}
+              workspaceName={workspaces.find(w => w.id === pendingWorkspaceId)?.name || ""}
+              onVerify={(success) => {
+                if (success) {
+                  setActiveWorkspaceId(pendingWorkspaceId);
+                  setPendingWorkspaceId(null);
+                }
+              }}
+              onCancel={() => setPendingWorkspaceId(null)}
+            />
+          )}
         </>
       )}
 

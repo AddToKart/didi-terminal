@@ -209,6 +209,12 @@ pub fn run() {
                 );
             ",
             kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 2,
+            description: "add_totp_to_workspaces",
+            sql: "ALTER TABLE workspaces ADD COLUMN totp_secret TEXT;",
+            kind: MigrationKind::Up,
         }
     ];
 
@@ -269,6 +275,11 @@ pub fn run() {
             services::ports::get_active_ports,
             services::ports::kill_process,
             services::graph::get_project_graph,
+            services::security::generate_2fa_setup,
+            services::security::verify_and_enable_2fa,
+            services::security::verify_workspace_2fa,
+            services::security::is_2fa_enabled,
+            services::security::disable_workspace_2fa,
             initialize_project,
             open_browser_view,
             update_browser_bounds,

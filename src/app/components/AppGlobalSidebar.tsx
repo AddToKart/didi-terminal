@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Code2, FolderOpen, Settings, Bell, Palette, Plus, TerminalSquare, Workflow, MoreVertical, Pencil, Trash2, Globe, Copy, Check, GitBranch, Share2, Focus } from "lucide-react";
+import { Code2, FolderOpen, Settings, Bell, Palette, Plus, TerminalSquare, Workflow, MoreVertical, Pencil, Trash2, Globe, Copy, Check, GitBranch, Share2, Focus, Shield } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   DndContext,
@@ -47,6 +47,7 @@ interface AppGlobalSidebarProps {
   onWorkspaceReorder: (dragIndex: number, dropIndex: number) => void;
   onWorkspaceRename: (id: string, newName: string) => void;
   onWorkspaceDelete: (id: string) => void;
+  onOpenSecurity: (id: string) => void;
 }
 
 // ── Sortable workspace item ───────────────────────────────────────────────────
@@ -64,6 +65,7 @@ interface SortableWorkspaceItemProps {
   onOpenDirectory: (id: string) => void;
   onRenameStart: (id: string, name: string) => void;
   onDelete: (id: string) => void;
+  onOpenSecurity: (id: string) => void;
   isDragOverlay?: boolean;
 }
 
@@ -80,6 +82,7 @@ function SortableWorkspaceItem({
   onOpenDirectory,
   onRenameStart,
   onDelete,
+  onOpenSecurity,
   isDragOverlay = false,
 }: SortableWorkspaceItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -232,6 +235,12 @@ function SortableWorkspaceItem({
             >
               <Pencil size={14} className="text-zinc-400" /> Rename
             </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => onOpenSecurity(ws.id)}
+              className="gap-2 cursor-pointer text-xs focus:bg-white/10"
+            >
+              <Shield size={14} className="text-zinc-400" /> Security
+            </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-white/5" />
             <DropdownMenuItem
               onClick={() => onDelete(ws.id)}
@@ -260,6 +269,7 @@ export function AppGlobalSidebar({
   onWorkspaceReorder,
   onWorkspaceRename,
   onWorkspaceDelete,
+  onOpenSecurity,
 }: AppGlobalSidebarProps) {
   const [editingWsId, setEditingWsId] = useState<string | null>(null);
   const [editWsName, setEditWsName] = useState("");
@@ -364,6 +374,7 @@ export function AppGlobalSidebar({
                           setEditWsName(name);
                         }}
                         onDelete={onWorkspaceDelete}
+                        onOpenSecurity={onOpenSecurity}
                       />
                     ))}
                   </SortableContext>
@@ -385,6 +396,7 @@ export function AppGlobalSidebar({
                           onOpenDirectory={() => {}}
                           onRenameStart={() => {}}
                           onDelete={() => {}}
+                          onOpenSecurity={() => {}}
                           isDragOverlay
                         />
                       ) : null;
