@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Code2, FolderOpen, Settings, Bell, Palette, Plus, TerminalSquare, Workflow, MoreVertical, Pencil, Trash2, Globe, Copy, Check, GitBranch, Share2 } from "lucide-react";
+import { Code2, FolderOpen, Settings, Bell, Palette, Plus, TerminalSquare, Workflow, MoreVertical, Pencil, Trash2, Globe, Copy, Check, GitBranch, Share2, Focus } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   DndContext,
@@ -36,8 +36,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
 interface AppGlobalSidebarProps {
-  appMode: "terminal" | "orchestrator";
-  onSetAppMode: (mode: "terminal" | "orchestrator") => void;
+  appMode: "terminal" | "orchestrator" | "zen";
+  onSetAppMode: (mode: "terminal" | "orchestrator" | "zen") => void;
   workspaces: WorkspaceState[];
   activeWorkspaceId: string;
   onWorkspaceSelect: (id: string) => void;
@@ -403,26 +403,40 @@ export function AppGlobalSidebar({
               size="sm"
               onClick={() => onSetAppMode("terminal")}
               className={cn(
-                "flex-1 h-8 rounded-lg text-xs font-semibold transition-all",
+                "flex-1 min-w-0 h-8 px-2 rounded-lg text-[11px] font-semibold transition-all",
                 appMode === "terminal"
                   ? "bg-white/10 text-white shadow-sm hover:bg-white/15"
                   : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
               )}
             >
-              <TerminalSquare size={14} className="mr-1.5" strokeWidth={2.5} /> Terminal
+              <TerminalSquare size={14} className="mr-1 shrink-0" strokeWidth={2.5} /> <span className="truncate">Terminal</span>
             </Button>
             <Button
               variant={appMode === "orchestrator" ? "secondary" : "ghost"}
               size="sm"
               onClick={() => onSetAppMode("orchestrator")}
               className={cn(
-                "flex-1 h-8 rounded-lg text-xs font-semibold transition-all",
+                "flex-1 min-w-0 h-8 px-2 rounded-lg text-[11px] font-semibold transition-all",
                 appMode === "orchestrator"
                   ? "bg-purple-500/20 text-purple-200 shadow-sm ring-1 ring-purple-500/30 hover:bg-purple-500/30"
                   : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
               )}
             >
-              <Workflow size={14} className="mr-1.5" strokeWidth={2.5} /> Orchestrator
+              <Workflow size={14} className="mr-1 shrink-0" strokeWidth={2.5} /> <span className="truncate">Orchestrator</span>
+            </Button>
+            <Button
+              variant={appMode === "zen" ? "secondary" : "ghost"}
+              size="icon"
+              onClick={() => onSetAppMode("zen")}
+              className={cn(
+                "w-8 h-8 shrink-0 rounded-lg transition-all",
+                appMode === "zen"
+                  ? "bg-emerald-500/20 text-emerald-200 shadow-sm ring-1 ring-emerald-500/30 hover:bg-emerald-500/30"
+                  : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
+              )}
+              title="Zen Mode"
+            >
+              <Focus size={14} strokeWidth={2.5} />
             </Button>
           </div>
 

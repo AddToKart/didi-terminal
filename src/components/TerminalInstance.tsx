@@ -48,9 +48,10 @@ interface Props {
   dragListeners?: any;
   workspaceName?: string;
   workspaceId?: string;
+  isZenMode?: boolean;
 }
 
-export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, dragAttributes, dragListeners, workspaceName, workspaceId }: Props) {
+export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, dragAttributes, dragListeners, workspaceName, workspaceId, isZenMode }: Props) {
   const terminalRef = useRef<HTMLDivElement>(null);
   
   const [isPulsing, setIsPulsing] = useState(false);
@@ -157,6 +158,11 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
   };
 
   const handleTerminalKey = (e: KeyboardEvent) => {
+    // Allow Zen Mode shortcut (Alt + Q) to bubble up
+    if (e.altKey && e.code === "KeyQ") {
+      return false;
+    }
+
     if (e.ctrlKey && e.key === "v" && e.type === "keydown") {
       readText().then((text) => {
         if (text) {
@@ -270,69 +276,71 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
 
   return (
     <div 
-      className={`flex flex-col h-full w-full bg-transparent border transition-colors duration-300 ${sentinelPaused ? 'border-red-400 shadow-sm z-10 relative' : isPulsing ? 'border-brand-accent animate-pulse-border shadow-sm z-10 relative' : isFocused ? 'border-brand-accent shadow-sm z-10 relative' : 'border-app-border z-0'}`}
+      className={`flex flex-col h-full w-full bg-transparent transition-colors duration-300 ${isZenMode ? '' : sentinelPaused ? 'border border-red-400 shadow-sm z-10 relative' : isPulsing ? 'border border-brand-accent animate-pulse-border shadow-sm z-10 relative' : isFocused ? 'border border-brand-accent shadow-sm z-10 relative' : 'border border-app-border z-0'}`}
       tabIndex={-1}
       onFocus={handleFocus}
       onBlur={handleBlur}
     >
       
       {/* Terminal Header & Macros */}
-      <div 
-        className={`flex items-center justify-between px-3 py-1.5 border-b transition-colors duration-300 ${dragListeners ? 'cursor-grab active:cursor-grabbing' : ''} ${sentinelPaused ? 'bg-red-500/10 border-red-400/50' : isPulsing ? 'bg-brand-accent/10 border-brand-accent/50' : isFocused ? 'bg-brand-accent/5 border-brand-accent/40' : 'bg-app-panel border-app-border'}`}
-        onContextMenu={handleContextMenu}
-        title={dragListeners ? "Drag to reorder • Right-click to split pane" : "Right-click to split pane"}
-        {...dragAttributes}
-        {...dragListeners}
-      >
-        <div className="flex items-center gap-2">
-          <TerminalIcon size={12} className={sentinelPaused ? 'text-red-300' : isPulsing ? 'text-brand-primary' : isFocused ? 'text-brand-accent' : 'text-slate-500'} />
-          <span className={`text-[11px] font-bold tracking-widest uppercase ${sentinelPaused ? 'text-red-200' : isPulsing ? 'text-brand-primary' : isFocused ? 'text-brand-primary' : 'text-zinc-200'}`}>
-            {agentName}
-          </span>
-          {(isPulsing || sentinelPaused) && <Zap size={12} className="text-brand-warn animate-pulse" />}
-        </div>
-        
-        {/* Macro Bar */}
-        <div className="flex flex-1 mx-4 justify-end gap-1 opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity">
-           <button onClick={() => executeMacro("clear")} className="px-1.5 py-0.5 text-[9px] bg-app-panel hover:bg-zinc-800/60 text-zinc-300 hover:text-brand-primary border border-app-border rounded flex items-center gap-1 font-bold">
-             <Eraser size={9} /> CLEAR
-           </button>
-           <button onClick={() => executeMacro("npm run dev")} className="px-1.5 py-0.5 text-[9px] bg-app-panel hover:bg-zinc-800/60 text-zinc-300 hover:text-brand-primary border border-app-border rounded flex items-center gap-1 font-bold">
-             <Play size={9} /> DEV
-           </button>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="hidden md:flex items-center gap-2 text-[9px] font-mono text-zinc-400 font-bold mr-2">
-             <span title="CPU Usage">{stats.cpu.toFixed(1)}% CPU</span>
-             <span title="Memory Usage">{(stats.mem / 1024 / 1024).toFixed(0)} MB</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className={`w-1.5 h-1.5 rounded-full ${isReady ? 'bg-emerald-400' : 'bg-brand-warn animate-pulse'}`}></div>
-            <span className="text-[9px] font-bold text-zinc-300 font-medium tracking-tight">
-              {sentinelPaused ? 'PAUSED' : isReady ? 'IDLE' : 'INIT'}
+      {!isZenMode && (
+        <div 
+          className={`flex items-center justify-between px-3 py-1.5 border-b transition-colors duration-300 ${dragListeners ? 'cursor-grab active:cursor-grabbing' : ''} ${sentinelPaused ? 'bg-red-500/10 border-red-400/50' : isPulsing ? 'bg-brand-accent/10 border-brand-accent/50' : isFocused ? 'bg-brand-accent/5 border-brand-accent/40' : 'bg-app-panel border-app-border'}`}
+          onContextMenu={handleContextMenu}
+          title={dragListeners ? "Drag to reorder • Right-click to split pane" : "Right-click to split pane"}
+          {...dragAttributes}
+          {...dragListeners}
+        >
+          <div className="flex items-center gap-2">
+            <TerminalIcon size={12} className={sentinelPaused ? 'text-red-300' : isPulsing ? 'text-brand-primary' : isFocused ? 'text-brand-accent' : 'text-slate-500'} />
+            <span className={`text-[11px] font-bold tracking-widest uppercase ${sentinelPaused ? 'text-red-200' : isPulsing ? 'text-brand-primary' : isFocused ? 'text-brand-primary' : 'text-zinc-200'}`}>
+              {agentName}
             </span>
+            {(isPulsing || sentinelPaused) && <Zap size={12} className="text-brand-warn animate-pulse" />}
           </div>
-          {onRemove && (
-            <div className="flex items-center gap-1 ml-2">
-              <button 
-                onClick={handlePopOut}
-                className="text-slate-500 hover:text-brand-primary transition-colors bg-app-bg hover:bg-brand-accent/10 p-1 rounded-sm border border-app-border hover:border-brand-accent/30"
-                title="Pop-out Terminal"
-              >
-                <ExternalLink size={10} strokeWidth={2} />
-              </button>
-              <button 
-                onClick={onRemove}
-                className="text-slate-500 hover:text-red-400 transition-colors bg-app-bg hover:bg-red-400/10 p-1 rounded-sm border border-app-border hover:border-red-400/30"
-                title="Terminate Agent"
-              >
-                <X size={10} strokeWidth={3} />
-              </button>
+          
+          {/* Macro Bar */}
+          <div className="flex flex-1 mx-4 justify-end gap-1 opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity">
+             <button onClick={() => executeMacro("clear")} className="px-1.5 py-0.5 text-[9px] bg-app-panel hover:bg-zinc-800/60 text-zinc-300 hover:text-brand-primary border border-app-border rounded flex items-center gap-1 font-bold">
+               <Eraser size={9} /> CLEAR
+             </button>
+             <button onClick={() => executeMacro("npm run dev")} className="px-1.5 py-0.5 text-[9px] bg-app-panel hover:bg-zinc-800/60 text-zinc-300 hover:text-brand-primary border border-app-border rounded flex items-center gap-1 font-bold">
+               <Play size={9} /> DEV
+             </button>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="hidden md:flex items-center gap-2 text-[9px] font-mono text-zinc-400 font-bold mr-2">
+               <span title="CPU Usage">{stats.cpu.toFixed(1)}% CPU</span>
+               <span title="Memory Usage">{(stats.mem / 1024 / 1024).toFixed(0)} MB</span>
             </div>
-          )}
+            <div className="flex items-center gap-1.5">
+              <div className={`w-1.5 h-1.5 rounded-full ${isReady ? 'bg-emerald-400' : 'bg-brand-warn animate-pulse'}`}></div>
+              <span className="text-[9px] font-bold text-zinc-300 font-medium tracking-tight">
+                {sentinelPaused ? 'PAUSED' : isReady ? 'IDLE' : 'INIT'}
+              </span>
+            </div>
+            {onRemove && (
+              <div className="flex items-center gap-1 ml-2">
+                <button 
+                  onClick={handlePopOut}
+                  className="text-slate-500 hover:text-brand-primary transition-colors bg-app-bg hover:bg-brand-accent/10 p-1 rounded-sm border border-app-border hover:border-brand-accent/30"
+                  title="Pop-out Terminal"
+                >
+                  <ExternalLink size={10} strokeWidth={2} />
+                </button>
+                <button 
+                  onClick={onRemove}
+                  className="text-slate-500 hover:text-red-400 transition-colors bg-app-bg hover:bg-red-400/10 p-1 rounded-sm border border-app-border hover:border-red-400/30"
+                  title="Terminate Agent"
+                >
+                  <X size={10} strokeWidth={3} />
+                </button>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
       
       {/* Terminal Content */}
       <div className={`flex-1 overflow-hidden p-1.5 relative group ${isPulsing ? 'animate-flash-bg' : ''}`}>

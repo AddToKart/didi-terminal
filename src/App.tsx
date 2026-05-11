@@ -73,7 +73,7 @@ function App() {
     );
   }
 
-  const [appMode, setAppMode] = useState<"terminal" | "orchestrator">("terminal");
+  const [appMode, setAppMode] = useState<"terminal" | "orchestrator" | "zen">("terminal");
 
   const [workspaces, setWorkspaces] = useState<WorkspaceState[]>(() => {
     return [{ id: crypto.randomUUID(), name: "Workspace 1", directory: null, tabs: [], activeTabId: "" }];
@@ -100,7 +100,7 @@ function App() {
           });
         }
         const savedMode = await getSetting("appMode");
-        if (savedMode === "terminal" || savedMode === "orchestrator") setAppMode(savedMode);
+        if (savedMode === "terminal" || savedMode === "orchestrator" || savedMode === "zen") setAppMode(savedMode as any);
         const savedSidebar = await getSetting("isSidebarOpen");
         if (savedSidebar !== null) setIsSidebarOpen(savedSidebar === "true");
         const savedSentinel = await getSetting("sentinelEnabled");
@@ -642,103 +642,141 @@ function App() {
     setApprovalRequest(null);
   };
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Toggle Zen Mode with Alt + Q (using capture phase to override terminal)
+      if (e.altKey && e.code === "KeyQ") {
+        e.preventDefault();
+        e.stopPropagation();
+        setAppMode(prev => prev === "zen" ? "terminal" : "zen");
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown, true); // true = capture phase
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
+  }, []);
+
   return (
     <main className="h-screen w-screen bg-app-bg text-slate-300 overflow-hidden flex selection:bg-brand-accent/20 relative">
-      <AppGlobalSidebar
-        appMode={appMode}
-        onSetAppMode={setAppMode}
-        workspaces={workspaces}
-        activeWorkspaceId={activeWorkspaceId}
-        onWorkspaceSelect={handleWorkspaceSelect}
-        onCreateWorkspace={handleCreateWorkspace}
-        onOpenDirectory={handleOpenDirectory}
-        onOpenSettings={() => setShowSettings(true)}
-        onWorkspaceReorder={handleWorkspaceReorder}
-        onWorkspaceRename={handleWorkspaceRename}
-        onWorkspaceDelete={handleWorkspaceDelete}
-      />
+      {appMode !== "zen" && (
+        <AppGlobalSidebar
+          appMode={appMode}
+          onSetAppMode={setAppMode}
+          workspaces={workspaces}
+          activeWorkspaceId={activeWorkspaceId}
+          onWorkspaceSelect={handleWorkspaceSelect}
+          onCreateWorkspace={handleCreateWorkspace}
+          onOpenDirectory={handleOpenDirectory}
+          onOpenSettings={() => setShowSettings(true)}
+          onWorkspaceReorder={handleWorkspaceReorder}
+          onWorkspaceRename={handleWorkspaceRename}
+          onWorkspaceDelete={handleWorkspaceDelete}
+        />
+      )}
 
-      <AppOverlays
-        showNetworkGraph={showNetworkGraph}
-        NetworkGraphComponent={NetworkGraph}
-        agents={agents}
-        tasks={tasks}
-        onCloseNetworkGraph={() => setShowNetworkGraph(false)}
-        onKillAgent={handleKillAgent}
-        onInterruptAgent={handleInterruptAgent}
-        onInjectHint={handleInjectHint}
-        onQuickDispatch={handleQuickDispatch}
-        showMonorepoGraph={showMonorepoGraph}
-        onCloseMonorepoGraph={() => setShowMonorepoGraph(false)}
-        onOpenInTerminal={handleOpenProjectInTerminal}
-        showSettings={showSettings}
-        SettingsModalComponent={SettingsModal}
-        onCloseSettings={() => setShowSettings(false)}
-        showBrainstorm={showBrainstorm}
-        brainstormSessions={brainstormSessions}
-        onStartBrainstorm={handleStartBrainstorm}
-        onCloseBrainstorm={() => setShowBrainstorm(false)}
-        showMasterPlan={showMasterPlan}
-        currentProject={currentProject}
-        onDispatchMasterPlanTask={handleDispatchMasterPlanTask}
-        activeTaskLine={masterPlanQueueState.activeLine}
-        queuedTaskLines={masterPlanQueueState.queuedLines}
-        onCloseMasterPlan={() => setShowMasterPlan(false)}
-        approvalRequest={approvalRequest}
-        onApproveHitl={handleHitlApprove}
-        onRejectHitl={handleHitlReject}
-      />
+      {appMode !== "zen" && (
+        <AppOverlays
+          showNetworkGraph={showNetworkGraph}
+          NetworkGraphComponent={NetworkGraph}
+          agents={agents}
+          tasks={tasks}
+          onCloseNetworkGraph={() => setShowNetworkGraph(false)}
+          onKillAgent={handleKillAgent}
+          onInterruptAgent={handleInterruptAgent}
+          onInjectHint={handleInjectHint}
+          onQuickDispatch={handleQuickDispatch}
+          showMonorepoGraph={showMonorepoGraph}
+          onCloseMonorepoGraph={() => setShowMonorepoGraph(false)}
+          onOpenInTerminal={handleOpenProjectInTerminal}
+          showSettings={showSettings}
+          SettingsModalComponent={SettingsModal}
+          onCloseSettings={() => setShowSettings(false)}
+          showBrainstorm={showBrainstorm}
+          brainstormSessions={brainstormSessions}
+          onStartBrainstorm={handleStartBrainstorm}
+          onCloseBrainstorm={() => setShowBrainstorm(false)}
+          showMasterPlan={showMasterPlan}
+          currentProject={currentProject}
+          onDispatchMasterPlanTask={handleDispatchMasterPlanTask}
+          activeTaskLine={masterPlanQueueState.activeLine}
+          queuedTaskLines={masterPlanQueueState.queuedLines}
+          onCloseMasterPlan={() => setShowMasterPlan(false)}
+          approvalRequest={approvalRequest}
+          onApproveHitl={handleHitlApprove}
+          onRejectHitl={handleHitlReject}
+        />
+      )}
 
       <section className="flex-1 flex flex-col min-w-0">
-        <AppTopbar
-          appMode={appMode}
-          onSpawnAgent={spawnAgent}
-          newAgentName={newAgentName}
-          onChangeNewAgentName={setNewAgentName}
-          onOpenBrainstorm={() => setShowBrainstorm(true)}
-          onOpenMasterPlan={() => setShowMasterPlan(true)}
-          onOpenNetworkGraph={() => setShowNetworkGraph(true)}
-          layoutOrientation={layoutOrientation}
-          onSetLayoutOrientation={handleSetLayoutOrientation}
-          isSidebarOpen={isSidebarOpen}
-          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-          onSpawnBrowser={handleSpawnBrowser}
-          codeReviewStats={codeReviewStats}
-          onToggleCodeReview={() => setShowCodeReview(!showCodeReview)}
-          onToggleGitPanel={() => setShowGitPanel(!showGitPanel)}
-          onTogglePersonalKanban={() => setShowPersonalKanban(!showPersonalKanban)}
-          onToggleFileExplorer={() => setShowFileExplorer(!showFileExplorer)}
-          onToggleEnvManager={() => setShowEnvManager(!showEnvManager)}
-          onTogglePackageManager={() => setShowPackageManager(!showPackageManager)}
-          onToggleApiLab={() => setShowApiLab(!showApiLab)}
-          onToggleMonorepoGraph={() => setShowMonorepoGraph(!showMonorepoGraph)}
-          currentProject={currentProject}
-        />
+        {appMode !== "zen" && (
+          <AppTopbar
+            appMode={appMode}
+            onSpawnAgent={spawnAgent}
+            newAgentName={newAgentName}
+            onChangeNewAgentName={setNewAgentName}
+            onOpenBrainstorm={() => setShowBrainstorm(true)}
+            onOpenMasterPlan={() => setShowMasterPlan(true)}
+            onOpenNetworkGraph={() => setShowNetworkGraph(true)}
+            layoutOrientation={layoutOrientation}
+            onSetLayoutOrientation={handleSetLayoutOrientation}
+            isSidebarOpen={isSidebarOpen}
+            onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+            onSpawnBrowser={handleSpawnBrowser}
+            codeReviewStats={codeReviewStats}
+            onToggleCodeReview={() => setShowCodeReview(!showCodeReview)}
+            onToggleGitPanel={() => setShowGitPanel(!showGitPanel)}
+            onTogglePersonalKanban={() => setShowPersonalKanban(!showPersonalKanban)}
+            onToggleFileExplorer={() => setShowFileExplorer(!showFileExplorer)}
+            onToggleEnvManager={() => setShowEnvManager(!showEnvManager)}
+            onTogglePackageManager={() => setShowPackageManager(!showPackageManager)}
+            onToggleApiLab={() => setShowApiLab(!showApiLab)}
+            onToggleMonorepoGraph={() => setShowMonorepoGraph(!showMonorepoGraph)}
+            currentProject={currentProject}
+          />
+        )}
 
-        <AppTerminalTabs
-          tabs={tabs}
-          activeTabId={activeTabId}
-          onTabSelect={handleTabSelect}
-          onTabClose={handleTabClose}
-          onTabCreate={handleTabCreate}
-          onTabRename={handleTabRename}
-          onTabReorder={handleTabReorder}
-        />
+        {appMode !== "zen" && (
+          <AppTerminalTabs
+            tabs={tabs}
+            activeTabId={activeTabId}
+            onTabSelect={handleTabSelect}
+            onTabClose={handleTabClose}
+            onTabCreate={handleTabCreate}
+            onTabRename={handleTabRename}
+            onTabReorder={handleTabReorder}
+          />
+        )}
 
-        <AppTerminalArea
-          agents={agents}
-          currentProject={currentProject}
-          layoutOrientation={layoutOrientation}
-          onRemoveAgent={removeAgent}
-          onDetachAgent={detachAgent}
-          onReorderAgents={handleReorderAgents}
-          onSplit={handleSplit}
-          onOpenDirectory={() => handleOpenDirectory(activeWorkspaceId)}
-          workspaceName={workspaces.find(w => w.id === activeWorkspaceId)?.name}
-          workspaceId={activeWorkspaceId}
-        />
+        {appMode !== "zen" ? (
+          <AppTerminalArea
+            agents={agents}
+            currentProject={currentProject}
+            layoutOrientation={layoutOrientation}
+            onRemoveAgent={removeAgent}
+            onDetachAgent={detachAgent}
+            onReorderAgents={handleReorderAgents}
+            onSplit={handleSplit}
+            onOpenDirectory={() => handleOpenDirectory(activeWorkspaceId)}
+            workspaceName={workspaces.find(w => w.id === activeWorkspaceId)?.name}
+            workspaceId={activeWorkspaceId}
+          />
+        ) : (
+          <div className="flex-1 min-h-0 min-w-0 flex bg-black relative">
+            {/* Hidden Exit Button - slides down on hover at the very top edge */}
+            <div className="absolute top-0 left-0 right-0 h-2 z-[100] group/exit pointer-events-auto">
+              <div className="absolute top-0 left-0 right-0 -translate-y-full group-hover/exit:translate-y-0 transition-transform duration-300 flex items-center justify-center py-4">
+                <button 
+                  onClick={() => setAppMode("terminal")}
+                  className="bg-brand-accent/20 hover:bg-brand-accent/40 text-brand-primary text-[10px] font-bold px-6 py-2 rounded-full border border-brand-accent/30 backdrop-blur-xl shadow-2xl transition-all uppercase tracking-[0.3em]"
+                >
+                  Exit Zen Mode (Alt + Q)
+                </button>
+              </div>
+            </div>
+            <TerminalInstance agentName="zen-terminal" cwd={null} isZenMode={true} />
+          </div>
+        )}
         
-        {(showCodeReview || showGitPanel || showPersonalKanban || showFileExplorer) && (
+        {appMode !== "zen" && (showCodeReview || showGitPanel || showPersonalKanban || showFileExplorer) && (
           <div 
             className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[45] animate-in fade-in duration-300" 
             onClick={() => {
@@ -750,61 +788,69 @@ function App() {
           />
         )}
 
-        <CodeReviewPanel 
-          currentProject={currentProject} 
-          isOpen={showCodeReview} 
-          onClose={() => setShowCodeReview(false)} 
-          onStatsUpdate={setCodeReviewStats}
-        />
-        <GitPanel
-          currentProject={currentProject}
-          isOpen={showGitPanel}
-          onClose={() => setShowGitPanel(false)}
-          onOpenFullscreen={() => {
-            setShowGitPanel(false);
-            setShowGitFullscreen(true);
-          }}
-        />
-        <SourceControlFullscreen
-          currentProject={currentProject}
-          isOpen={showGitFullscreen}
-          onClose={() => setShowGitFullscreen(false)}
-        />
-        <PersonalKanban
-          workspaceId={activeWorkspaceId}
-          isOpen={showPersonalKanban}
-          onClose={() => setShowPersonalKanban(false)}
-        />
-        <ProjectFileExplorer
-          currentProject={currentProject}
-          isOpen={showFileExplorer}
-          onClose={() => setShowFileExplorer(false)}
-        />
-        <StatusBar 
-          portCount={portCount} 
-          onOpenPortManager={() => setShowPortManager(true)} 
-        />
+        {appMode !== "zen" && (
+          <>
+            <CodeReviewPanel 
+              currentProject={currentProject} 
+              isOpen={showCodeReview} 
+              onClose={() => setShowCodeReview(false)} 
+              onStatsUpdate={setCodeReviewStats}
+            />
+            <GitPanel
+              currentProject={currentProject}
+              isOpen={showGitPanel}
+              onClose={() => setShowGitPanel(false)}
+              onOpenFullscreen={() => {
+                setShowGitPanel(false);
+                setShowGitFullscreen(true);
+              }}
+            />
+            <SourceControlFullscreen
+              currentProject={currentProject}
+              isOpen={showGitFullscreen}
+              onClose={() => setShowGitFullscreen(false)}
+            />
+            <PersonalKanban
+              workspaceId={activeWorkspaceId}
+              isOpen={showPersonalKanban}
+              onClose={() => setShowPersonalKanban(false)}
+            />
+            <ProjectFileExplorer
+              currentProject={currentProject}
+              isOpen={showFileExplorer}
+              onClose={() => setShowFileExplorer(false)}
+            />
+            <StatusBar 
+              portCount={portCount} 
+              onOpenPortManager={() => setShowPortManager(true)} 
+            />
+          </>
+        )}
       </section>
 
-      <PortManager 
-        isOpen={showPortManager} 
-        onClose={() => setShowPortManager(false)} 
-        onPortsUpdate={setPortCount}
-      />
-      <EnvManager
-        currentProject={currentProject}
-        isOpen={showEnvManager}
-        onClose={() => setShowEnvManager(false)}
-      />
-      <PackageManager
-        currentProject={currentProject}
-        isOpen={showPackageManager}
-        onClose={() => setShowPackageManager(false)}
-      />
-      <ApiLab
-        isOpen={showApiLab}
-        onClose={() => setShowApiLab(false)}
-      />
+      {appMode !== "zen" && (
+        <>
+          <PortManager 
+            isOpen={showPortManager} 
+            onClose={() => setShowPortManager(false)} 
+            onPortsUpdate={setPortCount}
+          />
+          <EnvManager
+            currentProject={currentProject}
+            isOpen={showEnvManager}
+            onClose={() => setShowEnvManager(false)}
+          />
+          <PackageManager
+            currentProject={currentProject}
+            isOpen={showPackageManager}
+            onClose={() => setShowPackageManager(false)}
+          />
+          <ApiLab
+            isOpen={showApiLab}
+            onClose={() => setShowApiLab(false)}
+          />
+        </>
+      )}
 
       {isSidebarOpen && appMode === "orchestrator" && (
         <AppSidebar

@@ -29,6 +29,7 @@ interface AppTerminalAreaProps {
   onOpenDirectory?: () => void;
   workspaceName?: string;
   workspaceId: string;
+  isZenMode?: boolean;
 }
 
 // ── Sortable terminal wrapper ──────────────────────────────────────────────
@@ -165,6 +166,7 @@ export function AppTerminalArea({
   onOpenDirectory,
   workspaceName,
   workspaceId,
+  isZenMode,
 }: AppTerminalAreaProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -208,7 +210,7 @@ export function AppTerminalArea({
   };
 
   return (
-    <div className="flex-1 p-2 bg-transparent flex flex-col min-h-0 min-w-0">
+    <div className={`flex-1 flex flex-col min-h-0 min-w-0 ${isZenMode ? "" : "p-2 bg-transparent"}`}>
       {agents.length === 0 ? (
         <div className="h-full flex flex-col items-center justify-center text-slate-500 gap-4 border border-dashed border-app-border rounded-lg">
           <div className="text-sm font-mono">NO ACTIVE AGENTS</div>
@@ -247,7 +249,7 @@ export function AppTerminalArea({
           ) : (
             <SortableContext items={agents} strategy={rectSortingStrategy}>
               <div
-                className={`flex-1 min-h-0 min-w-0 rounded-lg overflow-hidden border border-app-border bg-app-border gap-1 ${
+                className={`flex-1 min-h-0 min-w-0 ${isZenMode ? "bg-black" : "rounded-lg overflow-hidden border border-app-border bg-app-border gap-1"} ${
                   layoutOrientation === "horizontal" ? "flex flex-row" : 
                   layoutOrientation === "vertical" ? "flex flex-col" : 
                   layoutOrientation === "focus" ? "flex flex-col flex-wrap content-stretch" :
