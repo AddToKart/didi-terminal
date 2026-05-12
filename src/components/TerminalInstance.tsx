@@ -494,18 +494,21 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
 
 
   const handleTerminalKey = useCallback((e: KeyboardEvent) => {
-    // Allow Zen Mode shortcut (Alt + Q) to bubble up
+    // Let xterm.js process standard keys by returning true
+    
+    // Prevent xterm from capturing Zen Mode shortcut (Alt + Q)
     if (e.altKey && e.code === "KeyQ") {
-      return false;
+      return false; 
     }
 
     if (e.ctrlKey && e.key === "v" && e.type === "keydown") {
       readText().then((text) => {
         pasteTerminalInput(text);
       }).catch(console.error);
-      return true; // prevent default
+      return false; // Swallow paste, we handle it manually
     }
-    return false; // allow default
+
+    return true; // Allow all other keys to be processed by xterm.js!
   }, [pasteTerminalInput]);
 
   const { terminal, isReady: isTerminalReady } = useXTerm(terminalRef, {

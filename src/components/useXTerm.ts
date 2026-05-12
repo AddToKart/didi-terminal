@@ -86,7 +86,7 @@ export function useXTerm(
       term.onData((data) => onDataRef.current?.(data));
       term.onBinary((data) => onBinaryRef.current?.(data));
 
-      term.attachCustomKeyEventHandler((event) => onKeyRef.current?.(event) ?? false);
+      term.attachCustomKeyEventHandler((event) => onKeyRef.current?.(event) ?? true);
 
       // Initial fit
       try {
