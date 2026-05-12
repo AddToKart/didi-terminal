@@ -598,9 +598,9 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
           // Re-evaluate prompt readiness on scrollback restore
           const text = stripTerminalControls(scrollback.data).replace(/\s+/g, " ");
           outputBuffer.current = `${outputBuffer.current}${text}`.slice(-4000);
-          if (isPromptReady(outputBuffer.current)) {
-            setReadyState(true);
-          }
+          
+          // Force ready state if we have scrollback, since the process is clearly alive
+          setReadyState(true);
         }
 
         // Ensure the newly spawned PTY immediately gets the correct dimensions

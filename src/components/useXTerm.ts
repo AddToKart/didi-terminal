@@ -97,7 +97,6 @@ export function useXTerm(
       emitResize();
 
       const fitTerminal = () => {
-        resizeFrame = null;
         if (!term || !fitAddon) return;
         try {
           fitAddon.fit();
@@ -109,9 +108,10 @@ export function useXTerm(
         resizeSettleTimer = setTimeout(emitResize, 120);
       };
 
+      let resizeTimeout: ReturnType<typeof setTimeout>;
       resizeObserver = new ResizeObserver(() => {
-        if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
-        resizeFrame = requestAnimationFrame(fitTerminal);
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(fitTerminal, 50);
       });
       resizeObserver.observe(containerRef.current);
 
