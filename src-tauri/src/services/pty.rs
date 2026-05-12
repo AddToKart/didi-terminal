@@ -66,7 +66,11 @@ fn emit_pty_output(app_handle: &AppHandle, agent: &str, chunk: Vec<u8>) {
         data,
         bytes: BASE64.encode(&chunk),
     };
+    
+    // Global event for external listeners
     let _ = app_handle.emit("pty-output", payload.clone());
+    
+    // Targeted event for the specific terminal instance (faster)
     let output_event = format!("pty-output-agent-{}", agent_event_key(agent));
     let _ = app_handle.emit(output_event.as_str(), payload);
 }

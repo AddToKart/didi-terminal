@@ -4,8 +4,8 @@ import { listen, emit } from "@tauri-apps/api/event";
 import { readText } from "@tauri-apps/plugin-clipboard-manager";
 import { Terminal as TerminalIcon, X, Zap, ExternalLink, Plus, GripVertical } from "lucide-react";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import type { Terminal } from "ghostty-web";
-import { useGhosttyTerminal } from "./useGhosttyTerminal";
+import type { Terminal } from "@xterm/xterm";
+import { useXTerm } from "./useXTerm";
 import {
   ROOT_TERMINAL_LANE_ID,
   clearTerminalLanes,
@@ -49,10 +49,6 @@ const getAgentId = (agentName: string) =>
 
 const getPtyEventKey = (agent: string) => agent.replace(/[^a-zA-Z0-9]/g, "_");
 const STATS_REFRESH_MS = 10000;
-const TERMINAL_OUTPUT_DECODER = new TextDecoder("utf-8", { fatal: false });
-const SUSPICIOUS_TERMINAL_GLYPHS = /[\uFFFD\u2500-\u25FF\u2E80-\u2EFF\u2F00-\u2FDF\u3000-\u303F\u3040-\u30FF\u3130-\u318F\u3400-\u4DBF\u4E00-\u9FFF\uAC00-\uD7AF]/gu;
-const POWERSHELL_PROMPT = /PS\s+[A-Za-z]:\\[^\r\n>]*>/g;
-
 interface PtyOutputPayload {
   agent: string;
   workspace?: string;
@@ -74,63 +70,16 @@ const decodeBase64Bytes = (value: string) => {
   return bytes;
 };
 
-const getTerminalWriteText = (payload: Pick<PtyOutputPayload, "data" | "bytes">) => {
-  const text = (() => {
-    if (typeof payload.bytes === "string" && payload.bytes.length > 0) {
-      return TERMINAL_OUTPUT_DECODER.decode(decodeBase64Bytes(payload.bytes));
-    }
+const getTerminalWritePayload = (payload: Pick<PtyOutputPayload, "data" | "bytes">) => {
+  if (typeof payload.bytes === "string" && payload.bytes.length > 0) {
+    return decodeBase64Bytes(payload.bytes);
+  }
 
-    if (Array.isArray(payload.bytes) && payload.bytes.length > 0) {
-      return TERMINAL_OUTPUT_DECODER.decode(new Uint8Array(payload.bytes));
-    }
+  if (Array.isArray(payload.bytes) && payload.bytes.length > 0) {
+    return new Uint8Array(payload.bytes);
+  }
 
-    return payload.data;
-  })();
-
-  return stripGarbledConptyRepaint(text);
-};
-
-const stripDisallowedControls = (value: string) =>
-  value.replace(/[\x00-\x06\x0E-\x1A\x1C-\x1F\x7F]/g, "");
-
-// Strip sequences that are valid during a live session but corrupt a scrollback replay:
-// alternate screen enter/exit, erase-display, and absolute cursor positioning.
-const stripScrollbackForReplay = (value: string): string =>
-  value
-    .replace(/\x1b\[\?(?:1049|47|1047)[hl]/g, "")
-    .replace(/\x1b\[\d*J/g, "")
-    .replace(/\x1b\[\d+;\d+H/g, "\r\n")
-    .replace(/\x1b\[H/g, "\r\n");
-
-const isGarbledTerminalLine = (line: string) => {
-  const visible = stripTerminalControls(line);
-  const meaningfulChars = visible.replace(/\s/g, "");
-  if (meaningfulChars.length < 24) return false;
-
-  const suspiciousCount = [...visible.matchAll(SUSPICIOUS_TERMINAL_GLYPHS)].length;
-  if (suspiciousCount < 8) return false;
-
-  const asciiTextCount = (visible.match(/[A-Za-z0-9_./\\:-]/g) ?? []).length;
-  return suspiciousCount / meaningfulChars.length > 0.2 || suspiciousCount > asciiTextCount;
-};
-
-const keepLastPromptFromNoisyLine = (line: string) => {
-  const visible = stripTerminalControls(line);
-  const prompts = [...visible.matchAll(POWERSHELL_PROMPT)];
-  return prompts.length > 0 ? prompts[prompts.length - 1][0] : "";
-};
-
-const stripGarbledConptyRepaint = (value: string) => {
-  const cleaned = stripDisallowedControls(value);
-  const lines = cleaned.split(/(\r\n|\n|\r)/);
-
-  return lines
-    .map((line) => {
-      if (line === "\r\n" || line === "\n" || line === "\r") return line;
-      if (!isGarbledTerminalLine(line)) return line;
-      return keepLastPromptFromNoisyLine(line);
-    })
-    .join("");
+  return payload.data;
 };
 
 const getNextLaneIndex = (lanes: TerminalLane[]) => {
@@ -559,7 +508,7 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
     return false; // allow default
   }, [pasteTerminalInput]);
 
-  const { terminal, isReady: isTerminalReady } = useGhosttyTerminal(terminalRef, {
+  const { terminal, isReady: isTerminalReady } = useXTerm(terminalRef, {
     agentName,
     onData: handleTerminalData,
     onResize: handleTerminalResize,
@@ -604,7 +553,7 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
       if (cancelled) return;
 
       try {
-        terminal.write(getTerminalWriteText(event.payload));
+        terminal.write(getTerminalWritePayload(event.payload));
       } catch (error) {
         cancelled = true;
         console.warn("Skipped write for disposed terminal:", error);
@@ -632,7 +581,7 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
         if ((scrollback.bytes?.length ?? 0) > 0 || scrollback.data) {
           try {
             suppressTerminalInputRef.current = true;
-            terminal.write(stripScrollbackForReplay(getTerminalWriteText(scrollback)), () => {
+            terminal.write(getTerminalWritePayload(scrollback), () => {
               if (!cancelled) terminal.scrollToBottom();
             });
           } catch (error) {
@@ -644,7 +593,7 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
           }
 
           // Re-evaluate prompt readiness on scrollback restore
-          const text = stripTerminalControls(stripScrollbackForReplay(scrollback.data)).replace(/\s+/g, " ");
+          const text = stripTerminalControls(scrollback.data).replace(/\s+/g, " ");
           outputBuffer.current = `${outputBuffer.current}${text}`.slice(-4000);
           if (isPromptReady(outputBuffer.current)) {
             setReadyState(true);

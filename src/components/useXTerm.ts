@@ -1,111 +1,112 @@
-import { useEffect, useRef, useState } from "react";
-import { init, Terminal, ITerminalOptions, FitAddon } from "ghostty-web";
+import { useEffect, useRef, useState, MutableRefObject } from "react";
+import { Terminal, ITerminalOptions } from "@xterm/xterm";
+import { FitAddon } from "@xterm/addon-fit";
+import { WebglAddon } from "@xterm/addon-webgl";
+import "@xterm/xterm/css/xterm.css";
 
-let isWasmLoaded = false;
-let wasmInitPromise: Promise<void> | null = null;
-
-function loadWasm() {
-  if (isWasmLoaded) return Promise.resolve();
-  if (!wasmInitPromise) {
-    wasmInitPromise = init().then(() => {
-      isWasmLoaded = true;
-    });
-  }
-  return wasmInitPromise;
-}
-
-interface UseGhosttyTerminalOptions extends ITerminalOptions {
+export interface UseXTermOptions extends ITerminalOptions {
   agentName: string;
   onData?: (data: string) => void;
+  onBinary?: (data: string) => void;
   onResize?: (cols: number, rows: number) => void;
-  onKey?: (e: KeyboardEvent) => boolean;
+  onKey?: (event: KeyboardEvent) => boolean;
 }
 
-export function useGhosttyTerminal(
-  containerRef: React.RefObject<HTMLDivElement | null>,
-  options: UseGhosttyTerminalOptions
+export function useXTerm(
+  containerRef: MutableRefObject<HTMLElement | null>,
+  options: UseXTermOptions
 ) {
-  const terminalRef = useRef<Terminal | null>(null);
   const [termLoaded, setTermLoaded] = useState(false);
+  const terminalRef = useRef<Terminal | null>(null);
   const onDataRef = useRef(options.onData);
-  const onResizeRef = useRef(options.onResize);
+  const onBinaryRef = useRef(options.onBinary);
   const onKeyRef = useRef(options.onKey);
 
-  onDataRef.current = options.onData;
-  onResizeRef.current = options.onResize;
-  onKeyRef.current = options.onKey;
+  useEffect(() => {
+    onDataRef.current = options.onData;
+    onBinaryRef.current = options.onBinary;
+    onKeyRef.current = options.onKey;
+  }, [options.onData, options.onBinary, options.onKey]);
 
   useEffect(() => {
+    let isMounted = true;
     let term: Terminal | null = null;
     let fitAddon: FitAddon | null = null;
-    let isMounted = true;
-    let resizeFrame: number | null = null;
+    let webglAddon: WebglAddon | null = null;
     let resizeObserver: ResizeObserver | null = null;
-    let lastResize: { cols: number; rows: number } | null = null;
+    let resizeFrame: number | null = null;
     let resizeSettleTimer: ReturnType<typeof setTimeout> | null = null;
 
     const emitResize = () => {
-      if (!term || !onResizeRef.current || !term.cols || !term.rows) return;
-      if (lastResize && lastResize.cols === term.cols && lastResize.rows === term.rows) return;
-
-      lastResize = { cols: term.cols, rows: term.rows };
-      onResizeRef.current(term.cols, term.rows);
+      if (term) {
+        options.onResize?.(term.cols, term.rows);
+      }
     };
 
-    async function mountTerminal() {
-      await loadWasm();
+    function mountTerminal() {
       if (!isMounted || !containerRef.current) return;
 
       const terminalOptions: ITerminalOptions = { ...options };
-      delete (terminalOptions as Partial<UseGhosttyTerminalOptions>).agentName;
-      const terminalTheme = terminalOptions.theme;
-      delete terminalOptions.theme;
+      delete (terminalOptions as any).agentName;
+
       term = new Terminal({
         fontFamily: '"JetBrains Mono", "Fira Code", monospace',
         cursorBlink: false,
         cursorStyle: 'block',
         fontSize: 13,
         scrollback: 100000,
-        smoothScrollDuration: 70,
-        allowTransparency: false,
+        allowTransparency: true,
         ...terminalOptions,
         theme: {
           background: '#09090b',
           foreground: '#e2e8f0',
           cursor: '#00f0ff',
           selectionBackground: "#00f0ff40",
-          ...terminalTheme,
+          ...terminalOptions.theme,
         },
       });
 
       fitAddon = new FitAddon();
       term.loadAddon(fitAddon);
 
-      // Wait for any web fonts to load so the Canvas renderer measures character sizes correctly
-      if ("fonts" in document) {
-        await document.fonts.ready;
+      term.open(containerRef.current);
+      
+      try {
+        webglAddon = new WebglAddon();
+        webglAddon.onContextLoss(() => {
+          webglAddon?.dispose();
+        });
+        term.loadAddon(webglAddon);
+      } catch (e) {
+        console.warn("WebGL addon could not be loaded, falling back to canvas/dom", e);
       }
 
-      term.open(containerRef.current);
       terminalRef.current = term;
 
-      if (term.renderer && 'remeasureFont' in term.renderer) {
-        (term.renderer as any).remeasureFont();
-      }
-
       term.onData((data) => onDataRef.current?.(data));
+      term.onBinary((data) => onBinaryRef.current?.(data));
 
       term.attachCustomKeyEventHandler((event) => onKeyRef.current?.(event) ?? false);
 
       // Initial fit
-      fitAddon.fit();
+      try {
+        fitAddon.fit();
+      } catch (e) {
+        // Ignore fit error on unmounted container
+      }
       emitResize();
 
       const fitTerminal = () => {
         resizeFrame = null;
         if (!term || !fitAddon) return;
-        fitAddon.fit();
-        emitResize();
+        try {
+          fitAddon.fit();
+        } catch {
+          return;
+        }
+
+        if (resizeSettleTimer) clearTimeout(resizeSettleTimer);
+        resizeSettleTimer = setTimeout(emitResize, 120);
       };
 
       resizeObserver = new ResizeObserver(() => {
@@ -126,7 +127,15 @@ export function useGhosttyTerminal(
       if (resizeObserver) resizeObserver.disconnect();
       terminalRef.current = null;
       setTermLoaded(false);
-      if (term) term.dispose();
+      try {
+        if (webglAddon) webglAddon.dispose();
+      } catch {}
+      try {
+        if (fitAddon) fitAddon.dispose();
+      } catch {}
+      try {
+        if (term) term.dispose();
+      } catch {}
     };
   }, [options.agentName]);
 
