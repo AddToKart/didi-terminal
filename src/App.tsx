@@ -210,6 +210,8 @@ function App() {
   const [showPackageManager, setShowPackageManager] = useState(false);
   const [zenAgents, setZenAgents] = useState<string[]>(["zen-terminal"]);
   const [zenLayout, setZenLayout] = useState<"horizontal" | "vertical" | "grid">("grid");
+  const [lastActiveZenAgent, setLastActiveZenAgent] = useState<string | null>("zen-terminal");
+  const [focusedZenAgent, setFocusedZenAgent] = useState<string | null>(null);
   const [showApiLab, setShowApiLab] = useState(false);
   const [showMonorepoGraph, setShowMonorepoGraph] = useState(false);
   const [showDbViewer, setShowDbViewer] = useState(false);
@@ -864,31 +866,75 @@ function App() {
 
       // Zen Mode Splitting Hotkeys
       if (appMode === "zen") {
-        // Alt + V: Vertical Split
+        // Alt + F or Alt + Enter: Toggle Zoom/Focus
+        if (e.altKey && (e.code === "KeyF" || e.code === "Enter")) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (focusedZenAgent) {
+            setFocusedZenAgent(null);
+          } else if (lastActiveZenAgent) {
+            setFocusedZenAgent(lastActiveZenAgent);
+          }
+        }
+        // Alt + N: New Terminal
+        if (e.altKey && e.code === "KeyN") {
+          e.preventDefault();
+          e.stopPropagation();
+          setFocusedZenAgent(null);
+          const newId = `zen-terminal-${crypto.randomUUID().slice(0, 4)}`;
+          setZenAgents(prev => [...prev, newId]);
+          setLastActiveZenAgent(newId);
+          // Auto-focus the new terminal after a short delay to allow it to mount
+          setTimeout(() => emit("focus-agent", { agent: newId }), 100);
+        }
+        // Alt + V: Switch to Vertical Layout
         if (e.altKey && e.code === "KeyV") {
           e.preventDefault();
+          e.stopPropagation();
           setZenLayout("vertical");
-          setZenAgents(prev => [...prev, `zen-terminal-${crypto.randomUUID().slice(0, 4)}`]);
         }
-        // Alt + H: Horizontal Split
+        // Alt + H: Switch to Horizontal Layout
         if (e.altKey && e.code === "KeyH") {
           e.preventDefault();
+          e.stopPropagation();
           setZenLayout("horizontal");
-          setZenAgents(prev => [...prev, `zen-terminal-${crypto.randomUUID().slice(0, 4)}`]);
         }
-        // Alt + G: Grid Layout
+        // Alt + G: Switch to Grid Layout
         if (e.altKey && e.code === "KeyG") {
           e.preventDefault();
+          e.stopPropagation();
           setZenLayout("grid");
-          setZenAgents(prev => [...prev, `zen-terminal-${crypto.randomUUID().slice(0, 4)}`]);
         }
         // Alt + W: Close Active (Last) Split
         if (e.altKey && e.code === "KeyW") {
           e.preventDefault();
+          e.stopPropagation();
+          setFocusedZenAgent(null); // Unzoom on close
           if (zenAgents.length > 1) {
-            setZenAgents(prev => prev.slice(0, -1));
+            const target = lastActiveZenAgent || zenAgents[zenAgents.length - 1];
+            setZenAgents(prev => {
+              const next = prev.filter(a => a !== target);
+              setLastActiveZenAgent(next[next.length - 1]);
+              return next;
+            });
           } else {
             setAppMode("terminal");
+          }
+        }
+
+        // Alt + [1-9]: Switch to terminal by index
+        const digitMatch = e.code.match(/^Digit([1-9])$/);
+        if (e.altKey && digitMatch) {
+          const index = parseInt(digitMatch[1]) - 1;
+          if (index < zenAgents.length) {
+            e.preventDefault();
+            e.stopPropagation();
+            const targetAgent = zenAgents[index];
+            setLastActiveZenAgent(targetAgent);
+            // If zoomed, switch zoom to this agent
+            if (focusedZenAgent) setFocusedZenAgent(targetAgent);
+            // Tell the terminal to focus itself
+            emit("focus-agent", { agent: targetAgent }).catch(console.error);
           }
         }
       }
@@ -1030,9 +1076,17 @@ function App() {
               onRemoveAgent={(agent) => setZenAgents(prev => prev.filter(a => a !== agent))}
               onDetachAgent={() => {}}
               onReorderAgents={() => {}}
-              onSplit={(agent) => setZenAgents(prev => [...prev, `zen-terminal-${crypto.randomUUID().slice(0, 4)}`])}
+              onSplit={() => {
+                const newId = `zen-terminal-${crypto.randomUUID().slice(0, 4)}`;
+                setZenAgents(prev => [...prev, newId]);
+                setLastActiveZenAgent(newId);
+              }}
               workspaceId="zen"
               isZenMode={true}
+              focusedAgentId={focusedZenAgent}
+              onFocusAgent={(agent) => {
+                setLastActiveZenAgent(agent);
+              }}
             />
           </div>
         )}

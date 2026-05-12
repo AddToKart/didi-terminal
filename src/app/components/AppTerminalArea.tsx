@@ -31,6 +31,8 @@ interface AppTerminalAreaProps {
   workspaceName?: string;
   workspaceId: string;
   isZenMode?: boolean;
+  focusedAgentId?: string | null;
+  onFocusAgent?: (agent: string) => void;
 }
 
 // ── Sortable terminal wrapper ──────────────────────────────────────────────
@@ -48,6 +50,9 @@ interface SortableTerminalWrapperProps {
   workspaceName?: string;
   workspaceId: string;
   isZenMode?: boolean;
+  isFocused?: boolean;
+  onFocus?: () => void;
+  focusedAgentId?: string | null;
 }
 
 const shallowEqualStyle = (left?: React.CSSProperties, right?: React.CSSProperties) => {
@@ -61,7 +66,7 @@ const shallowEqualStyle = (left?: React.CSSProperties, right?: React.CSSProperti
   return leftKeys.every(key => left[key as keyof React.CSSProperties] === right[key as keyof React.CSSProperties]);
 };
 
-const SortableTerminalWrapper = memo(function SortableTerminalWrapper({ agent, currentProject, onRemoveAgent, onDetachAgent, onSplitAgent, flexBasis, height, width, styleOverrides, workspaceName, workspaceId, isZenMode }: SortableTerminalWrapperProps) {
+const SortableTerminalWrapper = memo(function SortableTerminalWrapper({ agent, currentProject, onRemoveAgent, onDetachAgent, onSplitAgent, flexBasis, height, width, styleOverrides, workspaceName, workspaceId, isZenMode, isFocused, onFocus, focusedAgentId }: SortableTerminalWrapperProps) {
   const { attributes, listeners, setNodeRef, isDragging, transform, transition } = useSortable({
     id: agent,
     data: { agentName: agent }
@@ -72,10 +77,13 @@ const SortableTerminalWrapper = memo(function SortableTerminalWrapper({ agent, c
 
   const style: React.CSSProperties = {
     position: 'relative' as const,
-    flexBasis,
-    flexGrow: flexBasis ? 1 : undefined,
-    height,
-    width,
+    flexBasis: isFocused ? '100%' : (focusedAgentId ? '0%' : flexBasis),
+    flexGrow: isFocused ? 1 : (focusedAgentId ? 0 : (flexBasis ? 1 : undefined)),
+    height: isFocused ? '100%' : (focusedAgentId ? '0%' : height),
+    width: isFocused ? '100%' : (focusedAgentId ? '0%' : width),
+    opacity: focusedAgentId && !isFocused ? 0 : 1,
+    pointerEvents: focusedAgentId && !isFocused ? 'none' : 'auto',
+    overflow: 'hidden',
     ...styleOverrides,
     transform: CSS.Translate.toString(transform),
     transition,
@@ -87,8 +95,8 @@ const SortableTerminalWrapper = memo(function SortableTerminalWrapper({ agent, c
       ref={setNodeRef} 
       style={style} 
       className={cn(
-        "min-h-0 min-w-0 flex-1 flex flex-col",
-        isZenMode ? "bg-black border-white/5" : "bg-app-panel",
+        "min-h-0 min-w-0 flex-1 flex flex-col transition-all duration-500 ease-in-out",
+        isZenMode ? (isFocused ? "bg-black border-brand-accent/30 ring-1 ring-brand-accent/10 shadow-[0_0_20px_rgba(59,130,246,0.05)]" : "bg-black border-white/5") : "bg-app-panel",
         isDragging && "shadow-2xl opacity-90 scale-[1.02] ring-1 ring-brand-accent/50 rounded-md overflow-hidden"
       )}
     >
@@ -112,6 +120,7 @@ const SortableTerminalWrapper = memo(function SortableTerminalWrapper({ agent, c
           dragAttributes={attributes}
           dragListeners={listeners}
           isZenMode={isZenMode}
+          onFocus={onFocus}
         />
       )}
     </div>
@@ -219,6 +228,8 @@ export function AppTerminalArea({
   workspaceName,
   workspaceId,
   isZenMode,
+  focusedAgentId,
+  onFocusAgent,
 }: AppTerminalAreaProps) {
   const onRemoveAgentRef = useRef(onRemoveAgent);
   const onDetachAgentRef = useRef(onDetachAgent);
@@ -275,8 +286,10 @@ export function AppTerminalArea({
     }
   };
 
+  const agentsToRender = agents; // Keep all in DOM for animations
+
   return (
-    <div className={`flex-1 flex flex-col min-h-0 min-w-0 ${isZenMode ? "" : "p-2 bg-transparent"}`}>
+    <div className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden">
       {agents.length === 0 ? (
         <div className="h-full flex flex-col items-center justify-center text-slate-500 gap-4 border border-dashed border-app-border rounded-lg">
           <div className="text-sm font-mono">NO ACTIVE AGENTS</div>
@@ -313,29 +326,29 @@ export function AppTerminalArea({
               })}
             </div>
           ) : (
-            <SortableContext items={agents} strategy={rectSortingStrategy}>
+            <SortableContext items={agentsToRender} strategy={rectSortingStrategy}>
               <div
                 className={cn(
-                  "flex-1 min-h-0 min-w-0",
+                  "flex-1 min-h-0 min-w-0 transition-all duration-500 ease-in-out",
                   isZenMode ? "bg-zinc-800/20 gap-[1px]" : "rounded-lg overflow-hidden border border-app-border bg-app-border gap-1",
-                  layoutOrientation === "horizontal" && "flex flex-row",
-                  layoutOrientation === "vertical" && "flex flex-col",
-                  layoutOrientation === "focus" && "flex flex-col flex-wrap content-stretch",
-                  layoutOrientation === "presentation" && "flex flex-row flex-wrap content-stretch",
-                  layoutOrientation === "waterfall" && "block overflow-y-auto p-1 scroll-smooth",
-                  layoutOrientation === "dynamic" && "grid grid-cols-4 auto-rows-fr p-1",
-                  layoutOrientation === "grid" && "grid"
+                  !focusedAgentId && layoutOrientation === "horizontal" && "flex flex-row",
+                  !focusedAgentId && layoutOrientation === "vertical" && "flex flex-col",
+                  !focusedAgentId && layoutOrientation === "focus" && "flex flex-col flex-wrap content-stretch",
+                  !focusedAgentId && layoutOrientation === "presentation" && "flex flex-row flex-wrap content-stretch",
+                  !focusedAgentId && layoutOrientation === "waterfall" && "block overflow-y-auto p-1 scroll-smooth",
+                  !focusedAgentId && layoutOrientation === "dynamic" && "grid grid-cols-4 auto-rows-fr p-1",
+                  !focusedAgentId && layoutOrientation === "grid" && "grid"
                 )}
                 style={
-                  layoutOrientation === "grid" 
+                  !focusedAgentId && layoutOrientation === "grid" 
                     ? { 
                         gridTemplateColumns: `repeat(${Math.ceil(Math.sqrt(Math.max(1, agents.length)))}, minmax(0, 1fr))`,
                         gridTemplateRows: `repeat(${Math.ceil(agents.length / Math.ceil(Math.sqrt(Math.max(1, agents.length))))}, minmax(0, 1fr))`
                       } 
-                    : undefined
+                    : (focusedAgentId ? { display: 'flex' } : undefined)
                 }
               >
-                {agents.map((agent, index) => {
+                {agentsToRender.map((agent, index) => {
                   let flexBasis: string | undefined = undefined;
                   let height: string | undefined = undefined;
                   let width: string | undefined = undefined;
@@ -437,6 +450,9 @@ export function AppTerminalArea({
                       workspaceName={workspaceName}
                       workspaceId={workspaceId}
                       isZenMode={isZenMode}
+                      focusedAgentId={focusedAgentId}
+                      isFocused={agent === focusedAgentId}
+                      onFocus={() => onFocusAgent?.(agent)}
                     />
                   );
                 })}
