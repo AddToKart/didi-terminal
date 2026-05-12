@@ -1,5 +1,5 @@
 import Database from "@tauri-apps/plugin-sql";
-import type { TerminalTab, WorkspaceState } from "../App";
+import type { TerminalTab, WorkspaceState, SectionState } from "../App";
 
 export interface PersonalTask {
   id: string;
@@ -24,39 +24,83 @@ export async function getDb(): Promise<Database> {
 export async function loadWorkspaces(): Promise<WorkspaceState[]> {
   const db = await getDb();
   
-  const workspacesRaw = await db.select<{ id: string; name: string; directory: string | null; activeTabId: string; order_index: number }[]>(
+  const workspacesRaw = await db.select<{ id: string; name: string; directory: string | null; activeTabId: string; activeSectionId: string; order_index: number }[]>(
     "SELECT * FROM workspaces ORDER BY order_index ASC"
   );
   
   const workspaces: WorkspaceState[] = [];
   
   for (const ws of workspacesRaw) {
-    const tabsRaw = await db.select<{ id: string; name: string; layoutOrientation: string; order_index: number }[]>(
-      "SELECT * FROM tabs WHERE workspace_id = $1 ORDER BY order_index ASC",
+    const sectionsRaw = await db.select<{ id: string; name: string; order_index: number }[]>(
+      "SELECT * FROM sections WHERE workspace_id = $1 ORDER BY order_index ASC",
       [ws.id]
     );
-    
-    const tabs: TerminalTab[] = [];
-    for (const tab of tabsRaw) {
-      const agentsRaw = await db.select<{ name: string }[]>(
-        "SELECT name FROM agents WHERE tab_id = $1 ORDER BY order_index ASC",
-        [tab.id]
+
+    const sections: SectionState[] = [];
+
+    // Backward compatibility: If no sections exist, create a default one and load legacy tabs
+    if (sectionsRaw.length === 0) {
+      const defaultSection: SectionState = {
+        id: crypto.randomUUID(),
+        name: "Section 1",
+        tabs: [],
+      };
+      
+      const tabsRaw = await db.select<{ id: string; name: string; layoutOrientation: string; order_index: number }[]>(
+        "SELECT * FROM tabs WHERE workspace_id = $1 ORDER BY order_index ASC",
+        [ws.id]
       );
       
-      tabs.push({
-        id: tab.id,
-        name: tab.name,
-        agents: agentsRaw.map(a => a.name),
-        layoutOrientation: tab.layoutOrientation as "horizontal" | "vertical" | "grid",
-      });
+      for (const tab of tabsRaw) {
+        const agentsRaw = await db.select<{ name: string }[]>(
+          "SELECT name FROM agents WHERE tab_id = $1 ORDER BY order_index ASC",
+          [tab.id]
+        );
+        defaultSection.tabs.push({
+          id: tab.id,
+          name: tab.name,
+          agents: agentsRaw.map(a => a.name),
+          layoutOrientation: tab.layoutOrientation as any,
+        });
+      }
+      sections.push(defaultSection);
+    } else {
+      for (const section of sectionsRaw) {
+        const tabsRaw = await db.select<{ id: string; name: string; layoutOrientation: string; order_index: number }[]>(
+          "SELECT * FROM tabs WHERE section_id = $1 ORDER BY order_index ASC",
+          [section.id]
+        );
+        
+        const tabs: TerminalTab[] = [];
+        for (const tab of tabsRaw) {
+          const agentsRaw = await db.select<{ name: string }[]>(
+            "SELECT name FROM agents WHERE tab_id = $1 ORDER BY order_index ASC",
+            [tab.id]
+          );
+          
+          tabs.push({
+            id: tab.id,
+            name: tab.name,
+            agents: agentsRaw.map(a => a.name),
+            layoutOrientation: tab.layoutOrientation as any,
+          });
+        }
+        
+        sections.push({
+          id: section.id,
+          name: section.name,
+          tabs,
+        });
+      }
     }
     
     workspaces.push({
       id: ws.id,
       name: ws.name,
       directory: ws.directory,
+      sections,
       activeTabId: ws.activeTabId,
-      tabs,
+      activeSectionId: ws.activeSectionId || sections[0]?.id || "",
     });
   }
   
@@ -70,28 +114,38 @@ export async function saveWorkspaces(workspaces: WorkspaceState[]): Promise<void
     // Clear existing explicitly to avoid foreign key issues since SQLite FKs are disabled by default
     await db.execute("DELETE FROM agents");
     await db.execute("DELETE FROM tabs");
+    await db.execute("DELETE FROM sections");
     await db.execute("DELETE FROM workspaces");
     
     for (let wIndex = 0; wIndex < workspaces.length; wIndex++) {
       const ws = workspaces[wIndex];
+      // Note: we insert activeSectionId here (need to ensure the migration has run, otherwise we might get an error if column doesn't exist, but migration handles it)
       await db.execute(
-        "INSERT INTO workspaces (id, name, directory, activeTabId, order_index) VALUES ($1, $2, $3, $4, $5)",
-        [ws.id, ws.name, ws.directory, ws.activeTabId, wIndex]
+        "INSERT INTO workspaces (id, name, directory, activeTabId, activeSectionId, order_index) VALUES ($1, $2, $3, $4, $5, $6)",
+        [ws.id, ws.name, ws.directory, ws.activeTabId, ws.activeSectionId || "", wIndex]
       );
       
-      for (let tIndex = 0; tIndex < ws.tabs.length; tIndex++) {
-        const tab = ws.tabs[tIndex];
+      for (let sIndex = 0; sIndex < ws.sections.length; sIndex++) {
+        const section = ws.sections[sIndex];
         await db.execute(
-          "INSERT INTO tabs (id, workspace_id, name, layoutOrientation, order_index) VALUES ($1, $2, $3, $4, $5)",
-          [tab.id, ws.id, tab.name, tab.layoutOrientation, tIndex]
+          "INSERT INTO sections (id, workspace_id, name, order_index) VALUES ($1, $2, $3, $4)",
+          [section.id, ws.id, section.name, sIndex]
         );
-        
-        for (let aIndex = 0; aIndex < tab.agents.length; aIndex++) {
-          const agentName = tab.agents[aIndex];
+
+        for (let tIndex = 0; tIndex < section.tabs.length; tIndex++) {
+          const tab = section.tabs[tIndex];
           await db.execute(
-            "INSERT INTO agents (tab_id, name, order_index) VALUES ($1, $2, $3)",
-            [tab.id, agentName, aIndex]
+            "INSERT INTO tabs (id, workspace_id, section_id, name, layoutOrientation, order_index) VALUES ($1, $2, $3, $4, $5, $6)",
+            [tab.id, ws.id, section.id, tab.name, tab.layoutOrientation, tIndex]
           );
+          
+          for (let aIndex = 0; aIndex < tab.agents.length; aIndex++) {
+            const agentName = tab.agents[aIndex];
+            await db.execute(
+              "INSERT INTO agents (tab_id, name, order_index) VALUES ($1, $2, $3)",
+              [tab.id, agentName, aIndex]
+            );
+          }
         }
       }
     }
@@ -100,6 +154,7 @@ export async function saveWorkspaces(workspaces: WorkspaceState[]): Promise<void
     throw error;
   }
 }
+
 
 export async function getSetting(key: string): Promise<string | null> {
   const db = await getDb();

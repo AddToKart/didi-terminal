@@ -17,6 +17,7 @@ import {
   rectSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { cn } from "../../lib/utils";
 
 interface AppTerminalAreaProps {
   agents: string[];
@@ -46,6 +47,7 @@ interface SortableTerminalWrapperProps {
   styleOverrides?: React.CSSProperties;
   workspaceName?: string;
   workspaceId: string;
+  isZenMode?: boolean;
 }
 
 const shallowEqualStyle = (left?: React.CSSProperties, right?: React.CSSProperties) => {
@@ -59,7 +61,7 @@ const shallowEqualStyle = (left?: React.CSSProperties, right?: React.CSSProperti
   return leftKeys.every(key => left[key as keyof React.CSSProperties] === right[key as keyof React.CSSProperties]);
 };
 
-const SortableTerminalWrapper = memo(function SortableTerminalWrapper({ agent, currentProject, onRemoveAgent, onDetachAgent, onSplitAgent, flexBasis, height, width, styleOverrides, workspaceName, workspaceId }: SortableTerminalWrapperProps) {
+const SortableTerminalWrapper = memo(function SortableTerminalWrapper({ agent, currentProject, onRemoveAgent, onDetachAgent, onSplitAgent, flexBasis, height, width, styleOverrides, workspaceName, workspaceId, isZenMode }: SortableTerminalWrapperProps) {
   const { attributes, listeners, setNodeRef, isDragging, transform, transition } = useSortable({
     id: agent,
     data: { agentName: agent }
@@ -81,7 +83,15 @@ const SortableTerminalWrapper = memo(function SortableTerminalWrapper({ agent, c
   };
 
   return (
-    <div ref={setNodeRef} style={style} className={`min-h-0 min-w-0 flex-1 flex flex-col bg-app-panel ${isDragging ? "shadow-2xl opacity-90 scale-[1.02] ring-1 ring-brand-accent/50 rounded-md overflow-hidden" : ""}`}>
+    <div 
+      ref={setNodeRef} 
+      style={style} 
+      className={cn(
+        "min-h-0 min-w-0 flex-1 flex flex-col",
+        isZenMode ? "bg-black border-white/5" : "bg-app-panel",
+        isDragging && "shadow-2xl opacity-90 scale-[1.02] ring-1 ring-brand-accent/50 rounded-md overflow-hidden"
+      )}
+    >
       {agent.startsWith("browser:") ? (
         <BrowserInstance
           id={agent}
@@ -101,6 +111,7 @@ const SortableTerminalWrapper = memo(function SortableTerminalWrapper({ agent, c
           onSplit={handleSplit}
           dragAttributes={attributes}
           dragListeners={listeners}
+          isZenMode={isZenMode}
         />
       )}
     </div>
@@ -113,6 +124,7 @@ const SortableTerminalWrapper = memo(function SortableTerminalWrapper({ agent, c
   prev.width === next.width &&
   prev.workspaceName === next.workspaceName &&
   prev.workspaceId === next.workspaceId &&
+  prev.isZenMode === next.isZenMode &&
   prev.onRemoveAgent === next.onRemoveAgent &&
   prev.onDetachAgent === next.onDetachAgent &&
   prev.onSplitAgent === next.onSplitAgent &&
@@ -303,15 +315,17 @@ export function AppTerminalArea({
           ) : (
             <SortableContext items={agents} strategy={rectSortingStrategy}>
               <div
-                className={`flex-1 min-h-0 min-w-0 ${isZenMode ? "bg-black" : "rounded-lg overflow-hidden border border-app-border bg-app-border gap-1"} ${
-                  layoutOrientation === "horizontal" ? "flex flex-row" : 
-                  layoutOrientation === "vertical" ? "flex flex-col" : 
-                  layoutOrientation === "focus" ? "flex flex-col flex-wrap content-stretch" :
-                  layoutOrientation === "presentation" ? "flex flex-row flex-wrap content-stretch" :
-                  layoutOrientation === "waterfall" ? "block overflow-y-auto p-1 scroll-smooth" :
-                  layoutOrientation === "dynamic" ? "grid grid-cols-4 auto-rows-fr p-1" :
-                  "grid" // grid
-                }`}
+                className={cn(
+                  "flex-1 min-h-0 min-w-0",
+                  isZenMode ? "bg-zinc-800/20 gap-[1px]" : "rounded-lg overflow-hidden border border-app-border bg-app-border gap-1",
+                  layoutOrientation === "horizontal" && "flex flex-row",
+                  layoutOrientation === "vertical" && "flex flex-col",
+                  layoutOrientation === "focus" && "flex flex-col flex-wrap content-stretch",
+                  layoutOrientation === "presentation" && "flex flex-row flex-wrap content-stretch",
+                  layoutOrientation === "waterfall" && "block overflow-y-auto p-1 scroll-smooth",
+                  layoutOrientation === "dynamic" && "grid grid-cols-4 auto-rows-fr p-1",
+                  layoutOrientation === "grid" && "grid"
+                )}
                 style={
                   layoutOrientation === "grid" 
                     ? { 
@@ -422,6 +436,7 @@ export function AppTerminalArea({
                       styleOverrides={styleOverrides}
                       workspaceName={workspaceName}
                       workspaceId={workspaceId}
+                      isZenMode={isZenMode}
                     />
                   );
                 })}

@@ -241,7 +241,9 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
     if (isReadyRef.current === nextReady) return;
     isReadyRef.current = nextReady;
     setIsReady(nextReady);
-  }, []);
+    // Emit state so sidebar can show running indicators
+    emit("agent-state", { agent: ptyKey, isReady: nextReady }).catch(console.error);
+  }, [ptyKey]);
 
   const setStatsState = useCallback((nextStats: { cpu: number; mem: number }) => {
     const current = statsRef.current;

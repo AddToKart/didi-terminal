@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, lazy } from "react";
-import { emit } from "@tauri-apps/api/event";
+import { emit, listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { TerminalInstance } from "./components/TerminalInstance";
@@ -61,12 +61,20 @@ export interface TerminalTab {
   layoutOrientation: "horizontal" | "vertical" | "grid" | "focus" | "presentation" | "canvas" | "waterfall" | "dynamic";
 }
 
+export interface SectionState {
+  id: string;
+  name: string;
+  tabs: TerminalTab[];
+  activeTabId?: string;
+}
+
 export interface WorkspaceState {
   id: string;
   name: string;
   directory: string | null;
-  tabs: TerminalTab[];
-  activeTabId: string;
+  sections: SectionState[];
+  activeSectionId: string;
+  activeTabId?: string; // Deprecated, keep for type compat temporarily
 }
 
 interface GitDiffStats {
@@ -90,7 +98,15 @@ function App() {
   const [appMode, setAppMode] = useState<"terminal" | "orchestrator" | "zen">("terminal");
 
   const [workspaces, setWorkspaces] = useState<WorkspaceState[]>(() => {
-    return [{ id: crypto.randomUUID(), name: "Workspace 1", directory: null, tabs: [], activeTabId: "" }];
+    const defaultSectionId = crypto.randomUUID();
+    return [{
+      id: crypto.randomUUID(),
+      name: "Workspace 1",
+      directory: null,
+      sections: [{ id: defaultSectionId, name: "Section 1", tabs: [] }],
+      activeTabId: "",
+      activeSectionId: defaultSectionId
+    }];
   });
 
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string>(() => "");
@@ -132,23 +148,39 @@ function App() {
 
   const activeWorkspace = workspaces.find(w => w.id === activeWorkspaceId) || workspaces[0];
   const currentProject = activeWorkspace?.directory || null;
-  const tabs = activeWorkspace?.tabs || [];
-  const activeTabId = activeWorkspace?.activeTabId || "";
+  const activeSection = activeWorkspace?.sections.find(s => s.id === activeWorkspace.activeSectionId) || activeWorkspace?.sections[0];
+  const tabs = activeSection?.tabs || [];
+  const activeTabId = activeSection?.activeTabId || activeWorkspace?.activeTabId || "";
 
   const setTabs = (val: TerminalTab[] | ((prev: TerminalTab[]) => TerminalTab[])) => {
     setWorkspaces(prev => prev.map(w => {
       if (w.id !== activeWorkspaceId) return w;
-      return { ...w, tabs: typeof val === "function" ? val(w.tabs) : val };
+      const targetSectionId = w.activeSectionId || w.sections[0]?.id;
+      const currentTabs = w.sections.find(s => s.id === targetSectionId)?.tabs || [];
+      const nextTabs = typeof val === "function" ? val(currentTabs) : val;
+
+      const sections = w.sections.map(s => s.id === targetSectionId ? { ...s, tabs: nextTabs } : s);
+
+      if (sections.length === 0) {
+        sections.push({ id: crypto.randomUUID(), name: "Section 1", tabs: nextTabs });
+      }
+
+      return { ...w, sections };
     }));
   };
 
   const setActiveTabId = (val: string) => {
-    setWorkspaces(prev => prev.map(w => w.id === activeWorkspaceId ? { ...w, activeTabId: val } : w));
+    setWorkspaces(prev => prev.map(w => {
+      if (w.id !== activeWorkspaceId) return w;
+      const targetSectionId = w.activeSectionId || w.sections[0]?.id;
+      const sections = w.sections.map(s => s.id === targetSectionId ? { ...s, activeTabId: val } : s);
+      return { ...w, sections, activeTabId: val };
+    }));
   };
 
   // Derived state for legacy compatibility
-  const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0];
-  const allAgents = getUniqueAgents(tabs.flatMap(t => t.agents));
+  const activeTab = tabs.find((t: TerminalTab) => t.id === activeTabId) || tabs[0];
+  const allAgents = getUniqueAgents(tabs.flatMap((t: TerminalTab) => t.agents));
   const agents = activeTab ? activeTab.agents : [];
   const layoutOrientation = activeTab ? activeTab.layoutOrientation : "horizontal";
 
@@ -162,6 +194,7 @@ function App() {
   const [activity, setActivity] = useState<ActivityLog[]>([{ id: 0, time: new Date().toLocaleTimeString(), message: "System initialized", type: "system" }]);
   const [tasks, setTasks] = useState<TaskRecord[]>([]);
   const [agentQueueCounts, setAgentQueueCounts] = useState<Record<string, number>>({});
+  const [agentStatusMap, setAgentStatusMap] = useState<Record<string, boolean>>({});
   const [masterPlanQueueState, setMasterPlanQueueState] = useState<{ activeLine: number | null; queuedLines: number[] }>({
     activeLine: null,
     queuedLines: [],
@@ -175,6 +208,8 @@ function App() {
   const [showPortManager, setShowPortManager] = useState(false);
   const [showEnvManager, setShowEnvManager] = useState(false);
   const [showPackageManager, setShowPackageManager] = useState(false);
+  const [zenAgents, setZenAgents] = useState<string[]>(["zen-terminal"]);
+  const [zenLayout, setZenLayout] = useState<"horizontal" | "vertical" | "grid">("grid");
   const [showApiLab, setShowApiLab] = useState(false);
   const [showMonorepoGraph, setShowMonorepoGraph] = useState(false);
   const [showDbViewer, setShowDbViewer] = useState(false);
@@ -386,13 +421,13 @@ function App() {
     invoke<any>("get_config").then(config => {
       document.documentElement.style.setProperty("--tw-colors-brand-accent", config.theme_cyan);
       document.documentElement.style.setProperty("--tw-colors-brand-warn", config.theme_amber);
-      
+
       if (config.theme_mode === "dark") {
         document.documentElement.classList.add("dark");
       } else {
         document.documentElement.classList.remove("dark");
       }
-      
+
       if (config.glassmorphism) {
         document.documentElement.classList.add("glass");
       } else {
@@ -404,6 +439,18 @@ function App() {
       invoke<string>("get_sidecar_status").then(setSidecarStatus).catch(() => setSidecarStatus("Error"));
     }, 5000);
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const unlisten = listen<{ agent: string, isReady: boolean }>("agent-state", (event) => {
+      setAgentStatusMap(prev => ({
+        ...prev,
+        [event.payload.agent]: event.payload.isReady
+      }));
+    });
+    return () => {
+      unlisten.then(f => f());
+    };
   }, []);
 
   useEffect(() => registerSentinelMonitoring({
@@ -444,7 +491,7 @@ function App() {
 
   const handleWorkspaceSelect = async (id: string) => {
     if (id === activeWorkspaceId) return;
-    
+
     try {
       const isLocked = await invoke<boolean>("is_pin_enabled", { workspaceId: id });
       if (isLocked) {
@@ -474,12 +521,14 @@ function App() {
   const handleWorkspaceDelete = (id: string) => {
     const newWs = workspaces.filter(w => w.id !== id);
     if (newWs.length === 0) {
+      const defaultSectionId = crypto.randomUUID();
       const emptyWs: WorkspaceState = {
         id: crypto.randomUUID(),
         name: `Workspace 1`,
         directory: null,
-        tabs: [],
+        sections: [],
         activeTabId: "",
+        activeSectionId: defaultSectionId,
       };
       setWorkspaces([emptyWs]);
       setActiveWorkspaceId(emptyWs.id);
@@ -490,15 +539,56 @@ function App() {
   };
 
   const handleCreateWorkspace = () => {
+    const defaultSectionId = crypto.randomUUID();
     const newWs: WorkspaceState = {
       id: crypto.randomUUID(),
       name: `Workspace ${workspaces.length + 1}`,
       directory: null,
-      tabs: [],
+      sections: [{ id: defaultSectionId, name: "Section 1", tabs: [] }],
       activeTabId: "",
+      activeSectionId: defaultSectionId,
     };
     setWorkspaces([...workspaces, newWs]);
     setActiveWorkspaceId(newWs.id);
+  };
+
+  const handleSectionCreate = (workspaceId: string) => {
+    setWorkspaces(prev => prev.map(w => {
+      if (w.id !== workspaceId) return w;
+      const newSection: SectionState = {
+        id: crypto.randomUUID(),
+        name: `Section ${w.sections.length + 1}`,
+        tabs: [],
+      };
+      return { ...w, sections: [...w.sections, newSection] };
+    }));
+  };
+
+  const handleSectionSelect = (workspaceId: string, sectionId: string) => {
+    setActiveWorkspaceId(workspaceId);
+    setWorkspaces(prev => prev.map(w => w.id === workspaceId ? { ...w, activeSectionId: sectionId } : w));
+  };
+
+  const handleSectionRename = (workspaceId: string, sectionId: string, newName: string) => {
+    setWorkspaces(prev => prev.map(w => {
+      if (w.id !== workspaceId) return w;
+      return {
+        ...w,
+        sections: w.sections.map(s => s.id === sectionId ? { ...s, name: newName } : s)
+      };
+    }));
+  };
+
+  const handleSectionDelete = (workspaceId: string, sectionId: string) => {
+    setWorkspaces(prev => prev.map(w => {
+      if (w.id !== workspaceId) return w;
+      const newSections = w.sections.filter(s => s.id !== sectionId);
+      // Ensure at least one section exists
+      if (newSections.length === 0) {
+        newSections.push({ id: crypto.randomUUID(), name: "Section 1", tabs: [] });
+      }
+      return { ...w, sections: newSections };
+    }));
   };
 
   const handleOpenDirectory = async (id: string) => {
@@ -642,7 +732,7 @@ function App() {
         name = `${originalName}-${counter}`;
       }
     }
-    
+
     setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, agents: [...t.agents, name] } : t));
     setNewAgentName("");
     addLog(`Spawned terminal: ${name}`, "system");
@@ -701,7 +791,7 @@ function App() {
       counter++;
       newName = `${baseName}-${counter}`;
     }
-    
+
     setTabs(prev => prev.map(t => {
       if (t.id !== activeTabId) return t;
       const index = t.agents.indexOf(agentToSplit);
@@ -710,7 +800,7 @@ function App() {
       newAgents.splice(index + 1, 0, newName);
       return { ...t, agents: newAgents };
     }));
-    
+
     addLog(`Split terminal: ${newName}`, "system");
   };
 
@@ -765,16 +855,47 @@ function App() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Toggle Zen Mode with Alt + Q (using capture phase to override terminal)
+      // Toggle Zen Mode with Alt + Q
       if (e.altKey && e.code === "KeyQ") {
         e.preventDefault();
         e.stopPropagation();
         setAppMode(prev => prev === "zen" ? "terminal" : "zen");
       }
+
+      // Zen Mode Splitting Hotkeys
+      if (appMode === "zen") {
+        // Alt + V: Vertical Split
+        if (e.altKey && e.code === "KeyV") {
+          e.preventDefault();
+          setZenLayout("vertical");
+          setZenAgents(prev => [...prev, `zen-terminal-${crypto.randomUUID().slice(0, 4)}`]);
+        }
+        // Alt + H: Horizontal Split
+        if (e.altKey && e.code === "KeyH") {
+          e.preventDefault();
+          setZenLayout("horizontal");
+          setZenAgents(prev => [...prev, `zen-terminal-${crypto.randomUUID().slice(0, 4)}`]);
+        }
+        // Alt + G: Grid Layout
+        if (e.altKey && e.code === "KeyG") {
+          e.preventDefault();
+          setZenLayout("grid");
+          setZenAgents(prev => [...prev, `zen-terminal-${crypto.randomUUID().slice(0, 4)}`]);
+        }
+        // Alt + W: Close Active (Last) Split
+        if (e.altKey && e.code === "KeyW") {
+          e.preventDefault();
+          if (zenAgents.length > 1) {
+            setZenAgents(prev => prev.slice(0, -1));
+          } else {
+            setAppMode("terminal");
+          }
+        }
+      }
     };
-    window.addEventListener("keydown", handleKeyDown, true); // true = capture phase
+    window.addEventListener("keydown", handleKeyDown, true);
     return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, []);
+  }, [appMode, zenAgents.length]);
 
   return (
     <main className="h-screen w-screen bg-app-bg text-slate-300 overflow-hidden flex selection:bg-brand-accent/20 relative">
@@ -784,6 +905,7 @@ function App() {
           onSetAppMode={setAppMode}
           workspaces={workspaces}
           activeWorkspaceId={activeWorkspaceId}
+          activeSectionId={activeWorkspace?.activeSectionId || ""}
           onWorkspaceSelect={handleWorkspaceSelect}
           onCreateWorkspace={handleCreateWorkspace}
           onOpenDirectory={handleOpenDirectory}
@@ -792,6 +914,12 @@ function App() {
           onWorkspaceRename={handleWorkspaceRename}
           onWorkspaceDelete={handleWorkspaceDelete}
           onOpenSecurity={(id) => setShowSecurityPanel(id)}
+          onSectionCreate={handleSectionCreate}
+          onSectionRename={handleSectionRename}
+          onSectionDelete={handleSectionDelete}
+          onSectionSelect={handleSectionSelect}
+          tasks={tasks}
+          agentReadyStates={agentStatusMap}
         />
       )}
 
@@ -886,7 +1014,7 @@ function App() {
             {/* Hidden Exit Button - slides down on hover at the very top edge */}
             <div className="absolute top-0 left-0 right-0 h-2 z-[100] group/exit pointer-events-auto">
               <div className="absolute top-0 left-0 right-0 -translate-y-full group-hover/exit:translate-y-0 transition-transform duration-300 flex items-center justify-center py-4">
-                <button 
+                <button
                   onClick={() => setAppMode("terminal")}
                   className="bg-brand-accent/20 hover:bg-brand-accent/40 text-brand-primary text-[10px] font-bold px-6 py-2 rounded-full border border-brand-accent/30 backdrop-blur-xl shadow-2xl transition-all uppercase tracking-[0.3em]"
                 >
@@ -894,13 +1022,24 @@ function App() {
                 </button>
               </div>
             </div>
-            <TerminalInstance agentName="zen-terminal" cwd={null} isZenMode={true} />
+            
+            <AppTerminalArea
+              agents={zenAgents}
+              currentProject={null}
+              layoutOrientation={zenLayout as any}
+              onRemoveAgent={(agent) => setZenAgents(prev => prev.filter(a => a !== agent))}
+              onDetachAgent={() => {}}
+              onReorderAgents={() => {}}
+              onSplit={(agent) => setZenAgents(prev => [...prev, `zen-terminal-${crypto.randomUUID().slice(0, 4)}`])}
+              workspaceId="zen"
+              isZenMode={true}
+            />
           </div>
         )}
-        
+
         {appMode !== "zen" && (showCodeReview || showGitPanel || showPersonalKanban || showFileExplorer) && (
-          <div 
-            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[45] animate-in fade-in duration-300" 
+          <div
+            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[45] animate-in fade-in duration-300"
             onClick={() => {
               setShowCodeReview(false);
               setShowGitPanel(false);
@@ -912,10 +1051,10 @@ function App() {
 
         {appMode !== "zen" && (
           <>
-            <CodeReviewPanel 
-              currentProject={currentProject} 
-              isOpen={showCodeReview} 
-              onClose={() => setShowCodeReview(false)} 
+            <CodeReviewPanel
+              currentProject={currentProject}
+              isOpen={showCodeReview}
+              onClose={() => setShowCodeReview(false)}
               onStatsUpdate={setCodeReviewStats}
             />
             <GitPanel
@@ -942,9 +1081,9 @@ function App() {
               isOpen={showFileExplorer}
               onClose={() => setShowFileExplorer(false)}
             />
-            <StatusBar 
-              portCount={portCount} 
-              onOpenPortManager={() => setShowPortManager(true)} 
+            <StatusBar
+              portCount={portCount}
+              onOpenPortManager={() => setShowPortManager(true)}
               onOpenDbViewer={() => setShowDbViewer(true)}
             />
           </>
@@ -953,9 +1092,9 @@ function App() {
 
       {appMode !== "zen" && (
         <>
-          <PortManager 
-            isOpen={showPortManager} 
-            onClose={() => setShowPortManager(false)} 
+          <PortManager
+            isOpen={showPortManager}
+            onClose={() => setShowPortManager(false)}
             onPortsUpdate={setPortCount}
           />
           <EnvManager
@@ -977,7 +1116,7 @@ function App() {
             onClose={() => setShowDbViewer(false)}
           />
           {showSecurityPanel && (
-            <SecurityPanel 
+            <SecurityPanel
               workspaceId={showSecurityPanel}
               workspaceName={workspaces.find(w => w.id === showSecurityPanel)?.name || ""}
               isOpen={!!showSecurityPanel}
