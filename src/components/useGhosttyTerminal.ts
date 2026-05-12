@@ -42,6 +42,7 @@ export function useGhosttyTerminal(
     let resizeFrame: number | null = null;
     let resizeObserver: ResizeObserver | null = null;
     let lastResize: { cols: number; rows: number } | null = null;
+    let resizeSettleTimer: ReturnType<typeof setTimeout> | null = null;
 
     const emitResize = () => {
       if (!term || !onResizeRef.current || !term.cols || !term.rows) return;
@@ -121,6 +122,7 @@ export function useGhosttyTerminal(
     return () => {
       isMounted = false;
       if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
+      if (resizeSettleTimer) clearTimeout(resizeSettleTimer);
       if (resizeObserver) resizeObserver.disconnect();
       terminalRef.current = null;
       setTermLoaded(false);

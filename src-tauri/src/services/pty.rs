@@ -262,7 +262,12 @@ pub fn spawn_pty(
                 Ok(_) => {}
                 Err(e) => {
                     if e.error_len().is_none() {
-                        // Incomplete multi-byte character at the end
+                        // Incomplete multi-byte character at the end. 
+                        // Wait for more data.
+                        process_len = e.valid_up_to();
+                    } else {
+                        // Invalid sequence in the middle. 
+                        // We emit up to the error, skip the bad byte(s) and continue.
                         process_len = e.valid_up_to();
                     }
                 }

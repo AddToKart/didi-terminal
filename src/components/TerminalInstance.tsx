@@ -49,7 +49,6 @@ const getAgentId = (agentName: string) =>
 
 const getPtyEventKey = (agent: string) => agent.replace(/[^a-zA-Z0-9]/g, "_");
 const STATS_REFRESH_MS = 10000;
-const RESIZE_DEBOUNCE_MS = 500;
 const TERMINAL_OUTPUT_DECODER = new TextDecoder("utf-8", { fatal: false });
 const SUSPICIOUS_TERMINAL_GLYPHS = /[\uFFFD\u2500-\u25FF\u2E80-\u2EFF\u2F00-\u2FDF\u3000-\u303F\u3040-\u30FF\u3130-\u318F\u3400-\u4DBF\u4E00-\u9FFF\uAC00-\uD7AF]/gu;
 const POWERSHELL_PROMPT = /PS\s+[A-Za-z]:\\[^\r\n>]*>/g;
@@ -93,6 +92,15 @@ const getTerminalWriteText = (payload: Pick<PtyOutputPayload, "data" | "bytes">)
 
 const stripDisallowedControls = (value: string) =>
   value.replace(/[\x00-\x06\x0E-\x1A\x1C-\x1F\x7F]/g, "");
+
+// Strip sequences that are valid during a live session but corrupt a scrollback replay:
+// alternate screen enter/exit, erase-display, and absolute cursor positioning.
+const stripScrollbackForReplay = (value: string): string =>
+  value
+    .replace(/\x1b\[\?(?:1049|47|1047)[hl]/g, "")
+    .replace(/\x1b\[\d*J/g, "")
+    .replace(/\x1b\[\d+;\d+H/g, "\r\n")
+    .replace(/\x1b\[H/g, "\r\n");
 
 const isGarbledTerminalLine = (line: string) => {
   const visible = stripTerminalControls(line);
@@ -266,7 +274,6 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
   const statsRef = useRef(stats);
   const pulseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sentinelTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const resizeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastPtyResizeRef = useRef<{ ptyKey: string; cols: number; rows: number } | null>(null);
   const suppressTerminalInputRef = useRef(false);
   const lanesRef = useRef(lanes);
@@ -527,23 +534,15 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
     const lastResize = lastPtyResizeRef.current;
     if (lastResize?.ptyKey === ptyKey && lastResize.cols === cols && lastResize.rows === rows) return;
 
-    if (resizeTimeoutRef.current) clearTimeout(resizeTimeoutRef.current);
-    resizeTimeoutRef.current = setTimeout(() => {
-      lastPtyResizeRef.current = { ptyKey, cols, rows };
-      invoke("resize_pty", {
-        agent: ptyKey,
-        cols,
-        rows
-      }).catch(console.error);
-    }, RESIZE_DEBOUNCE_MS);
+    lastPtyResizeRef.current = { ptyKey, cols, rows };
+    invoke("resize_pty", {
+      agent: ptyKey,
+      cols,
+      rows
+    }).catch(console.error);
   }, [ptyKey]);
 
-  useEffect(() => () => {
-    if (resizeTimeoutRef.current) {
-      clearTimeout(resizeTimeoutRef.current);
-      resizeTimeoutRef.current = null;
-    }
-  }, [ptyKey]);
+
 
   const handleTerminalKey = useCallback((e: KeyboardEvent) => {
     // Allow Zen Mode shortcut (Alt + Q) to bubble up
@@ -633,7 +632,7 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
         if ((scrollback.bytes?.length ?? 0) > 0 || scrollback.data) {
           try {
             suppressTerminalInputRef.current = true;
-            terminal.write(getTerminalWriteText(scrollback), () => {
+            terminal.write(stripScrollbackForReplay(getTerminalWriteText(scrollback)), () => {
               if (!cancelled) terminal.scrollToBottom();
             });
           } catch (error) {
@@ -645,7 +644,7 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
           }
 
           // Re-evaluate prompt readiness on scrollback restore
-          const text = stripTerminalControls(scrollback.data).replace(/\s+/g, " ");
+          const text = stripTerminalControls(stripScrollbackForReplay(scrollback.data)).replace(/\s+/g, " ");
           outputBuffer.current = `${outputBuffer.current}${text}`.slice(-4000);
           if (isPromptReady(outputBuffer.current)) {
             setReadyState(true);
