@@ -227,6 +227,7 @@ function App() {
   const [snapshots, setSnapshots] = useState<GitSnapshotRecord[]>([]);
   const [snapshotBusy, setSnapshotBusy] = useState(false);
   const [brainstormSessions, setBrainstormSessions] = useState<BrainstormSession[]>([]);
+  const [isGlass, setIsGlass] = useState(false);
 
   const pendingHandoffs = useRef<Map<string, string[]>>(new Map());
   const readyAgents = useRef<Set<string>>(new Set());
@@ -420,27 +421,36 @@ function App() {
   }, [appMode, isDbLoaded, showPortManager]);
 
   useEffect(() => {
-    invoke<any>("get_config").then(config => {
-      document.documentElement.style.setProperty("--tw-colors-brand-accent", config.theme_cyan);
-      document.documentElement.style.setProperty("--tw-colors-brand-warn", config.theme_amber);
+    const fetchConfig = () => {
+      invoke<any>("get_config").then(config => {
+        document.documentElement.style.setProperty("--tw-colors-brand-accent", config.theme_cyan);
+        document.documentElement.style.setProperty("--tw-colors-brand-warn", config.theme_amber);
+        setIsGlass(!!config.glassmorphism);
 
-      if (config.theme_mode === "dark") {
-        document.documentElement.classList.add("dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-      }
+        if (config.theme_mode === "dark") {
+          document.documentElement.classList.add("dark");
+        } else {
+          document.documentElement.classList.remove("dark");
+        }
 
-      if (config.glassmorphism) {
-        document.documentElement.classList.add("glass");
-      } else {
-        document.documentElement.classList.remove("glass");
-      }
-    }).catch(console.error);
+        if (config.glassmorphism) {
+          document.documentElement.classList.add("glass");
+        } else {
+          document.documentElement.classList.remove("glass");
+        }
+      }).catch(console.error);
+    };
+
+    fetchConfig();
+    const unlisten = listen("config-updated", () => fetchConfig());
 
     const interval = setInterval(() => {
       invoke<string>("get_sidecar_status").then(setSidecarStatus).catch(() => setSidecarStatus("Error"));
     }, 5000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      unlisten.then(f => f());
+    };
   }, []);
 
   useEffect(() => {
@@ -1054,9 +1064,13 @@ function App() {
             onOpenDirectory={() => handleOpenDirectory(activeWorkspaceId)}
             workspaceName={workspaces.find(w => w.id === activeWorkspaceId)?.name}
             workspaceId={activeWorkspaceId}
+            isGlass={isGlass}
           />
         ) : (
-          <div className="flex-1 min-h-0 min-w-0 flex bg-black relative">
+          <div 
+            className="flex-1 min-h-0 min-w-0 flex relative transition-colors duration-500"
+            style={{ backgroundColor: isGlass ? 'transparent' : '#000000' }}
+          >
             {/* Hidden Exit Button - slides down on hover at the very top edge */}
             <div className="absolute top-0 left-0 right-0 h-2 z-[100] group/exit pointer-events-auto">
               <div className="absolute top-0 left-0 right-0 -translate-y-full group-hover/exit:translate-y-0 transition-transform duration-300 flex items-center justify-center py-4">
@@ -1087,6 +1101,7 @@ function App() {
               onFocusAgent={(agent) => {
                 setLastActiveZenAgent(agent);
               }}
+              isGlass={isGlass}
             />
           </div>
         )}

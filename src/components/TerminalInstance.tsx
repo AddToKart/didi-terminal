@@ -745,7 +745,7 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
             <div className="animate-pulse text-zinc-500 text-xs tracking-widest uppercase">Loading Engine...</div>
           </div>
         )}
-        <div className="h-full w-full terminal-surface bg-[#09090b]" ref={terminalRef} onClick={handleContainerClick}></div>
+        <div className="h-full w-full terminal-surface bg-transparent" ref={terminalRef} onClick={handleContainerClick}></div>
       </div>
 
     </div>

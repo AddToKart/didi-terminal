@@ -33,6 +33,7 @@ interface AppTerminalAreaProps {
   isZenMode?: boolean;
   focusedAgentId?: string | null;
   onFocusAgent?: (agent: string) => void;
+  isGlass?: boolean;
 }
 
 // ── Sortable terminal wrapper ──────────────────────────────────────────────
@@ -53,6 +54,7 @@ interface SortableTerminalWrapperProps {
   isFocused?: boolean;
   onFocus?: () => void;
   focusedAgentId?: string | null;
+  isGlass?: boolean;
 }
 
 const shallowEqualStyle = (left?: React.CSSProperties, right?: React.CSSProperties) => {
@@ -66,7 +68,7 @@ const shallowEqualStyle = (left?: React.CSSProperties, right?: React.CSSProperti
   return leftKeys.every(key => left[key as keyof React.CSSProperties] === right[key as keyof React.CSSProperties]);
 };
 
-const SortableTerminalWrapper = memo(function SortableTerminalWrapper({ agent, currentProject, onRemoveAgent, onDetachAgent, onSplitAgent, flexBasis, height, width, styleOverrides, workspaceName, workspaceId, isZenMode, isFocused, onFocus, focusedAgentId }: SortableTerminalWrapperProps) {
+const SortableTerminalWrapper = memo(function SortableTerminalWrapper({ agent, currentProject, onRemoveAgent, onDetachAgent, onSplitAgent, flexBasis, height, width, styleOverrides, workspaceName, workspaceId, isZenMode, isFocused, onFocus, focusedAgentId, isGlass }: SortableTerminalWrapperProps) {
   const { attributes, listeners, setNodeRef, isDragging, transform, transition } = useSortable({
     id: agent,
     data: { agentName: agent }
@@ -93,12 +95,14 @@ const SortableTerminalWrapper = memo(function SortableTerminalWrapper({ agent, c
   return (
     <div 
       ref={setNodeRef} 
-      style={style} 
       className={cn(
         "min-h-0 min-w-0 flex-1 flex flex-col transition-all duration-500 ease-in-out",
-        isZenMode ? (isFocused ? "bg-black border-brand-accent/30 ring-1 ring-brand-accent/10 shadow-[0_0_20px_rgba(59,130,246,0.05)]" : "bg-black border-white/5") : "bg-app-panel",
+        isZenMode && "rounded-lg overflow-hidden",
+        isZenMode && isFocused ? "bg-app-panel border-brand-accent/30 ring-1 ring-brand-accent/10 shadow-[0_0_20px_rgba(59,130,246,0.05)]" : "bg-app-panel",
+        isZenMode && !isFocused && "border border-app-border",
         isDragging && "shadow-2xl opacity-90 scale-[1.02] ring-1 ring-brand-accent/50 rounded-md overflow-hidden"
       )}
+      style={style} 
     >
       {agent.startsWith("browser:") ? (
         <BrowserInstance
@@ -137,6 +141,7 @@ const SortableTerminalWrapper = memo(function SortableTerminalWrapper({ agent, c
   prev.onRemoveAgent === next.onRemoveAgent &&
   prev.onDetachAgent === next.onDetachAgent &&
   prev.onSplitAgent === next.onSplitAgent &&
+  prev.isGlass === next.isGlass &&
   shallowEqualStyle(prev.styleOverrides, next.styleOverrides)
 );
 
@@ -174,10 +179,11 @@ const FreeFloatTerminalWrapper = memo(function FreeFloatTerminalWrapper({ agent,
     boxShadow: isDragging ? "0 25px 50px -12px rgba(0, 0, 0, 0.5)" : "0 10px 15px -3px rgba(0, 0, 0, 0.3)",
     transform: CSS.Translate.toString(transform),
     transition: isDragging ? "none" : "box-shadow 0.2s ease",
+    backgroundColor: 'transparent'
   };
 
   return (
-    <div ref={setNodeRef} style={style} className={`min-h-0 min-w-0 flex flex-col bg-app-panel rounded-lg overflow-hidden ring-1 ring-brand-accent/20 ${isDragging ? "opacity-90 scale-[1.02] ring-brand-accent/50 cursor-grabbing" : "cursor-grab"}`}>
+    <div ref={setNodeRef} style={style} className={`min-h-0 min-w-0 flex flex-col bg-transparent rounded-lg overflow-hidden ring-1 ring-brand-accent/20 ${isDragging ? "opacity-90 scale-[1.02] ring-brand-accent/50 cursor-grabbing" : "cursor-grab"}`}>
       {agent.startsWith("browser:") ? (
         <BrowserInstance
           id={agent}
@@ -230,6 +236,7 @@ export function AppTerminalArea({
   isZenMode,
   focusedAgentId,
   onFocusAgent,
+  isGlass,
 }: AppTerminalAreaProps) {
   const onRemoveAgentRef = useRef(onRemoveAgent);
   const onDetachAgentRef = useRef(onDetachAgent);
@@ -330,7 +337,7 @@ export function AppTerminalArea({
               <div
                 className={cn(
                   "flex-1 min-h-0 min-w-0 transition-all duration-500 ease-in-out",
-                  isZenMode ? "bg-zinc-800/20 gap-[1px]" : "rounded-lg overflow-hidden border border-app-border bg-app-border gap-1",
+                  isZenMode ? "bg-transparent gap-2 p-2" : "rounded-lg overflow-hidden border border-app-border bg-app-border gap-1",
                   !focusedAgentId && layoutOrientation === "horizontal" && "flex flex-row",
                   !focusedAgentId && layoutOrientation === "vertical" && "flex flex-col",
                   !focusedAgentId && layoutOrientation === "focus" && "flex flex-col flex-wrap content-stretch",
@@ -452,6 +459,7 @@ export function AppTerminalArea({
                       isZenMode={isZenMode}
                       focusedAgentId={focusedAgentId}
                       isFocused={agent === focusedAgentId}
+                      isGlass={isGlass}
                       onFocus={() => onFocusAgent?.(agent)}
                     />
                   );

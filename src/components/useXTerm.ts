@@ -61,7 +61,7 @@ export function useXTerm(
         allowTransparency: true,
         ...terminalOptions,
         theme: {
-          background: '#09090b',
+          background: 'rgba(0,0,0,0)',
           foreground: '#e2e8f0',
           cursor: '#00f0ff',
           selectionBackground: "#00f0ff40",

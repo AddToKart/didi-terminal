@@ -15,24 +15,32 @@
     --app-bg: #09090b; /* zinc-950 */
     --app-panel: #18181b; /* zinc-900 */
     --app-border: #27272a; /* zinc-800 */
+    --zen-bg: #000000;
   }
 
   .glass {
     --app-bg: rgba(244, 244, 245, 0.02);
     --app-panel: rgba(255, 255, 255, 0.15);
     --app-border: rgba(255, 255, 255, 0.4);
+    background-color: transparent !important;
   }
 
   .dark.glass {
     --app-bg: rgba(0, 0, 0, 0.05);
     --app-panel: rgba(255, 255, 255, 0.03);
     --app-border: rgba(255, 255, 255, 0.1);
+    --zen-bg: rgba(0, 0, 0, 0.2);
+    background-color: transparent !important;
   }
 
   body {
     @apply bg-app-bg text-zinc-800 dark:text-zinc-300 font-sans overflow-hidden antialiased;
     margin: 0;
     transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  .glass body {
+    background-color: transparent !important;
   }
   
   /* Main structural liquid glass panels */
@@ -85,6 +93,12 @@
     background: rgba(0, 0, 0, 0.5) !important;
   }
 
+  .glass .zen-terminal-surface {
+    background: var(--zen-bg) !important;
+    backdrop-filter: blur(40px) saturate(200%);
+    -webkit-backdrop-filter: blur(40px) saturate(200%);
+  }
+
   .terminal-surface canvas {
     outline: none !important;
   }
@@ -108,6 +122,11 @@
     -webkit-backdrop-filter: blur(12px) saturate(150%);
     border-color: var(--app-border);
     font-weight: 500 !important;
+  }
+
+  .glass ::-webkit-scrollbar-track,
+  .glass .xterm-viewport::-webkit-scrollbar-track {
+    background: transparent !important;
   }
 }
 
@@ -149,7 +168,8 @@
 }
 
 .terminal-surface .xterm-screen,
-.terminal-surface .xterm-rows {
+.terminal-surface .xterm-rows,
+.terminal-surface .xterm-viewport {
   transform: translateZ(0);
 }
 
