@@ -1,6 +1,7 @@
 import { useEffect, type Dispatch, type SetStateAction } from "react";
 import { emit } from "@tauri-apps/api/event";
 import type { AppMode, ZenLayoutOrientation } from "../types/workspace";
+import { matchesKeys } from "./keybindings";
 
 interface UseZenHotkeysParams {
   appMode: AppMode;
@@ -27,14 +28,14 @@ export const useZenHotkeys = ({
 }: UseZenHotkeysParams) => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.altKey && e.code === "KeyQ") {
+      if (matchesKeys(e, "zen-toggle")) {
         e.preventDefault();
         e.stopPropagation();
         setAppMode(prev => (prev === "zen" ? "terminal" : "zen"));
       }
 
       if (appMode === "zen") {
-        if (e.altKey && (e.code === "KeyF" || e.code === "Enter")) {
+        if (matchesKeys(e, "zen-focus")) {
           e.preventDefault();
           e.stopPropagation();
           if (focusedZenAgent) {
@@ -44,7 +45,7 @@ export const useZenHotkeys = ({
           }
         }
 
-        if (e.altKey && e.code === "KeyN") {
+        if (matchesKeys(e, "zen-new")) {
           e.preventDefault();
           e.stopPropagation();
           setFocusedZenAgent(null);
@@ -54,25 +55,25 @@ export const useZenHotkeys = ({
           setTimeout(() => emit("focus-agent", { agent: newId }), 100);
         }
 
-        if (e.altKey && e.code === "KeyV") {
+        if (matchesKeys(e, "zen-layout-v")) {
           e.preventDefault();
           e.stopPropagation();
           setZenLayout("vertical");
         }
 
-        if (e.altKey && e.code === "KeyH") {
+        if (matchesKeys(e, "zen-layout-h")) {
           e.preventDefault();
           e.stopPropagation();
           setZenLayout("horizontal");
         }
 
-        if (e.altKey && e.code === "KeyG") {
+        if (matchesKeys(e, "zen-layout-g")) {
           e.preventDefault();
           e.stopPropagation();
           setZenLayout("grid");
         }
 
-        if (e.altKey && e.code === "KeyW") {
+        if (matchesKeys(e, "zen-close")) {
           e.preventDefault();
           e.stopPropagation();
           setFocusedZenAgent(null);

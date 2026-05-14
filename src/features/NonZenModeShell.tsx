@@ -6,35 +6,32 @@ import { AppTopbar } from "../components/layout/AppTopbar";
 import { AppTerminalTabs } from "../components/layout/AppTerminalTabs";
 import { AppTerminalArea } from "../components/layout/AppTerminalArea";
 import { StatusBar } from "../components/layout/StatusBar";
-import { CodeReviewPanel } from "../components/source-control/CodeReviewPanel";
-import { GitPanel } from "../components/source-control/GitPanel";
-import { SourceControlFullscreen } from "../components/source-control/SourceControlFullscreen";
-import { PersonalKanban } from "../components/workspace/PersonalKanban";
-import { ProjectFileExplorer } from "../components/workspace/ProjectFileExplorer";
-import { SecurityPanel } from "../components/workspace/SecurityPanel";
-import { PortManager } from "../components/developer-tools/PortManager";
-import { EnvManager } from "../components/developer-tools/EnvManager";
-import { PackageManager } from "../components/developer-tools/PackageManager";
-import { ApiLab } from "../components/developer-tools/ApiLab";
-import { DbViewer } from "../components/developer-tools/DbViewer";
-import { MdViewer } from "../components/developer-tools/MdViewer";
-import { ConfigEditor } from "../components/developer-tools/ConfigEditor";
-import { IconBrowser } from "../components/developer-tools/IconBrowser";
-import { TailwindLabs } from "../components/developer-tools/TailwindLabs";
-import { NpmLookup } from "../components/developer-tools/NpmLookup";
-import { HtmlToJsx } from "../components/developer-tools/HtmlToJsx";
-import { SvgOptimizer } from "../components/developer-tools/SvgOptimizer";
-import { StorageInspector } from "../components/developer-tools/StorageInspector";
 import { TwoFactorModal } from "../components/modals/TwoFactorModal";
 import { QuickPalette, type PaletteAction } from "../components/modals/QuickPalette";
 import type { NonZenModeShellProps } from "../types/terminal-mode.types";
 
-const NetworkGraph = lazy(() =>
-  import("../components/graphs/NetworkGraph").then(module => ({ default: module.NetworkGraph })),
-);
-const SettingsModal = lazy(() =>
-  import("../components/modals/SettingsModal").then(module => ({ default: module.SettingsModal })),
-);
+// Lazy-loaded modals & panels
+const CodeReviewPanel = lazy(() => import("../components/source-control/CodeReviewPanel").then(m => ({ default: m.CodeReviewPanel })));
+const GitPanel = lazy(() => import("../components/source-control/GitPanel").then(m => ({ default: m.GitPanel })));
+const SourceControlFullscreen = lazy(() => import("../components/source-control/SourceControlFullscreen").then(m => ({ default: m.SourceControlFullscreen })));
+const PersonalKanban = lazy(() => import("../components/workspace/PersonalKanban").then(m => ({ default: m.PersonalKanban })));
+const ProjectFileExplorer = lazy(() => import("../components/workspace/ProjectFileExplorer").then(m => ({ default: m.ProjectFileExplorer })));
+const SecurityPanel = lazy(() => import("../components/workspace/SecurityPanel").then(m => ({ default: m.SecurityPanel })));
+const PortManager = lazy(() => import("../components/developer-tools/PortManager").then(m => ({ default: m.PortManager })));
+const EnvManager = lazy(() => import("../components/developer-tools/EnvManager").then(m => ({ default: m.EnvManager })));
+const PackageManager = lazy(() => import("../components/developer-tools/PackageManager").then(m => ({ default: m.PackageManager })));
+const ApiLab = lazy(() => import("../components/developer-tools/ApiLab").then(m => ({ default: m.ApiLab })));
+const DbViewer = lazy(() => import("../components/developer-tools/DbViewer").then(m => ({ default: m.DbViewer })));
+const MdViewer = lazy(() => import("../components/developer-tools/MdViewer").then(m => ({ default: m.MdViewer })));
+const ConfigEditor = lazy(() => import("../components/developer-tools/ConfigEditor").then(m => ({ default: m.ConfigEditor })));
+const IconBrowser = lazy(() => import("../components/developer-tools/IconBrowser").then(m => ({ default: m.IconBrowser })));
+const TailwindLabs = lazy(() => import("../components/developer-tools/TailwindLabs").then(m => ({ default: m.TailwindLabs })));
+const NpmLookup = lazy(() => import("../components/developer-tools/NpmLookup").then(m => ({ default: m.NpmLookup })));
+const HtmlToJsx = lazy(() => import("../components/developer-tools/HtmlToJsx").then(m => ({ default: m.HtmlToJsx })));
+const SvgOptimizer = lazy(() => import("../components/developer-tools/SvgOptimizer").then(m => ({ default: m.SvgOptimizer })));
+const StorageInspector = lazy(() => import("../components/developer-tools/StorageInspector").then(m => ({ default: m.StorageInspector })));
+const NetworkGraph = lazy(() => import("../components/graphs/NetworkGraph").then(m => ({ default: m.NetworkGraph })));
+const SettingsModal = lazy(() => import("../components/modals/SettingsModal").then(m => ({ default: m.SettingsModal })));
 
 export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellProps) {
   const {

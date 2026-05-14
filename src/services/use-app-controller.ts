@@ -30,6 +30,7 @@ import {
   loadStoredTerminalLanes,
 } from "./terminal-lanes";
 import { useZenHotkeys } from "./use-zen-hotkeys";
+import { matchesKeys } from "./keybindings";
 
 interface GitDiffStats {
   totalAdditions: number;
@@ -824,7 +825,7 @@ export function useAppController() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && (e.key === "p" || e.key === "k")) {
+      if (matchesKeys(e, "quick-palette")) {
         e.preventDefault();
         e.stopPropagation();
         setShowQuickPalette(prev => !prev);

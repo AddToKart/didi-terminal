@@ -141,7 +141,7 @@ export function SettingsModal({ onClose }: Props) {
       <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-[200]" onClick={onClose} />
 
       <div className="fixed inset-0 flex items-center justify-center z-[201] p-3 pointer-events-none">
-        <div className="w-full max-w-2xl max-h-[85vh] flex flex-col bg-[#0b0b0d]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] overflow-hidden pointer-events-auto animate-in zoom-in-95 slide-in-from-bottom-4 duration-200">
+        <div className="w-full max-w-5xl h-[90vh] flex flex-col bg-[#0b0b0d]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] overflow-hidden pointer-events-auto animate-in zoom-in-95 slide-in-from-bottom-4 duration-200">
 
           {/* Header */}
           <div className="px-6 pt-5 pb-4 border-b border-white/5 bg-zinc-900/40 shrink-0">
@@ -172,7 +172,7 @@ export function SettingsModal({ onClose }: Props) {
           </div>
 
           {/* Body */}
-          <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-5 space-y-6">
+          <div className="flex-1 overflow-y-auto custom-scrollbar px-6 md:px-8 py-6 space-y-6">
 
             {/* === APPEARANCE TAB === */}
             {activeTab === "appearance" && (
