@@ -1,6 +1,15 @@
-import { lazy, useMemo } from "react";
+import { lazy, Suspense, useMemo, type ReactNode } from "react";
+
+function ModalBoundary({ children, title }: { children: ReactNode; title?: string }) {
+  return (
+    <ErrorBoundary title={title || "Panel crashed"}>
+      <Suspense fallback={null}>{children}</Suspense>
+    </ErrorBoundary>
+  );
+}
 import { Terminal as TerminalIcon, Network, Monitor, Settings, Code2, GitBranch, LayoutList, FolderSearch, FileKey2, Package, Zap, FolderTree, Server, Database, FileText, FileCode, Palette, Plus, Globe, Shield, Brain, ClipboardList, Box, HardDrive } from "lucide-react";
 import { AppOverlays } from "../components/layout/AppOverlays";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 import { AppGlobalSidebar } from "../components/layout/AppGlobalSidebar";
 import { AppTopbar } from "../components/layout/AppTopbar";
 import { AppTerminalTabs } from "../components/layout/AppTerminalTabs";
@@ -303,13 +312,13 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
         )}
 
         <>
-          <CodeReviewPanel
+          <ModalBoundary><CodeReviewPanel
             currentProject={currentProject}
             isOpen={showCodeReview}
             onClose={() => setShowCodeReview(false)}
             onStatsUpdate={setCodeReviewStats}
-          />
-          <GitPanel
+          /></ModalBoundary>
+          <ModalBoundary><GitPanel
             currentProject={currentProject}
             isOpen={showGitPanel}
             onClose={() => setShowGitPanel(false)}
@@ -317,22 +326,22 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
               setShowGitPanel(false);
               setShowGitFullscreen(true);
             }}
-          />
-          <SourceControlFullscreen
+          /></ModalBoundary>
+          <ModalBoundary><SourceControlFullscreen
             currentProject={currentProject}
             isOpen={showGitFullscreen}
             onClose={() => setShowGitFullscreen(false)}
-          />
-          <PersonalKanban
+          /></ModalBoundary>
+          <ModalBoundary><PersonalKanban
             workspaceId={activeWorkspaceId}
             isOpen={showPersonalKanban}
             onClose={() => setShowPersonalKanban(false)}
-          />
-          <ProjectFileExplorer
+          /></ModalBoundary>
+          <ModalBoundary><ProjectFileExplorer
             currentProject={currentProject}
             isOpen={showFileExplorer}
             onClose={() => setShowFileExplorer(false)}
-          />
+          /></ModalBoundary>
           <StatusBar
             portCount={portCount}
             onOpenPortManager={() => setShowPortManager(true)}
@@ -342,73 +351,73 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
       </section>
 
       <>
-        <PortManager
+        <ModalBoundary><PortManager
           isOpen={showPortManager}
           onClose={() => setShowPortManager(false)}
           onPortsUpdate={setPortCount}
-        />
-        <EnvManager
+        /></ModalBoundary>
+        <ModalBoundary><EnvManager
           currentProject={currentProject}
           isOpen={showEnvManager}
           onClose={() => setShowEnvManager(false)}
-        />
-        <PackageManager
+        /></ModalBoundary>
+        <ModalBoundary><PackageManager
           currentProject={currentProject}
           isOpen={showPackageManager}
           onClose={() => setShowPackageManager(false)}
-        />
-        <ApiLab
+        /></ModalBoundary>
+        <ModalBoundary><ApiLab
           isOpen={showApiLab}
           onClose={() => setShowApiLab(false)}
-        />
-        <DbViewer
+        /></ModalBoundary>
+        <ModalBoundary><DbViewer
           isOpen={showDbViewer}
           onClose={() => setShowDbViewer(false)}
-        />
-        <MdViewer
+        /></ModalBoundary>
+        <ModalBoundary><MdViewer
           currentProject={currentProject}
           isOpen={showMdViewer}
           onClose={() => setShowMdViewer(false)}
-        />
-        <ConfigEditor
+        /></ModalBoundary>
+        <ModalBoundary><ConfigEditor
           currentProject={currentProject}
           isOpen={showConfigEditor}
           onClose={() => setShowConfigEditor(false)}
-        />
-        <IconBrowser
+        /></ModalBoundary>
+        <ModalBoundary><IconBrowser
           isOpen={showIconBrowser}
           onClose={() => setShowIconBrowser(false)}
-        />
-        <TailwindLabs
+        /></ModalBoundary>
+        <ModalBoundary><TailwindLabs
           isOpen={showTailwindLabs}
           onClose={() => setShowTailwindLabs(false)}
-        />
-        <NpmLookup
+        /></ModalBoundary>
+        <ModalBoundary><NpmLookup
           isOpen={showNpmLookup}
           onClose={() => setShowNpmLookup(false)}
-        />
-        <HtmlToJsx
+        /></ModalBoundary>
+        <ModalBoundary><HtmlToJsx
           isOpen={showHtmlToJsx}
           onClose={() => setShowHtmlToJsx(false)}
-        />
-        <SvgOptimizer
+        /></ModalBoundary>
+        <ModalBoundary><SvgOptimizer
           isOpen={showSvgOptimizer}
           onClose={() => setShowSvgOptimizer(false)}
-        />
-        <StorageInspector
+        /></ModalBoundary>
+        <ModalBoundary><StorageInspector
           isOpen={showStorageInspector}
           onClose={() => setShowStorageInspector(false)}
-        />
+        /></ModalBoundary>
         {showSecurityPanel && (
-          <SecurityPanel
+          <ModalBoundary title="Panel crashed"><SecurityPanel
             workspaceId={showSecurityPanel}
             workspaceName={workspaces.find(w => w.id === showSecurityPanel)?.name || ""}
             isOpen={!!showSecurityPanel}
             onClose={() => setShowSecurityPanel(null)}
-          />
+          /></ModalBoundary>
         )}
         {pendingWorkspaceId && (
-          <TwoFactorModal
+          <ModalBoundary title="Panel crashed"><TwoFactorModal
             isOpen={!!pendingWorkspaceId}
             workspaceId={pendingWorkspaceId}
             workspaceName={workspaces.find(w => w.id === pendingWorkspaceId)?.name || ""}
@@ -419,7 +428,7 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
               }
             }}
             onCancel={() => setPendingWorkspaceId(null)}
-          />
+          /></ModalBoundary>
         )}
       </>
 

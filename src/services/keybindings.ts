@@ -49,7 +49,16 @@ export function getBinding(id: string): Keybinding {
 
 export function matchesKeys(e: KeyboardEvent, id: string): boolean {
   const binding = getBinding(id);
-  const parts = binding.keys.split("+");
+  // Support multiple shortcuts separated by " / " (e.g. "Ctrl+P / Ctrl+K")
+  const variants = binding.keys.split(" / ");
+  for (const variant of variants) {
+    if (matchSingle(e, variant)) return true;
+  }
+  return false;
+}
+
+function matchSingle(e: KeyboardEvent, combo: string): boolean {
+  const parts = combo.split("+");
   const hasCtrl = parts.includes("Ctrl");
   const hasAlt = parts.includes("Alt");
   const hasShift = parts.includes("Shift");
