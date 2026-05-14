@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, type FormEvent } from "react";
-import { Brain, ClipboardList, Columns, Globe, Grid2X2, Network, PanelLeft, PanelLeftClose, Plus, Rows, Layers, AlignLeft, Sparkles, ChevronRight, ChevronLeft, GitMerge, LayoutList, FolderSearch, FileKey2, Package, Zap, FolderTree, FileText, FileCode, Palette } from "lucide-react";
+import { Brain, ClipboardList, Columns, Globe, Grid2X2, Network, PanelLeft, PanelLeftClose, Plus, Rows, Layers, AlignLeft, Sparkles, ChevronRight, ChevronLeft, GitMerge, LayoutList, FolderSearch, FileKey2, Package, Zap, FolderTree, FileText, FileCode, Palette, Box, HardDrive, Code2 } from "lucide-react";
 
 interface AppTopbarProps {
   appMode: "terminal" | "orchestrator";
@@ -27,10 +27,17 @@ interface AppTopbarProps {
   onToggleConfigEditor?: () => void;
   onToggleIconBrowser?: () => void;
   onToggleTailwindLabs?: () => void;
+  onToggleNpmLookup?: () => void;
+  onToggleHtmlToJsx?: () => void;
+  onToggleSvgOptimizer?: () => void;
+  onToggleStorageInspector?: () => void;
   currentProject: string | null;
 }
 
-function WebDevPopover({ onToggleIconBrowser, onToggleTailwindLabs }: { onToggleIconBrowser?: () => void; onToggleTailwindLabs?: () => void }) {
+function WebDevPopover({ onToggleIconBrowser, onToggleTailwindLabs, onToggleNpmLookup, onToggleHtmlToJsx, onToggleSvgOptimizer, onToggleStorageInspector }: {
+  onToggleIconBrowser?: () => void; onToggleTailwindLabs?: () => void;
+  onToggleNpmLookup?: () => void; onToggleHtmlToJsx?: () => void; onToggleSvgOptimizer?: () => void; onToggleStorageInspector?: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -60,6 +67,42 @@ function WebDevPopover({ onToggleIconBrowser, onToggleTailwindLabs }: { onToggle
       color: "text-sky-400",
       badge: "170+",
       action: () => { onToggleTailwindLabs?.(); setOpen(false); },
+    },
+    {
+      icon: Box,
+      label: "npm Lookup",
+      desc: "Search npm package registry",
+      gradient: "from-red-500/20 to-orange-500/20",
+      color: "text-red-400",
+      badge: "Live",
+      action: () => { onToggleNpmLookup?.(); setOpen(false); },
+    },
+    {
+      icon: Code2,
+      label: "HTML to JSX",
+      desc: "Convert HTML to React JSX",
+      gradient: "from-orange-500/20 to-amber-500/20",
+      color: "text-orange-400",
+      badge: "Tool",
+      action: () => { onToggleHtmlToJsx?.(); setOpen(false); },
+    },
+    {
+      icon: FileCode,
+      label: "SVG Optimizer",
+      desc: "Clean and minify SVGs",
+      gradient: "from-amber-500/20 to-yellow-500/20",
+      color: "text-amber-400",
+      badge: "Tool",
+      action: () => { onToggleSvgOptimizer?.(); setOpen(false); },
+    },
+    {
+      icon: HardDrive,
+      label: "Storage Inspector",
+      desc: "Browse localStorage & cookies",
+      gradient: "from-emerald-500/20 to-teal-500/20",
+      color: "text-emerald-400",
+      badge: "Live",
+      action: () => { onToggleStorageInspector?.(); setOpen(false); },
     },
   ];
 
@@ -139,6 +182,10 @@ export function AppTopbar({
   onToggleConfigEditor,
   onToggleIconBrowser,
   onToggleTailwindLabs,
+  onToggleNpmLookup,
+  onToggleHtmlToJsx,
+  onToggleSvgOptimizer,
+  onToggleStorageInspector,
   currentProject,
 }: AppTopbarProps) {
   const [isExtraLayoutsOpen, setIsExtraLayoutsOpen] = useState(false);
@@ -274,7 +321,14 @@ export function AppTopbar({
               </button>
 
               {/* Web Dev Tools Popover */}
-              <WebDevPopover onToggleIconBrowser={onToggleIconBrowser} onToggleTailwindLabs={onToggleTailwindLabs} />
+              <WebDevPopover
+                onToggleIconBrowser={onToggleIconBrowser}
+                onToggleTailwindLabs={onToggleTailwindLabs}
+                onToggleNpmLookup={onToggleNpmLookup}
+                onToggleHtmlToJsx={onToggleHtmlToJsx}
+                onToggleSvgOptimizer={onToggleSvgOptimizer}
+                onToggleStorageInspector={onToggleStorageInspector}
+              />
 
               <button
                 onClick={onToggleGitPanel}

@@ -159,6 +159,10 @@ export function useAppController() {
   const [showConfigEditor, setShowConfigEditor] = useState(false);
   const [showIconBrowser, setShowIconBrowser] = useState(false);
   const [showTailwindLabs, setShowTailwindLabs] = useState(false);
+  const [showNpmLookup, setShowNpmLookup] = useState(false);
+  const [showHtmlToJsx, setShowHtmlToJsx] = useState(false);
+  const [showSvgOptimizer, setShowSvgOptimizer] = useState(false);
+  const [showStorageInspector, setShowStorageInspector] = useState(false);
   const [showQuickPalette, setShowQuickPalette] = useState(false);
   const [showSecurityPanel, setShowSecurityPanel] = useState<string | null>(null);
   const [pendingWorkspaceId, setPendingWorkspaceId] = useState<string | null>(null);
@@ -902,6 +906,14 @@ export function useAppController() {
     setShowIconBrowser,
     showTailwindLabs,
     setShowTailwindLabs,
+    showNpmLookup,
+    setShowNpmLookup,
+    showHtmlToJsx,
+    setShowHtmlToJsx,
+    showSvgOptimizer,
+    setShowSvgOptimizer,
+    showStorageInspector,
+    setShowStorageInspector,
     showQuickPalette,
     setShowQuickPalette,
     showSecurityPanel,

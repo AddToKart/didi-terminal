@@ -1,5 +1,5 @@
 import { lazy, useMemo } from "react";
-import { Terminal as TerminalIcon, Network, Monitor, Settings, Code2, GitBranch, LayoutList, FolderSearch, FileKey2, Package, Zap, FolderTree, Server, Database, FileText, FileCode, Palette, Plus, Globe, Shield, Brain, ClipboardList } from "lucide-react";
+import { Terminal as TerminalIcon, Network, Monitor, Settings, Code2, GitBranch, LayoutList, FolderSearch, FileKey2, Package, Zap, FolderTree, Server, Database, FileText, FileCode, Palette, Plus, Globe, Shield, Brain, ClipboardList, Box, HardDrive } from "lucide-react";
 import { AppOverlays } from "../components/layout/AppOverlays";
 import { AppGlobalSidebar } from "../components/layout/AppGlobalSidebar";
 import { AppTopbar } from "../components/layout/AppTopbar";
@@ -21,6 +21,10 @@ import { MdViewer } from "../components/developer-tools/MdViewer";
 import { ConfigEditor } from "../components/developer-tools/ConfigEditor";
 import { IconBrowser } from "../components/developer-tools/IconBrowser";
 import { TailwindLabs } from "../components/developer-tools/TailwindLabs";
+import { NpmLookup } from "../components/developer-tools/NpmLookup";
+import { HtmlToJsx } from "../components/developer-tools/HtmlToJsx";
+import { SvgOptimizer } from "../components/developer-tools/SvgOptimizer";
+import { StorageInspector } from "../components/developer-tools/StorageInspector";
 import { TwoFactorModal } from "../components/modals/TwoFactorModal";
 import { QuickPalette, type PaletteAction } from "../components/modals/QuickPalette";
 import type { NonZenModeShellProps } from "../types/terminal-mode.types";
@@ -90,6 +94,14 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
     setShowIconBrowser,
     showTailwindLabs,
     setShowTailwindLabs,
+    showNpmLookup,
+    setShowNpmLookup,
+    showHtmlToJsx,
+    setShowHtmlToJsx,
+    showSvgOptimizer,
+    setShowSvgOptimizer,
+    showStorageInspector,
+    setShowStorageInspector,
     showQuickPalette,
     setShowQuickPalette,
     showSecurityPanel,
@@ -154,6 +166,10 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
     { id: "db-viewer", label: "Database Viewer", description: "Browse SQLite, Postgres, MySQL", category: "Panels", categoryOrder: 1, icon: Database, onSelect: () => setShowDbViewer(true) },
     { id: "icon-browser", label: "Icon Browser", description: "Browse and copy lucide-react icons", category: "Panels", categoryOrder: 1, icon: Palette, onSelect: () => setShowIconBrowser(true) },
     { id: "tailwind-labs", label: "Tailwind Labs", description: "Colors, utility classes, spacing reference", category: "Panels", categoryOrder: 1, icon: Palette, onSelect: () => setShowTailwindLabs(true) },
+    { id: "npm-lookup", label: "npm Lookup", description: "Search npm package registry", category: "Panels", categoryOrder: 1, icon: Box, onSelect: () => setShowNpmLookup(true) },
+    { id: "html-to-jsx", label: "HTML to JSX", description: "Convert HTML to React JSX", category: "Panels", categoryOrder: 1, icon: Code2, onSelect: () => setShowHtmlToJsx(true) },
+    { id: "svg-optimizer", label: "SVG Optimizer", description: "Clean and minify SVGs", category: "Panels", categoryOrder: 1, icon: FileCode, onSelect: () => setShowSvgOptimizer(true) },
+    { id: "storage-inspector", label: "Storage Inspector", description: "Browse localStorage and cookies", category: "Panels", categoryOrder: 1, icon: HardDrive, onSelect: () => setShowStorageInspector(true) },
     { id: "config-editor", label: "Config Editor", description: "Edit JSON config files in tree view", category: "Panels", categoryOrder: 1, icon: FileCode, onSelect: () => setShowConfigEditor(true) },
     { id: "md-viewer", label: "Markdown Viewer", description: "Browse and edit markdown files", category: "Panels", categoryOrder: 1, icon: FileText, onSelect: () => setShowMdViewer(true) },
     { id: "new-tab", label: "New Tab", description: "Create a new terminal tab", category: "Actions", categoryOrder: 2, icon: Plus, onSelect: () => handleTabCreate() },
@@ -246,6 +262,10 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
           onToggleConfigEditor={() => setShowConfigEditor(!showConfigEditor)}
           onToggleIconBrowser={() => setShowIconBrowser(!showIconBrowser)}
           onToggleTailwindLabs={() => setShowTailwindLabs(!showTailwindLabs)}
+          onToggleNpmLookup={() => setShowNpmLookup(!showNpmLookup)}
+          onToggleHtmlToJsx={() => setShowHtmlToJsx(!showHtmlToJsx)}
+          onToggleSvgOptimizer={() => setShowSvgOptimizer(!showSvgOptimizer)}
+          onToggleStorageInspector={() => setShowStorageInspector(!showStorageInspector)}
           currentProject={currentProject}
         />
 
@@ -365,6 +385,22 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
         <TailwindLabs
           isOpen={showTailwindLabs}
           onClose={() => setShowTailwindLabs(false)}
+        />
+        <NpmLookup
+          isOpen={showNpmLookup}
+          onClose={() => setShowNpmLookup(false)}
+        />
+        <HtmlToJsx
+          isOpen={showHtmlToJsx}
+          onClose={() => setShowHtmlToJsx(false)}
+        />
+        <SvgOptimizer
+          isOpen={showSvgOptimizer}
+          onClose={() => setShowSvgOptimizer(false)}
+        />
+        <StorageInspector
+          isOpen={showStorageInspector}
+          onClose={() => setShowStorageInspector(false)}
         />
         {showSecurityPanel && (
           <SecurityPanel
