@@ -70,7 +70,7 @@ function WebDevPopover({ onToggleIconBrowser }: { onToggleIconBrowser?: () => vo
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-64 bg-[#0b0b0d]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.5)] overflow-hidden z-[200] animate-in fade-in slide-in-from-top-2 duration-150">
+        <div className="absolute right-0 top-full mt-2 w-64 bg-[#0b0b0d]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.5)] overflow-hidden z-[200]">
           <div className="px-4 py-2.5 border-b border-white/5">
             <span className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest">Web Development</span>
           </div>

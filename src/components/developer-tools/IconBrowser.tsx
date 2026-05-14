@@ -53,14 +53,14 @@ export function IconBrowser({ isOpen, onClose }: IconBrowserProps) {
   if (!isOpen) return null;
 
   return (
-    <>
+    <div className="fixed inset-0 z-[100]">
       <div
-        className="fixed inset-0 bg-black/70 backdrop-blur-md z-[100] animate-in fade-in duration-300"
+        className="absolute inset-0 bg-black/70 backdrop-blur-md transition-opacity duration-300"
         onClick={onClose}
       />
 
-      <div className="fixed inset-0 flex items-center justify-center z-[101] p-0 sm:p-3 pointer-events-none">
-        <div className={`bg-[#0b0b0d]/95 backdrop-blur-xl border border-white/10 rounded-xl sm:rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] overflow-hidden flex flex-col pointer-events-auto animate-in zoom-in-95 slide-in-from-bottom-4 duration-200 ${isFullscreen ? "w-full h-full sm:m-0" : "w-full max-w-6xl h-full sm:h-[88vh]"}`}>
+      <div className="absolute inset-0 flex items-center justify-center p-0 sm:p-3">
+        <div className={`bg-[#0b0b0d]/95 backdrop-blur-xl border border-white/10 rounded-xl sm:rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] overflow-hidden flex flex-col ${isFullscreen ? "w-full h-full sm:m-0" : "w-full max-w-6xl h-full sm:h-[88vh]"}`}>
 
           {/* Header */}
           <div className="px-5 pt-5 pb-3 border-b border-white/5 bg-zinc-900/40 shrink-0">
@@ -175,7 +175,7 @@ export function IconBrowser({ isOpen, onClose }: IconBrowserProps) {
                           <span className="text-zinc-600 text-[10px]">?</span>
                         )}
                         {isCopied && (
-                          <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center animate-in zoom-in duration-150">
+                          <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center">
                             <Check size={10} className="text-white" />
                           </div>
                         )}
@@ -215,7 +215,7 @@ export function IconBrowser({ isOpen, onClose }: IconBrowserProps) {
                         {`import { ${name} } from "lucide-react"`}
                       </code>
                       {isCopied ? (
-                        <span className="flex items-center gap-1.5 text-[10px] text-emerald-400 font-bold shrink-0 animate-in fade-in slide-in-from-right-1 duration-150">
+                        <span className="flex items-center gap-1.5 text-[10px] text-emerald-400 font-bold shrink-0">
                           <Check size={12} />
                           Copied
                         </span>
@@ -239,6 +239,6 @@ export function IconBrowser({ isOpen, onClose }: IconBrowserProps) {
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }
