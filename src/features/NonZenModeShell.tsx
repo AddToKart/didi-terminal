@@ -20,6 +20,7 @@ import { DbViewer } from "../components/developer-tools/DbViewer";
 import { MdViewer } from "../components/developer-tools/MdViewer";
 import { ConfigEditor } from "../components/developer-tools/ConfigEditor";
 import { IconBrowser } from "../components/developer-tools/IconBrowser";
+import { TailwindLabs } from "../components/developer-tools/TailwindLabs";
 import { TwoFactorModal } from "../components/modals/TwoFactorModal";
 import { QuickPalette, type PaletteAction } from "../components/modals/QuickPalette";
 import type { NonZenModeShellProps } from "../types/terminal-mode.types";
@@ -87,6 +88,8 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
     setShowConfigEditor,
     showIconBrowser,
     setShowIconBrowser,
+    showTailwindLabs,
+    setShowTailwindLabs,
     showQuickPalette,
     setShowQuickPalette,
     showSecurityPanel,
@@ -150,6 +153,7 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
     { id: "port-manager", label: "Port Manager", description: "View and kill active ports", category: "Panels", categoryOrder: 1, icon: Server, onSelect: () => setShowPortManager(true) },
     { id: "db-viewer", label: "Database Viewer", description: "Browse SQLite, Postgres, MySQL", category: "Panels", categoryOrder: 1, icon: Database, onSelect: () => setShowDbViewer(true) },
     { id: "icon-browser", label: "Icon Browser", description: "Browse and copy lucide-react icons", category: "Panels", categoryOrder: 1, icon: Palette, onSelect: () => setShowIconBrowser(true) },
+    { id: "tailwind-labs", label: "Tailwind Labs", description: "Colors, utility classes, spacing reference", category: "Panels", categoryOrder: 1, icon: Palette, onSelect: () => setShowTailwindLabs(true) },
     { id: "config-editor", label: "Config Editor", description: "Edit JSON config files in tree view", category: "Panels", categoryOrder: 1, icon: FileCode, onSelect: () => setShowConfigEditor(true) },
     { id: "md-viewer", label: "Markdown Viewer", description: "Browse and edit markdown files", category: "Panels", categoryOrder: 1, icon: FileText, onSelect: () => setShowMdViewer(true) },
     { id: "new-tab", label: "New Tab", description: "Create a new terminal tab", category: "Actions", categoryOrder: 2, icon: Plus, onSelect: () => handleTabCreate() },
@@ -241,6 +245,7 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
           onToggleMdViewer={() => setShowMdViewer(!showMdViewer)}
           onToggleConfigEditor={() => setShowConfigEditor(!showConfigEditor)}
           onToggleIconBrowser={() => setShowIconBrowser(!showIconBrowser)}
+          onToggleTailwindLabs={() => setShowTailwindLabs(!showTailwindLabs)}
           currentProject={currentProject}
         />
 
@@ -356,6 +361,10 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
         <IconBrowser
           isOpen={showIconBrowser}
           onClose={() => setShowIconBrowser(false)}
+        />
+        <TailwindLabs
+          isOpen={showTailwindLabs}
+          onClose={() => setShowTailwindLabs(false)}
         />
         {showSecurityPanel && (
           <SecurityPanel

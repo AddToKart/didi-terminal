@@ -26,10 +26,11 @@ interface AppTopbarProps {
   onToggleMdViewer?: () => void;
   onToggleConfigEditor?: () => void;
   onToggleIconBrowser?: () => void;
+  onToggleTailwindLabs?: () => void;
   currentProject: string | null;
 }
 
-function WebDevPopover({ onToggleIconBrowser }: { onToggleIconBrowser?: () => void }) {
+function WebDevPopover({ onToggleIconBrowser, onToggleTailwindLabs }: { onToggleIconBrowser?: () => void; onToggleTailwindLabs?: () => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -51,13 +52,22 @@ function WebDevPopover({ onToggleIconBrowser }: { onToggleIconBrowser?: () => vo
       badge: "1,703",
       action: () => { onToggleIconBrowser?.(); setOpen(false); },
     },
+    {
+      icon: Palette,
+      label: "Tailwind Labs",
+      desc: "Colors, classes & spacing tokens",
+      gradient: "from-sky-500/20 to-blue-500/20",
+      color: "text-sky-400",
+      badge: "170+",
+      action: () => { onToggleTailwindLabs?.(); setOpen(false); },
+    },
   ];
 
   return (
     <div ref={ref} className="relative shrink-0">
       <button
         onClick={() => setOpen(!open)}
-        className={`flex items-center gap-1.5 px-3 py-1 rounded-full transition-all text-[11px] font-bold border ${
+        className={`flex items-center gap-1.5 px-3 py-1 rounded-full transition-all text-[11px] font-bold border whitespace-nowrap ${
           open
             ? 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30 shadow-[0_0_12px_rgba(99,102,241,0.08)]'
             : 'text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border-zinc-800/60 hover:border-zinc-700'
@@ -70,7 +80,7 @@ function WebDevPopover({ onToggleIconBrowser }: { onToggleIconBrowser?: () => vo
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-64 bg-[#0b0b0d]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.5)] overflow-hidden z-[200]">
+        <div className="absolute right-0 top-full mt-2 w-64 bg-[#0b0b0d]/98 backdrop-blur-2xl border border-white/10 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.6)] overflow-hidden z-[500]">
           <div className="px-4 py-2.5 border-b border-white/5">
             <span className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest">Web Development</span>
           </div>
@@ -128,6 +138,7 @@ export function AppTopbar({
   onToggleMdViewer,
   onToggleConfigEditor,
   onToggleIconBrowser,
+  onToggleTailwindLabs,
   currentProject,
 }: AppTopbarProps) {
   const [isExtraLayoutsOpen, setIsExtraLayoutsOpen] = useState(false);
@@ -137,7 +148,7 @@ export function AppTopbar({
   const isExtraActive = ["focus", "presentation", "dynamic", "canvas", "waterfall"].includes(layoutOrientation);
   const showExtras = isExtraLayoutsOpen || isExtraActive;
   return (
-    <div className="h-14 border-b border-app-border flex items-center justify-between px-4 bg-app-bg">
+    <div className="h-14 border-b border-app-border flex items-center justify-between px-4 bg-app-bg relative z-50">
       <form onSubmit={onSpawnAgent} className="flex items-center gap-2">
         <div className="relative flex items-center">
           <button type="submit" className="absolute left-1.5 text-brand-primary transition-colors p-1 z-10 rounded">
@@ -189,7 +200,7 @@ export function AppTopbar({
         )}
         {currentProject && (
           <div className="flex items-center bg-zinc-900/60 border border-zinc-800/80 rounded-xl p-1 gap-1 shadow-sm ml-2">
-            <div className={`flex items-center gap-1 transition-all duration-700 ease-in-out overflow-hidden ${isToolsOpen ? "max-w-[700px] opacity-100 px-0.5" : "max-w-0 opacity-0"}`}>
+          <div className={`flex items-center gap-1 transition-all duration-700 ease-in-out ${isToolsOpen ? "max-w-[1200px] opacity-100 px-0.5 overflow-visible" : "max-w-0 opacity-0 overflow-hidden"}`}>
               <button
                 onClick={onToggleFileExplorer}
                 className="flex items-center gap-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all text-[11px] font-bold shrink-0"
@@ -263,7 +274,7 @@ export function AppTopbar({
               </button>
 
               {/* Web Dev Tools Popover */}
-              <WebDevPopover onToggleIconBrowser={onToggleIconBrowser} />
+              <WebDevPopover onToggleIconBrowser={onToggleIconBrowser} onToggleTailwindLabs={onToggleTailwindLabs} />
 
               <button
                 onClick={onToggleGitPanel}

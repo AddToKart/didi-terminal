@@ -158,6 +158,7 @@ export function useAppController() {
   const [showMdViewer, setShowMdViewer] = useState(false);
   const [showConfigEditor, setShowConfigEditor] = useState(false);
   const [showIconBrowser, setShowIconBrowser] = useState(false);
+  const [showTailwindLabs, setShowTailwindLabs] = useState(false);
   const [showQuickPalette, setShowQuickPalette] = useState(false);
   const [showSecurityPanel, setShowSecurityPanel] = useState<string | null>(null);
   const [pendingWorkspaceId, setPendingWorkspaceId] = useState<string | null>(null);
@@ -899,6 +900,8 @@ export function useAppController() {
     setShowConfigEditor,
     showIconBrowser,
     setShowIconBrowser,
+    showTailwindLabs,
+    setShowTailwindLabs,
     showQuickPalette,
     setShowQuickPalette,
     showSecurityPanel,
