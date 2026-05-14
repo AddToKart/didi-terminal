@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { X, Save, Terminal as ShellIcon, Globe, Cpu, Key, Palette } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { X, Save, Terminal as ShellIcon, Globe, Cpu, Key, Palette, Keyboard, RotateCcw } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 
 interface AppConfig {
@@ -13,228 +13,374 @@ interface AppConfig {
   glassmorphism: boolean;
 }
 
+interface Keybinding {
+  id: string;
+  label: string;
+  description: string;
+  category: string;
+  defaultKeys: string;
+  keys: string;
+}
+
+const DEFAULT_KEYBINDINGS: Keybinding[] = [
+  { id: "quick-palette", label: "Quick Palette", description: "Open command palette", category: "Global", defaultKeys: "Ctrl+P / Ctrl+K", keys: "Ctrl+P / Ctrl+K" },
+  { id: "zen-toggle", label: "Toggle Zen Mode", description: "Switch to/from Zen layout", category: "Zen Mode", defaultKeys: "Alt+Q", keys: "Alt+Q" },
+  { id: "zen-focus", label: "Focus Terminal", description: "Toggle focus on active terminal", category: "Zen Mode", defaultKeys: "Alt+F", keys: "Alt+F" },
+  { id: "zen-new", label: "New Zen Terminal", description: "Spawn a new Zen terminal", category: "Zen Mode", defaultKeys: "Alt+N", keys: "Alt+N" },
+  { id: "zen-close", label: "Close Zen Terminal", description: "Close active Zen terminal", category: "Zen Mode", defaultKeys: "Alt+W", keys: "Alt+W" },
+  { id: "zen-layout-v", label: "Zen Layout Vertical", description: "Set Zen layout to vertical", category: "Zen Mode", defaultKeys: "Alt+V", keys: "Alt+V" },
+  { id: "zen-layout-h", label: "Zen Layout Horizontal", description: "Set Zen layout to horizontal", category: "Zen Mode", defaultKeys: "Alt+H", keys: "Alt+H" },
+  { id: "zen-layout-g", label: "Zen Layout Grid", description: "Set Zen layout to grid", category: "Zen Mode", defaultKeys: "Alt+G", keys: "Alt+G" },
+  { id: "find-in-file", label: "Find in File", description: "Search within the editor", category: "Editor", defaultKeys: "Ctrl+F", keys: "Ctrl+F" },
+  { id: "save-file", label: "Save File", description: "Save the current file", category: "Editor", defaultKeys: "Ctrl+S", keys: "Ctrl+S" },
+];
+
+const SETTINGS_KEY = "didi_settings";
+
 interface Props {
   onClose: () => void;
+}
+
+function loadSavedKeybindings(): Keybinding[] {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed.keybindings) {
+        return DEFAULT_KEYBINDINGS.map(d => {
+          const saved = parsed.keybindings.find((s: Keybinding) => s.id === d.id);
+          return saved ? { ...d, keys: saved.keys } : d;
+        });
+      }
+    }
+  } catch { }
+  return DEFAULT_KEYBINDINGS;
+}
+
+function saveKeybindings(bindings: Keybinding[]) {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    parsed.keybindings = bindings.map(b => ({ id: b.id, keys: b.keys }));
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(parsed));
+  } catch { }
+}
+
+function formatKeyEvent(e: KeyboardEvent): string {
+  const parts: string[] = [];
+  if (e.ctrlKey || e.metaKey) parts.push("Ctrl");
+  if (e.altKey) parts.push("Alt");
+  if (e.shiftKey) parts.push("Shift");
+  if (e.key && !["Control", "Alt", "Shift", "Meta"].includes(e.key)) {
+    parts.push(e.key.length === 1 ? e.key.toUpperCase() : e.key);
+  }
+  return parts.join("+");
 }
 
 export function SettingsModal({ onClose }: Props) {
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [llmStatus, setLlmStatus] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"appearance" | "infra" | "shortcuts">("appearance");
+  const [keybindings, setKeybindings] = useState<Keybinding[]>(loadSavedKeybindings);
+  const [recordingId, setRecordingId] = useState<string | null>(null);
+  const [hasShortcutChanges, setHasShortcutChanges] = useState(false);
+  const recordingRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     invoke<AppConfig>("get_config").then(setConfig).catch(console.error);
   }, []);
 
-  const handleSave = async (e?: React.FormEvent) => {
+  useEffect(() => {
+    if (!recordingId) return;
+    const handler = (e: KeyboardEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const formatted = formatKeyEvent(e);
+      if (formatted) {
+        setKeybindings(prev => prev.map(k => k.id === recordingId ? { ...k, keys: formatted } : k));
+        setHasShortcutChanges(true);
+        setRecordingId(null);
+      }
+    };
+    window.addEventListener("keydown", handler, true);
+    return () => window.removeEventListener("keydown", handler, true);
+  }, [recordingId]);
+
+  const handleSaveConfig = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (config) {
-      await invoke("set_config", { newConfig: config });
-      // Apply to document immediately
-      document.documentElement.style.setProperty('--tw-colors-brand-accent', config.theme_cyan);
-      document.documentElement.style.setProperty('--tw-colors-brand-warn', config.theme_amber);
-      
-      if (config.theme_mode === "dark") {
-        document.documentElement.classList.add("dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-      }
-      
-      if (config.glassmorphism) {
-        document.documentElement.classList.add("glass");
-      } else {
-        document.documentElement.classList.remove("glass");
-      }
-      
-      invoke("update_vibrancy", { enable: config.glassmorphism, theme: config.theme_mode }).catch(console.error);
-      
-      const { emit } = await import("@tauri-apps/api/event");
-      emit("config-updated");
-      
-      onClose();
-    }
+    if (!config) return;
+    await invoke("set_config", { newConfig: config });
+    document.documentElement.style.setProperty("--tw-colors-brand-accent", config.theme_cyan);
+    document.documentElement.style.setProperty("--tw-colors-brand-warn", config.theme_amber);
+    if (config.theme_mode === "dark") document.documentElement.classList.add("dark");
+    else document.documentElement.classList.remove("dark");
+    if (config.glassmorphism) document.documentElement.classList.add("glass");
+    else document.documentElement.classList.remove("glass");
+    invoke("update_vibrancy", { enable: config.glassmorphism, theme: config.theme_mode }).catch(console.error);
+    const { emit } = await import("@tauri-apps/api/event");
+    emit("config-updated");
+    saveKeybindings(keybindings);
+    onClose();
+  };
+
+  const handleResetShortcuts = () => {
+    setKeybindings(DEFAULT_KEYBINDINGS.map(k => ({ ...k })));
+    setHasShortcutChanges(true);
   };
 
   if (!config) return null;
 
+  const tabs = [
+    { id: "appearance", label: "Appearance", icon: Palette },
+    { id: "infra", label: "Infrastructure", icon: Cpu },
+    { id: "shortcuts", label: "Shortcuts", icon: Keyboard },
+  ] as const;
+
   return (
-    <div className="fixed inset-0 z-[200] bg-black/40 backdrop-blur-md flex items-center justify-center p-4 lg:p-8">
-      <div className="w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl bg-app-panel border border-app-border rounded-xl overflow-hidden">
-        <div className="flex flex-row justify-between items-center border-b border-app-border p-4 pb-4">
-          <div className="space-y-1">
-            <h2 className="text-xl font-bold tracking-tight text-brand-primary flex items-center gap-2">
-              <Palette className="text-brand-accent" size={20} />
-              System Settings
-            </h2>
-            <p className="text-xs text-zinc-400 font-medium">Configure your workspace environment and orchestration protocol.</p>
-          </div>
-          <button 
-            onClick={onClose} 
-            className="p-2 text-zinc-400 hover:text-brand-warn transition-colors rounded-lg"
-          >
-            <X size={20} />
-          </button>
-        </div>
+    <>
+      <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-[200]" onClick={onClose} />
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
-          {/* Appearance Section */}
-          <div className="space-y-4">
-            <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-brand-accent/80 border-b border-brand-accent/20 pb-2">Visual Style</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-zinc-300">Theme Preference</label>
-                <select 
-                  value={config.theme_mode}
-                  onChange={e => setConfig({...config, theme_mode: e.target.value})}
-                  className="w-full bg-zinc-950/40 border border-app-border text-zinc-200 px-3 py-2 rounded-md text-sm outline-none focus:border-brand-accent transition-all cursor-pointer"
-                >
-                  <option value="dark">Dark Mode</option>
-                  <option value="light">Light Mode</option>
-                </select>
-              </div>
+      <div className="fixed inset-0 flex items-center justify-center z-[201] p-3 pointer-events-none">
+        <div className="w-full max-w-2xl max-h-[85vh] flex flex-col bg-[#0b0b0d]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] overflow-hidden pointer-events-auto animate-in zoom-in-95 slide-in-from-bottom-4 duration-200">
 
-              <div className="flex flex-col justify-end">
-                <label className="group flex items-center justify-between p-3 rounded-lg border border-app-border bg-zinc-950/40 hover:bg-zinc-950/60 transition-all cursor-pointer">
-                  <div className="flex flex-col">
-                    <span className="text-sm font-semibold text-zinc-200">Liquid Glass</span>
-                    <span className="text-[10px] text-zinc-500">Enable Apple-style glassmorphism</span>
-                  </div>
-                  <input 
-                    type="checkbox" 
-                    checked={config.glassmorphism}
-                    onChange={e => setConfig({...config, glassmorphism: e.target.checked})}
-                    className="accent-brand-accent w-4 h-4 rounded cursor-pointer"
-                  />
-                </label>
+          {/* Header */}
+          <div className="px-6 pt-5 pb-4 border-b border-white/5 bg-zinc-900/40 shrink-0">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gradient-to-br from-blue-500/20 to-indigo-500/20 rounded-xl text-blue-400 border border-blue-500/20 shadow-sm">
+                  <Palette size={18} />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-white tracking-tight">Settings</h2>
+                  <p className="text-[10px] text-zinc-500 font-medium uppercase tracking-wider mt-0.5">Configure your workspace</p>
+                </div>
               </div>
+              <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95">
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex items-center gap-1 bg-black/30 rounded-lg p-0.5 border border-white/5 w-fit">
+              {tabs.map(({ id, label, icon: Icon }) => (
+                <button key={id} onClick={() => setActiveTab(id as typeof activeTab)}
+                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-[11px] font-bold transition-all ${activeTab === id ? 'bg-blue-500/20 text-blue-400 shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}>
+                  <Icon size={13} /> {label}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Infrastructure Section */}
-          <div className="space-y-4">
-            <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-brand-accent/80 border-b border-brand-accent/20 pb-2">Infrastructure</h3>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-zinc-300 flex items-center gap-2">
-                  <ShellIcon size={14} className="text-zinc-500" /> Default Shell
-                </label>
-                <input 
-                  type="text"
-                  value={config.shell}
-                  onChange={e => setConfig({...config, shell: e.target.value})}
-                  placeholder="e.g. pwsh.exe, bash"
-                  className="w-full bg-zinc-950/40 border border-app-border text-zinc-200 px-3 py-2 rounded-md text-sm outline-none focus:border-brand-accent transition-all font-mono"
-                />
-              </div>
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-5 space-y-6">
 
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-zinc-300 flex items-center gap-2">
-                  <Globe size={14} className="text-zinc-500" /> LLM Endpoint
-                </label>
-                <input 
-                  type="url" 
-                  value={config.llm_endpoint}
-                  onChange={e => setConfig({...config, llm_endpoint: e.target.value})}
-                  placeholder="http://localhost:8080/v1"
-                  className="w-full bg-zinc-950/40 border border-app-border text-zinc-200 px-3 py-2 rounded-md text-sm outline-none focus:border-brand-accent transition-all"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold text-zinc-300 flex items-center gap-2">
-                    <Cpu size={14} className="text-zinc-500" /> Model Name
-                  </label>
-                  <input
-                    type="text"
-                    value={config.llm_model}
-                    onChange={e => setConfig({...config, llm_model: e.target.value})}
-                    className="w-full bg-zinc-950/40 border border-app-border text-zinc-200 px-3 py-2 rounded-md text-sm outline-none focus:border-brand-accent transition-all"
-                  />
+            {/* === APPEARANCE TAB === */}
+            {activeTab === "appearance" && (
+              <>
+                <div className="space-y-4">
+                  <h3 className="text-[9px] font-bold uppercase tracking-[0.2em] text-blue-400/80 border-b border-white/5 pb-2">Visual Style</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-semibold text-zinc-400">Theme Preference</label>
+                      <select value={config.theme_mode} onChange={e => setConfig({ ...config, theme_mode: e.target.value })}
+                        className="w-full bg-black/40 border border-white/10 text-zinc-200 px-3 py-2 rounded-lg text-xs outline-none focus:border-blue-500/40 transition-all cursor-pointer">
+                        <option value="dark">Dark Mode</option>
+                        <option value="light">Light Mode</option>
+                      </select>
+                    </div>
+                    <div className="flex flex-col justify-end">
+                      <label className="group flex items-center justify-between p-3 rounded-lg border border-white/10 bg-black/40 hover:bg-black/60 transition-all cursor-pointer">
+                        <div className="flex flex-col">
+                          <span className="text-xs font-semibold text-zinc-200">Liquid Glass</span>
+                          <span className="text-[9px] text-zinc-600">Apple-style glassmorphism</span>
+                        </div>
+                        <input type="checkbox" checked={config.glassmorphism} onChange={e => setConfig({ ...config, glassmorphism: e.target.checked })}
+                          className="accent-blue-500 w-4 h-4 rounded cursor-pointer" />
+                      </label>
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold text-zinc-300 flex items-center gap-2">
-                    <Key size={14} className="text-zinc-500" /> API Key
-                  </label>
-                  <input
-                    type="password"
-                    value={config.llm_api_key}
-                    onChange={e => setConfig({...config, llm_api_key: e.target.value})}
-                    placeholder="Optional for local sidecar"
-                    className="w-full bg-zinc-950/40 border border-app-border text-zinc-200 px-3 py-2 rounded-md text-sm outline-none focus:border-brand-accent transition-all"
-                  />
+
+                <div className="space-y-4 pt-2">
+                  <h3 className="text-[9px] font-bold uppercase tracking-[0.2em] text-blue-400/80 border-b border-white/5 pb-2">Branding & Theming</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-3.5 rounded-xl border border-white/10 bg-black/30 space-y-3">
+                      <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Primary Accent</label>
+                      <div className="flex items-center gap-3">
+                        <input type="color" value={config.theme_cyan} onChange={e => setConfig({ ...config, theme_cyan: e.target.value })}
+                          className="h-9 w-14 bg-transparent cursor-pointer rounded-lg overflow-hidden border border-white/10" />
+                        <span className="text-[11px] text-zinc-300 font-mono font-bold">{config.theme_cyan}</span>
+                      </div>
+                    </div>
+                    <div className="p-3.5 rounded-xl border border-white/10 bg-black/30 space-y-3">
+                      <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Alert / Warn</label>
+                      <div className="flex items-center gap-3">
+                        <input type="color" value={config.theme_amber} onChange={e => setConfig({ ...config, theme_amber: e.target.value })}
+                          className="h-9 w-14 bg-transparent cursor-pointer rounded-lg overflow-hidden border border-white/10" />
+                        <span className="text-[11px] text-zinc-300 font-mono font-bold">{config.theme_amber}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* === INFRASTRUCTURE TAB === */}
+            {activeTab === "infra" && (
+              <div className="space-y-4">
+                <h3 className="text-[9px] font-bold uppercase tracking-[0.2em] text-blue-400/80 border-b border-white/5 pb-2">Shell & Runtime</h3>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-semibold text-zinc-400 flex items-center gap-2">
+                      <ShellIcon size={13} className="text-zinc-600" /> Default Shell
+                    </label>
+                    <input type="text" value={config.shell} onChange={e => setConfig({ ...config, shell: e.target.value })}
+                      placeholder="e.g. pwsh.exe, bash"
+                      className="w-full bg-black/40 border border-white/10 text-zinc-200 px-3 py-2 rounded-lg text-xs outline-none focus:border-blue-500/40 transition-all font-mono" />
+                  </div>
+                </div>
+
+                <h3 className="text-[9px] font-bold uppercase tracking-[0.2em] text-blue-400/80 border-b border-white/5 pb-2 pt-2">LLM Connection</h3>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-semibold text-zinc-400 flex items-center gap-2">
+                      <Globe size={13} className="text-zinc-600" /> LLM Endpoint
+                    </label>
+                    <input type="url" value={config.llm_endpoint} onChange={e => setConfig({ ...config, llm_endpoint: e.target.value })}
+                      placeholder="http://localhost:8080/v1"
+                      className="w-full bg-black/40 border border-white/10 text-zinc-200 px-3 py-2 rounded-lg text-xs outline-none focus:border-blue-500/40 transition-all" />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-semibold text-zinc-400 flex items-center gap-2">
+                        <Cpu size={13} className="text-zinc-600" /> Model Name
+                      </label>
+                      <input type="text" value={config.llm_model} onChange={e => setConfig({ ...config, llm_model: e.target.value })}
+                        className="w-full bg-black/40 border border-white/10 text-zinc-200 px-3 py-2 rounded-lg text-xs outline-none focus:border-blue-500/40 transition-all" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-semibold text-zinc-400 flex items-center gap-2">
+                        <Key size={13} className="text-zinc-600" /> API Key
+                      </label>
+                      <input type="password" value={config.llm_api_key} onChange={e => setConfig({ ...config, llm_api_key: e.target.value })}
+                        placeholder="Optional for local sidecar"
+                        className="w-full bg-black/40 border border-white/10 text-zinc-200 px-3 py-2 rounded-lg text-xs outline-none focus:border-blue-500/40 transition-all" />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 pt-1">
+                    <button type="button" onClick={async () => {
+                      if (!config) return;
+                      await invoke("set_config", { newConfig: config });
+                      const status = await invoke<string>("get_sidecar_status");
+                      setLlmStatus(status);
+                    }}
+                      className="px-4 py-2 border border-white/10 hover:border-blue-500/40 text-zinc-400 hover:text-white rounded-lg text-[10px] font-bold uppercase transition-all">
+                      Verify Connection
+                    </button>
+                    {llmStatus && (
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/40 border border-white/10 text-[9px] font-bold text-zinc-500">
+                        <div className={`w-1.5 h-1.5 rounded-full ${llmStatus === "Connected" ? "bg-emerald-500" : "bg-red-500"}`} />
+                        {llmStatus}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
+            )}
 
-              <div className="flex items-center gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (!config) return;
-                    await invoke("set_config", { newConfig: config });
-                    const status = await invoke<string>("get_sidecar_status");
-                    setLlmStatus(status);
-                  }}
-                  className="px-4 py-2 border border-app-border hover:border-brand-accent text-zinc-300 hover:text-brand-primary rounded-md text-xs font-bold uppercase transition-all"
-                >
-                  Verify LLM Connection
-                </button>
-                {llmStatus && (
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-900/50 border border-zinc-800 text-[10px] font-bold text-zinc-400">
-                    <div className={`w-1.5 h-1.5 rounded-full ${llmStatus === "Connected" ? "bg-emerald-500" : "bg-red-500"}`} />
-                    Status: {llmStatus}
+            {/* === KEYBOARD SHORTCUTS TAB === */}
+            {activeTab === "shortcuts" && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-[9px] font-bold uppercase tracking-[0.2em] text-blue-400/80 border-b border-white/5 pb-2 flex-1">Key Bindings</h3>
+                  {hasShortcutChanges && (
+                    <button onClick={handleResetShortcuts}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-white/10 text-zinc-500 hover:text-zinc-300 hover:border-white/20 transition-all text-[9px] font-bold">
+                      <RotateCcw size={10} /> Reset
+                    </button>
+                  )}
+                </div>
+
+                <p className="text-[10px] text-zinc-600 leading-relaxed">
+                  Click a shortcut to rebind it. Press the desired key combination on your keyboard to assign it.
+                </p>
+
+                {["Global", "Zen Mode", "Editor"].map(category => {
+                  const items = keybindings.filter(k => k.category === category);
+                  if (items.length === 0) return null;
+                  return (
+                    <div key={category}>
+                      <div className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest mb-2">{category}</div>
+                      <div className="space-y-1">
+                        {items.map(item => {
+                          const isRecording = recordingId === item.id;
+                          return (
+                            <div key={item.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-all group">
+                              <div className="flex-1 min-w-0">
+                                <div className="text-xs font-bold text-zinc-300">{item.label}</div>
+                                <div className="text-[9px] text-zinc-600">{item.description}</div>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                {isRecording ? (
+                                  <div ref={recordingRef}
+                                    className="px-3 py-1.5 rounded-lg bg-blue-500/15 border border-blue-500/40 text-blue-400 text-[10px] font-bold font-mono animate-pulse flex items-center gap-1.5 min-w-[90px] justify-center">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+                                    Press keys...
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => setRecordingId(item.id)}
+                                    className={`px-3 py-1.5 rounded-lg border text-[10px] font-bold font-mono transition-all min-w-[90px] ${
+                                      item.keys !== item.defaultKeys
+                                        ? 'bg-amber-500/10 border-amber-500/20 text-amber-400 hover:bg-amber-500/15'
+                                        : 'bg-white/5 border-white/10 text-zinc-400 hover:text-zinc-200 hover:bg-white/10'
+                                    }`}
+                                  >
+                                    {item.keys}
+                                  </button>
+                                )}
+                                {item.keys !== item.defaultKeys && !isRecording && (
+                                  <button
+                                    onClick={() => setKeybindings(prev => prev.map(k => k.id === item.id ? { ...k, keys: item.defaultKeys } : k))}
+                                    className="p-1.5 text-zinc-600 hover:text-zinc-400 transition-colors opacity-0 group-hover:opacity-100"
+                                    title="Reset to default"
+                                  >
+                                    <RotateCcw size={10} />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {hasShortcutChanges && (
+                  <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/20 text-[10px] text-amber-400/80 flex items-center gap-2">
+                    <RotateCcw size={12} />
+                    Shortcut changes are saved when you click "Save Configuration"
                   </div>
                 )}
               </div>
-            </div>
+            )}
           </div>
 
-          {/* Branding Section */}
-          <div className="space-y-4">
-            <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-brand-accent/80 border-b border-brand-accent/20 pb-2">Branding & Theming</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-3 rounded-lg border border-app-border bg-zinc-950/40 space-y-3">
-                <label className="text-xs font-semibold text-zinc-400">Primary Accent</label>
-                <div className="flex items-center gap-3">
-                  <input 
-                    type="color" 
-                    value={config.theme_cyan}
-                    onChange={e => setConfig({...config, theme_cyan: e.target.value})}
-                    className="h-8 w-12 bg-transparent cursor-pointer rounded overflow-hidden border border-app-border"
-                  />
-                  <span className="text-xs text-zinc-300 font-mono font-bold">{config.theme_cyan}</span>
-                </div>
-              </div>
-              <div className="p-3 rounded-lg border border-app-border bg-zinc-950/40 space-y-3">
-                <label className="text-xs font-semibold text-zinc-400">Alert / Warn</label>
-                <div className="flex items-center gap-3">
-                  <input 
-                    type="color" 
-                    value={config.theme_amber}
-                    onChange={e => setConfig({...config, theme_amber: e.target.value})}
-                    className="h-8 w-12 bg-transparent cursor-pointer rounded overflow-hidden border border-app-border"
-                  />
-                  <span className="text-xs text-zinc-300 font-mono font-bold">{config.theme_amber}</span>
-                </div>
-              </div>
-            </div>
+          {/* Footer */}
+          <div className="px-6 py-4 border-t border-white/5 bg-white/[0.02] flex items-center justify-end gap-3 shrink-0">
+            <button onClick={onClose}
+              className="px-4 py-2 text-zinc-500 hover:text-zinc-300 font-bold uppercase text-[9px] tracking-widest transition-colors">
+              Cancel
+            </button>
+            <button onClick={() => handleSaveConfig()}
+              className="px-5 py-2 font-bold uppercase text-[9px] tracking-[0.15em] bg-blue-500 hover:bg-blue-400 text-white rounded-lg transition-all flex items-center gap-1.5 shadow-lg shadow-blue-500/20">
+              <Save size={13} /> Save Configuration
+            </button>
           </div>
-        </div>
-
-        <div className="p-6 border-t border-app-border flex justify-end gap-3 bg-zinc-950/20">
-          <button 
-            onClick={onClose} 
-            className="px-4 py-2 text-zinc-400 hover:text-white font-bold uppercase text-[10px] tracking-widest transition-colors"
-          >
-            Cancel
-          </button>
-          <button 
-            onClick={() => handleSave()}
-            className="px-6 py-2 font-bold uppercase text-[10px] tracking-[0.15em] bg-brand-accent text-white rounded-md hover:brightness-110 transition-all flex items-center"
-          >
-            <Save size={14} className="mr-2" /> Save Configuration
-          </button>
         </div>
       </div>
-    </div>
+    </>
   );
 }
