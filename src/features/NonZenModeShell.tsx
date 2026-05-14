@@ -1,4 +1,5 @@
-import { lazy } from "react";
+import { lazy, useMemo } from "react";
+import { Terminal as TerminalIcon, Network, Monitor, Settings, Code2, GitBranch, LayoutList, FolderSearch, FileKey2, Package, Zap, FolderTree, Server, Database, FileText, FileCode, Plus, Globe, Shield, Brain, ClipboardList } from "lucide-react";
 import { AppOverlays } from "../components/layout/AppOverlays";
 import { AppGlobalSidebar } from "../components/layout/AppGlobalSidebar";
 import { AppTopbar } from "../components/layout/AppTopbar";
@@ -16,7 +17,10 @@ import { EnvManager } from "../components/developer-tools/EnvManager";
 import { PackageManager } from "../components/developer-tools/PackageManager";
 import { ApiLab } from "../components/developer-tools/ApiLab";
 import { DbViewer } from "../components/developer-tools/DbViewer";
+import { MdViewer } from "../components/developer-tools/MdViewer";
+import { ConfigEditor } from "../components/developer-tools/ConfigEditor";
 import { TwoFactorModal } from "../components/modals/TwoFactorModal";
+import { QuickPalette, type PaletteAction } from "../components/modals/QuickPalette";
 import type { NonZenModeShellProps } from "../types/terminal-mode.types";
 
 const NetworkGraph = lazy(() =>
@@ -76,6 +80,12 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
     setShowMonorepoGraph,
     showDbViewer,
     setShowDbViewer,
+    showMdViewer,
+    setShowMdViewer,
+    showConfigEditor,
+    setShowConfigEditor,
+    showQuickPalette,
+    setShowQuickPalette,
     showSecurityPanel,
     setShowSecurityPanel,
     pendingWorkspaceId,
@@ -120,6 +130,31 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
     handleDispatchMasterPlanTask,
   } = controller;
   const topbarMode = appMode === "orchestrator" ? "orchestrator" : "terminal";
+
+  const paletteActions = useMemo<PaletteAction[]>(() => [
+    { id: "terminal-mode", label: "Terminal Mode", description: "Switch to standard terminal layout", category: "Modes", categoryOrder: 0, icon: TerminalIcon, onSelect: () => setAppMode("terminal") },
+    { id: "orchestrator-mode", label: "Orchestrator Mode", description: "Switch to agent orchestration layout", category: "Modes", categoryOrder: 0, icon: Network, onSelect: () => setAppMode("orchestrator") },
+    { id: "zen-mode", label: "Zen Mode", description: "Switch to minimal Zen layout", category: "Modes", categoryOrder: 0, icon: Monitor, shortcut: "Alt+Q", onSelect: () => setAppMode("zen") },
+    { id: "settings", label: "Settings", description: "Configure app preferences", category: "Panels", categoryOrder: 1, icon: Settings, onSelect: () => setShowSettings(true) },
+    { id: "code-review", label: "Code Review", description: "Review staged changes", category: "Panels", categoryOrder: 1, icon: Code2, onSelect: () => setShowCodeReview(true) },
+    { id: "git-panel", label: "Git Panel", description: "Stage, commit, push, pull", category: "Panels", categoryOrder: 1, icon: GitBranch, onSelect: () => setShowGitPanel(true) },
+    { id: "kanban", label: "My Tasks", description: "Personal kanban board", category: "Panels", categoryOrder: 1, icon: LayoutList, onSelect: () => setShowPersonalKanban(true) },
+    { id: "file-explorer", label: "Project Explorer", description: "Browse workspace files", category: "Panels", categoryOrder: 1, icon: FolderSearch, onSelect: () => setShowFileExplorer(true) },
+    { id: "env-manager", label: "Environment Variables", description: "Manage .env files", category: "Panels", categoryOrder: 1, icon: FileKey2, onSelect: () => setShowEnvManager(true) },
+    { id: "package-manager", label: "Package Manager", description: "Update npm/cargo/pip packages", category: "Panels", categoryOrder: 1, icon: Package, onSelect: () => setShowPackageManager(true) },
+    { id: "api-lab", label: "API Lab", description: "Test HTTP requests", category: "Panels", categoryOrder: 1, icon: Zap, onSelect: () => setShowApiLab(true) },
+    { id: "dep-graph", label: "Dependency Graph", description: "Visualize monorepo dependencies", category: "Panels", categoryOrder: 1, icon: FolderTree, onSelect: () => setShowMonorepoGraph(true) },
+    { id: "port-manager", label: "Port Manager", description: "View and kill active ports", category: "Panels", categoryOrder: 1, icon: Server, onSelect: () => setShowPortManager(true) },
+    { id: "db-viewer", label: "Database Viewer", description: "Browse SQLite, Postgres, MySQL", category: "Panels", categoryOrder: 1, icon: Database, onSelect: () => setShowDbViewer(true) },
+    { id: "config-editor", label: "Config Editor", description: "Edit JSON config files in tree view", category: "Panels", categoryOrder: 1, icon: FileCode, onSelect: () => setShowConfigEditor(true) },
+    { id: "md-viewer", label: "Markdown Viewer", description: "Browse and edit markdown files", category: "Panels", categoryOrder: 1, icon: FileText, onSelect: () => setShowMdViewer(true) },
+    { id: "new-tab", label: "New Tab", description: "Create a new terminal tab", category: "Actions", categoryOrder: 2, icon: Plus, onSelect: () => handleTabCreate() },
+    { id: "new-browser", label: "New Browser Pane", description: "Open an embedded webview", category: "Actions", categoryOrder: 2, icon: Globe, onSelect: () => handleSpawnBrowser() },
+    { id: "security", label: "Workspace Lock", description: "Set or change workspace PIN", category: "Actions", categoryOrder: 2, icon: Shield, onSelect: () => setShowSecurityPanel(activeWorkspaceId) },
+    { id: "network-graph", label: "Orchestration Graph", description: "Visual agent network", category: "Panels", categoryOrder: 1, icon: Network, onSelect: () => setShowNetworkGraph(true) },
+    { id: "brainstorm", label: "Brainstorm", description: "Multi-agent consensus", category: "Panels", categoryOrder: 1, icon: Brain, onSelect: () => setShowBrainstorm(true) },
+    { id: "master-plan", label: "Master Plan", description: "Task queue and progress", category: "Panels", categoryOrder: 1, icon: ClipboardList, onSelect: () => setShowMasterPlan(true) },
+  ], [appMode, activeWorkspaceId]);
 
   return (
     <>
@@ -199,6 +234,8 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
           onTogglePackageManager={() => setShowPackageManager(!showPackageManager)}
           onToggleApiLab={() => setShowApiLab(!showApiLab)}
           onToggleMonorepoGraph={() => setShowMonorepoGraph(!showMonorepoGraph)}
+          onToggleMdViewer={() => setShowMdViewer(!showMdViewer)}
+          onToggleConfigEditor={() => setShowConfigEditor(!showConfigEditor)}
           currentProject={currentProject}
         />
 
@@ -301,6 +338,16 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
           isOpen={showDbViewer}
           onClose={() => setShowDbViewer(false)}
         />
+        <MdViewer
+          currentProject={currentProject}
+          isOpen={showMdViewer}
+          onClose={() => setShowMdViewer(false)}
+        />
+        <ConfigEditor
+          currentProject={currentProject}
+          isOpen={showConfigEditor}
+          onClose={() => setShowConfigEditor(false)}
+        />
         {showSecurityPanel && (
           <SecurityPanel
             workspaceId={showSecurityPanel}
@@ -325,6 +372,11 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
         )}
       </>
 
+        <QuickPalette
+          isOpen={showQuickPalette}
+          onClose={() => setShowQuickPalette(false)}
+          actions={paletteActions}
+        />
       {rightSidebar}
     </>
   );

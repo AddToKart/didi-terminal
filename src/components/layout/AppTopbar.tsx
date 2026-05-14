@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Brain, ClipboardList, Columns, Globe, Grid2X2, Network, PanelLeft, PanelLeftClose, Plus, Rows, Layers, AlignLeft, Sparkles, ChevronRight, ChevronLeft, GitMerge, LayoutList, FolderSearch, FileKey2, Package, Zap, FolderTree } from "lucide-react";
+import { Brain, ClipboardList, Columns, Globe, Grid2X2, Network, PanelLeft, PanelLeftClose, Plus, Rows, Layers, AlignLeft, Sparkles, ChevronRight, ChevronLeft, GitMerge, LayoutList, FolderSearch, FileKey2, Package, Zap, FolderTree, FileText, FileCode } from "lucide-react";
 
 interface AppTopbarProps {
   appMode: "terminal" | "orchestrator";
@@ -23,6 +23,8 @@ interface AppTopbarProps {
   onTogglePackageManager?: () => void;
   onToggleApiLab?: () => void;
   onToggleMonorepoGraph?: () => void;
+  onToggleMdViewer?: () => void;
+  onToggleConfigEditor?: () => void;
   currentProject: string | null;
 }
 
@@ -48,6 +50,8 @@ export function AppTopbar({
   onTogglePackageManager,
   onToggleApiLab,
   onToggleMonorepoGraph,
+  onToggleMdViewer,
+  onToggleConfigEditor,
   currentProject,
 }: AppTopbarProps) {
   const [isExtraLayoutsOpen, setIsExtraLayoutsOpen] = useState(false);
@@ -162,6 +166,24 @@ export function AppTopbar({
               >
                 <FolderTree size={12} />
                 <span>Graph</span>
+              </button>
+
+              <button
+                onClick={onToggleMdViewer}
+                className="flex items-center gap-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all text-[11px] font-bold shrink-0"
+                title="Markdown Viewer"
+              >
+                <FileText size={12} />
+                <span>Docs</span>
+              </button>
+
+              <button
+                onClick={onToggleConfigEditor}
+                className="flex items-center gap-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all text-[11px] font-bold shrink-0"
+                title="Config Editor"
+              >
+                <FileCode size={12} />
+                <span>Config</span>
               </button>
 
               <button

@@ -155,6 +155,9 @@ export function useAppController() {
   const [showApiLab, setShowApiLab] = useState(false);
   const [showMonorepoGraph, setShowMonorepoGraph] = useState(false);
   const [showDbViewer, setShowDbViewer] = useState(false);
+  const [showMdViewer, setShowMdViewer] = useState(false);
+  const [showConfigEditor, setShowConfigEditor] = useState(false);
+  const [showQuickPalette, setShowQuickPalette] = useState(false);
   const [showSecurityPanel, setShowSecurityPanel] = useState<string | null>(null);
   const [pendingWorkspaceId, setPendingWorkspaceId] = useState<string | null>(null);
   const [portCount, setPortCount] = useState(0);
@@ -813,6 +816,18 @@ export function useAppController() {
     setFocusedZenAgent,
   });
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === "p" || e.key === "k")) {
+        e.preventDefault();
+        e.stopPropagation();
+        setShowQuickPalette(prev => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
+  }, []);
+
   return {
     appMode,
     setAppMode,
@@ -877,6 +892,12 @@ export function useAppController() {
     setShowMonorepoGraph,
     showDbViewer,
     setShowDbViewer,
+    showMdViewer,
+    setShowMdViewer,
+    showConfigEditor,
+    setShowConfigEditor,
+    showQuickPalette,
+    setShowQuickPalette,
     showSecurityPanel,
     setShowSecurityPanel,
     pendingWorkspaceId,
