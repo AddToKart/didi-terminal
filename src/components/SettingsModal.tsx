@@ -47,6 +47,9 @@ export function SettingsModal({ onClose }: Props) {
       
       invoke("update_vibrancy", { enable: config.glassmorphism, theme: config.theme_mode }).catch(console.error);
       
+      const { emit } = await import("@tauri-apps/api/event");
+      emit("config-updated");
+      
       onClose();
     }
   };

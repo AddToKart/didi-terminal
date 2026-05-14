@@ -215,6 +215,27 @@ pub fn run() {
             description: "add_totp_to_workspaces",
             sql: "ALTER TABLE workspaces ADD COLUMN totp_secret TEXT;",
             kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 3,
+            description: "add_sections_table",
+            sql: "
+                CREATE TABLE IF NOT EXISTS sections (
+                    id TEXT PRIMARY KEY,
+                    workspace_id TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    order_index INTEGER NOT NULL DEFAULT 0,
+                    FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+                );
+                ALTER TABLE tabs ADD COLUMN section_id TEXT;
+            ",
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 4,
+            description: "add_active_section_id",
+            sql: "ALTER TABLE workspaces ADD COLUMN activeSectionId TEXT DEFAULT '';",
+            kind: MigrationKind::Up,
         }
     ];
 

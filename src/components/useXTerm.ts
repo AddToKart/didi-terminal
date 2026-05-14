@@ -43,7 +43,10 @@ export function useXTerm(
       }
     };
 
-    function mountTerminal() {
+    async function mountTerminal() {
+      if (!isMounted || !containerRef.current) return;
+
+      await document.fonts.ready;
       if (!isMounted || !containerRef.current) return;
 
       const terminalOptions: ITerminalOptions = { ...options };
@@ -58,7 +61,7 @@ export function useXTerm(
         allowTransparency: true,
         ...terminalOptions,
         theme: {
-          background: '#09090b',
+          background: 'rgba(0,0,0,0)',
           foreground: '#e2e8f0',
           cursor: '#00f0ff',
           selectionBackground: "#00f0ff40",
@@ -70,34 +73,36 @@ export function useXTerm(
       term.loadAddon(fitAddon);
 
       term.open(containerRef.current);
-      
-      try {
-        webglAddon = new WebglAddon();
-        webglAddon.onContextLoss(() => {
-          webglAddon?.dispose();
-        });
-        term.loadAddon(webglAddon);
-      } catch (e) {
-        console.warn("WebGL addon could not be loaded, falling back to canvas/dom", e);
-      }
-
       terminalRef.current = term;
 
       term.onData((data) => onDataRef.current?.(data));
       term.onBinary((data) => onBinaryRef.current?.(data));
-
       term.attachCustomKeyEventHandler((event) => onKeyRef.current?.(event) ?? true);
 
-      // Initial fit
-      try {
-        fitAddon.fit();
-      } catch (e) {
-        // Ignore fit error on unmounted container
-      }
-      emitResize();
+      requestAnimationFrame(() => {
+        if (!isMounted || !term || !fitAddon) return;
+        
+        try {
+          fitAddon.fit();
+        } catch (e) {
+          // Ignore
+        }
+
+        try {
+          webglAddon = new WebglAddon();
+          webglAddon.onContextLoss(() => {
+            webglAddon?.dispose();
+          });
+          term.loadAddon(webglAddon);
+        } catch (e) {
+          console.warn("WebGL addon could not be loaded, falling back to canvas/dom", e);
+        }
+
+        emitResize();
+        setTermLoaded(true);
+      });
 
       const fitTerminal = () => {
-        resizeFrame = null;
         if (!term || !fitAddon) return;
         try {
           fitAddon.fit();
@@ -109,13 +114,12 @@ export function useXTerm(
         resizeSettleTimer = setTimeout(emitResize, 120);
       };
 
+      let resizeTimeout: ReturnType<typeof setTimeout>;
       resizeObserver = new ResizeObserver(() => {
-        if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
-        resizeFrame = requestAnimationFrame(fitTerminal);
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(fitTerminal, 50);
       });
       resizeObserver.observe(containerRef.current);
-
-      setTermLoaded(true);
     }
 
     mountTerminal();

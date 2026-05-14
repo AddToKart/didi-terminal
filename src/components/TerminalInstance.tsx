@@ -106,6 +106,7 @@ interface Props {
   workspaceName?: string;
   workspaceId?: string;
   isZenMode?: boolean;
+  onFocus?: () => void;
 }
 
 interface TerminalLaneStripProps {
@@ -206,7 +207,7 @@ const TerminalLaneStrip = memo(({
   </div>
 ));
 
-export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, dragAttributes, dragListeners, workspaceName, workspaceId, isZenMode }: Props) {
+export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, dragAttributes, dragListeners, workspaceName, workspaceId, isZenMode, onFocus }: Props) {
   const terminalRef = useRef<HTMLDivElement>(null);
 
   const [isPulsing, setIsPulsing] = useState(false);
@@ -241,7 +242,9 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
     if (isReadyRef.current === nextReady) return;
     isReadyRef.current = nextReady;
     setIsReady(nextReady);
-  }, []);
+    // Emit state so sidebar can show running indicators
+    emit("agent-state", { agent: ptyKey, isReady: nextReady }).catch(console.error);
+  }, [ptyKey]);
 
   const setStatsState = useCallback((nextStats: { cpu: number; mem: number }) => {
     const current = statsRef.current;
@@ -496,8 +499,18 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
   const handleTerminalKey = useCallback((e: KeyboardEvent) => {
     // Let xterm.js process standard keys by returning true
     
-    // Prevent xterm from capturing Zen Mode shortcut (Alt + Q)
-    if (e.altKey && e.code === "KeyQ") {
+    // Prevent xterm from capturing Zen Mode shortcuts
+    if (e.altKey && (
+      e.code === "KeyQ" || 
+      e.code === "KeyV" || 
+      e.code === "KeyH" || 
+      e.code === "KeyG" || 
+      e.code === "KeyW" || 
+      e.code === "KeyF" || 
+      e.code === "KeyN" ||
+      e.code === "Enter" ||
+      /^Digit[1-9]$/.test(e.code)
+    )) {
       return false; 
     }
 
@@ -525,11 +538,13 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
       terminal.focus();
     }
     setIsFocused(true);
+    onFocus?.();
   };
 
-  const handleFocus = () => {
+  const handleFocus = useCallback(() => {
     setIsFocused(true);
-  };
+    onFocus?.();
+  }, [onFocus]);
 
   const handleBlur = (e: React.FocusEvent) => {
     // Only unfocus if focus actually moved outside this pane
@@ -537,6 +552,19 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
       setIsFocused(false);
     }
   };
+
+  useEffect(() => {
+    const unlistenFocus = listen<{ agent: string }>("focus-agent", (event) => {
+      if (event.payload.agent === agentName && terminal) {
+        terminal.focus();
+        setIsFocused(true);
+      }
+    });
+
+    return () => {
+      unlistenFocus.then(f => f());
+    };
+  }, [agentName, terminal]);
 
   useEffect(() => {
     if (!isTerminalReady || !terminal) return;
@@ -598,9 +626,9 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
           // Re-evaluate prompt readiness on scrollback restore
           const text = stripTerminalControls(scrollback.data).replace(/\s+/g, " ");
           outputBuffer.current = `${outputBuffer.current}${text}`.slice(-4000);
-          if (isPromptReady(outputBuffer.current)) {
-            setReadyState(true);
-          }
+          
+          // Force ready state if we have scrollback, since the process is clearly alive
+          setReadyState(true);
         }
 
         // Ensure the newly spawned PTY immediately gets the correct dimensions
@@ -638,6 +666,7 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
       tabIndex={-1}
       onFocus={handleFocus}
       onBlur={handleBlur}
+      onClick={handleContainerClick}
     >
 
       {/* Terminal Header & Macros */}
@@ -716,7 +745,7 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
             <div className="animate-pulse text-zinc-500 text-xs tracking-widest uppercase">Loading Engine...</div>
           </div>
         )}
-        <div className="h-full w-full terminal-surface bg-[#09090b]" ref={terminalRef} onClick={handleContainerClick}></div>
+        <div className="h-full w-full terminal-surface bg-transparent" ref={terminalRef} onClick={handleContainerClick}></div>
       </div>
 
     </div>
