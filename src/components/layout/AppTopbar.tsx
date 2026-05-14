@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
-import { Brain, ClipboardList, Columns, Globe, Grid2X2, Network, PanelLeft, PanelLeftClose, Plus, Rows, Layers, AlignLeft, Sparkles, ChevronRight, ChevronLeft, GitMerge, LayoutList, FolderSearch, FileKey2, Package, Zap, FolderTree, FileText, FileCode } from "lucide-react";
+import { Brain, ClipboardList, Columns, Globe, Grid2X2, Network, PanelLeft, PanelLeftClose, Plus, Rows, Layers, AlignLeft, Sparkles, ChevronRight, ChevronLeft, GitMerge, LayoutList, FolderSearch, FileKey2, Package, Zap, FolderTree, FileText, FileCode, Palette, ChevronDown } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface AppTopbarProps {
   appMode: "terminal" | "orchestrator";
@@ -25,6 +26,7 @@ interface AppTopbarProps {
   onToggleMonorepoGraph?: () => void;
   onToggleMdViewer?: () => void;
   onToggleConfigEditor?: () => void;
+  onToggleIconBrowser?: () => void;
   currentProject: string | null;
 }
 
@@ -52,6 +54,7 @@ export function AppTopbar({
   onToggleMonorepoGraph,
   onToggleMdViewer,
   onToggleConfigEditor,
+  onToggleIconBrowser,
   currentProject,
 }: AppTopbarProps) {
   const [isExtraLayoutsOpen, setIsExtraLayoutsOpen] = useState(false);
@@ -185,6 +188,29 @@ export function AppTopbar({
                 <FileCode size={12} />
                 <span>Config</span>
               </button>
+
+              {/* Web Dev Tools Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="flex items-center gap-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all text-[11px] font-bold shrink-0"
+                    title="Web Development Tools"
+                  >
+                    <Palette size={12} />
+                    <span>Web Dev</span>
+                    <ChevronDown size={10} />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-zinc-950 border-white/10 z-[200] min-w-[180px]">
+                  <DropdownMenuItem
+                    onClick={onToggleIconBrowser}
+                    className="text-xs font-medium text-zinc-300 focus:bg-white/10 focus:text-white cursor-pointer"
+                  >
+                    <Palette size={14} className="mr-2 text-indigo-400" />
+                    Icon Browser
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
               <button
                 onClick={onToggleGitPanel}
