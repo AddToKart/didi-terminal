@@ -1,6 +1,6 @@
 import { Activity, ChevronDown, ChevronRight, Cpu, FolderOpen, Server, ShieldAlert, X } from "lucide-react";
-import { SentinelPanel, type SentinelIncident } from "../../components/SentinelPanel";
-import { SnapshotPanel, type GitSnapshotRecord } from "../../components/SnapshotPanel";
+import { SentinelPanel, type SentinelIncident } from "../panels/SentinelPanel";
+import { SnapshotPanel, type GitSnapshotRecord } from "../panels/SnapshotPanel";
 import { getPtyKey, type ActivityLog, type TaskRecord } from "../../services/app-core";
 
 interface AppSidebarProps {

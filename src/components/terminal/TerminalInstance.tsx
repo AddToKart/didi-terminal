@@ -13,7 +13,7 @@ import {
   loadTerminalLanes,
   saveTerminalLanes,
   type TerminalLane,
-} from "../services/terminal-lanes";
+} from "../../services/terminal-lanes";
 
 const stripTerminalControls = (value: string) =>
   value

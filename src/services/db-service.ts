@@ -1,5 +1,5 @@
 import Database from "@tauri-apps/plugin-sql";
-import type { TerminalTab, WorkspaceState, SectionState } from "../App";
+import type { TerminalTab, WorkspaceState, SectionState } from "../types/workspace";
 
 export interface PersonalTask {
   id: string;

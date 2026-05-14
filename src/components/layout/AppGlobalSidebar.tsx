@@ -17,7 +17,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { WorkspaceState, SectionState } from "../../App";
+import type { AppMode, WorkspaceState, SectionState } from "../../types/workspace";
 import type { TaskRecord } from "../../services/app-core";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,12 +34,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/cn";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface AppGlobalSidebarProps {
-  appMode: "terminal" | "orchestrator" | "zen";
-  onSetAppMode: (mode: "terminal" | "orchestrator" | "zen") => void;
+  appMode: AppMode;
+  onSetAppMode: (mode: AppMode) => void;
   workspaces: WorkspaceState[];
   activeWorkspaceId: string;
   activeSectionId: string;
@@ -717,4 +717,3 @@ export function AppGlobalSidebar({
     </TooltipProvider>
   );
 }
-

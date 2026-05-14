@@ -1,7 +1,7 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
-import type { GitSnapshotRecord } from "../components/SnapshotPanel";
+import type { GitSnapshotRecord } from "../components/panels/SnapshotPanel";
 import {
   getAgentId,
   findMatchingAgent,

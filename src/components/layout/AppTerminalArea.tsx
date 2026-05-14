@@ -1,5 +1,5 @@
-import { TerminalInstance } from "../../components/TerminalInstance";
-import { BrowserInstance } from "../../components/BrowserInstance";
+import { TerminalInstance } from "../terminal/TerminalInstance";
+import { BrowserInstance } from "../terminal/BrowserInstance";
 import { FolderOpen } from "lucide-react";
 import {
   DndContext,
@@ -17,7 +17,7 @@ import {
   rectSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { cn } from "../../lib/utils";
+import { cn } from "../../lib/cn";
 
 interface AppTerminalAreaProps {
   agents: string[];
@@ -68,7 +68,7 @@ const shallowEqualStyle = (left?: React.CSSProperties, right?: React.CSSProperti
   return leftKeys.every(key => left[key as keyof React.CSSProperties] === right[key as keyof React.CSSProperties]);
 };
 
-const SortableTerminalWrapper = memo(function SortableTerminalWrapper({ agent, currentProject, onRemoveAgent, onDetachAgent, onSplitAgent, flexBasis, height, width, styleOverrides, workspaceName, workspaceId, isZenMode, isFocused, onFocus, focusedAgentId, isGlass }: SortableTerminalWrapperProps) {
+const SortableTerminalWrapper = memo(function SortableTerminalWrapper({ agent, currentProject, onRemoveAgent, onDetachAgent, onSplitAgent, flexBasis, height, width, styleOverrides, workspaceName, workspaceId, isZenMode, isFocused, onFocus, focusedAgentId }: SortableTerminalWrapperProps) {
   const { attributes, listeners, setNodeRef, isDragging, transform, transition } = useSortable({
     id: agent,
     data: { agentName: agent }
@@ -93,8 +93,8 @@ const SortableTerminalWrapper = memo(function SortableTerminalWrapper({ agent, c
   };
 
   return (
-    <div 
-      ref={setNodeRef} 
+    <div
+      ref={setNodeRef}
       className={cn(
         "min-h-0 min-w-0 flex-1 flex flex-col transition-all duration-500 ease-in-out",
         isZenMode && "rounded-lg overflow-hidden",
@@ -102,7 +102,7 @@ const SortableTerminalWrapper = memo(function SortableTerminalWrapper({ agent, c
         isZenMode && !isFocused && "border border-app-border",
         isDragging && "shadow-2xl opacity-90 scale-[1.02] ring-1 ring-brand-accent/50 rounded-md overflow-hidden"
       )}
-      style={style} 
+      style={style}
     >
       {agent.startsWith("browser:") ? (
         <BrowserInstance
@@ -256,18 +256,18 @@ export function AppTerminalArea({
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
 
-  const [canvasPositions, setCanvasPositions] = useState<Record<string, {x: number, y: number}>>({});
+  const [canvasPositions, setCanvasPositions] = useState<Record<string, { x: number, y: number }>>({});
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over, delta } = event;
-    
+
     if (layoutOrientation === "canvas") {
       setCanvasPositions(prev => {
         const existing = prev[active.id as string];
         const defaultIndex = agents.indexOf(active.id as string);
         const startX = existing ? existing.x : Math.min(defaultIndex * 40, 300);
         const startY = existing ? existing.y : Math.min(defaultIndex * 40, 300);
-        
+
         return {
           ...prev,
           [active.id as string]: {
@@ -276,7 +276,7 @@ export function AppTerminalArea({
           }
         };
       });
-      
+
       const currentIndex = agents.indexOf(active.id as string);
       if (currentIndex !== -1 && currentIndex !== agents.length - 1) {
         onReorderAgents(currentIndex, agents.length - 1);
@@ -285,7 +285,7 @@ export function AppTerminalArea({
     }
 
     if (!over || active.id === over.id) return;
-    
+
     const oldIndex = agents.indexOf(active.id as string);
     const newIndex = agents.indexOf(over.id as string);
     if (oldIndex !== -1 && newIndex !== -1) {
@@ -347,11 +347,11 @@ export function AppTerminalArea({
                   !focusedAgentId && layoutOrientation === "grid" && "grid"
                 )}
                 style={
-                  !focusedAgentId && layoutOrientation === "grid" 
-                    ? { 
-                        gridTemplateColumns: `repeat(${Math.ceil(Math.sqrt(Math.max(1, agents.length)))}, minmax(0, 1fr))`,
-                        gridTemplateRows: `repeat(${Math.ceil(agents.length / Math.ceil(Math.sqrt(Math.max(1, agents.length))))}, minmax(0, 1fr))`
-                      } 
+                  !focusedAgentId && layoutOrientation === "grid"
+                    ? {
+                      gridTemplateColumns: `repeat(${Math.ceil(Math.sqrt(Math.max(1, agents.length)))}, minmax(0, 1fr))`,
+                      gridTemplateRows: `repeat(${Math.ceil(agents.length / Math.ceil(Math.sqrt(Math.max(1, agents.length))))}, minmax(0, 1fr))`
+                    }
                     : (focusedAgentId ? { display: 'flex' } : undefined)
                 }
               >
@@ -363,10 +363,10 @@ export function AppTerminalArea({
 
                   if (layoutOrientation === "grid") {
                     styleOverrides = { width: "100%", height: "100%" };
-                    
+
                     const cols = Math.ceil(Math.sqrt(Math.max(1, agents.length)));
                     const remainder = agents.length % cols;
-                    
+
                     // If this is the last item and there's a remainder, span the rest of the columns
                     if (index === agents.length - 1 && remainder !== 0) {
                       const columnsToSpan = cols - remainder + 1;
@@ -421,7 +421,7 @@ export function AppTerminalArea({
                         gridRow: "span 1",
                       };
                     }
-                    
+
                     // The dynamic grid has 4 columns.
                     // The first item (if >2 agents) takes up 2x2 (equivalent to 4 standard 1x1 cells).
                     // The remaining items take up 1 cell each.
@@ -433,7 +433,7 @@ export function AppTerminalArea({
                       } else {
                         totalCellsConsumed = agents.length - 1;
                       }
-                      
+
                       const remainder = totalCellsConsumed % 4;
                       if (remainder !== 0) {
                         const columnsToSpan = 4 - remainder;
@@ -441,7 +441,7 @@ export function AppTerminalArea({
                       }
                     }
                   }
-                  
+
                   return (
                     <SortableTerminalWrapper
                       key={agent}

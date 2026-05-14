@@ -1,7 +1,7 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import { emit, listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
-import type { SentinelIncident } from "../components/SentinelPanel";
+import type { SentinelIncident } from "../components/panels/SentinelPanel";
 import {
   getPtyKey,
   isFailureOutput,

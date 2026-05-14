@@ -38,6 +38,35 @@ Managed via `package.json` scripts:
 
 ## Code Conventions
 
+### Project Structure & Placement Rules
+
+Always adhere to the following directory structure when adding new files:
+
+- **Frontend (`src/`):**
+    - `components/`: Specialized UI components, organized by domain:
+        - `ui/`: Atomic components (e.g., shadcn/ui).
+        - `layout/`: Core app shell (sidebar, topbar, orchestrator layout).
+        - `terminal/`: PTY and xterm.js related components.
+        - `source-control/`: Git panels and code review tools.
+        - `workspace/`: Kanban, file explorer, and security panels.
+        - `modals/`: Global dialogs (settings, approval, brainstorm).
+        - `panels/`: Contextual info panels (Master Plan, Sentinel, Snapshot).
+        - `developer-tools/`: Internal utilities (Port manager, DB viewer).
+        - `graphs/`: Visualization components (Network graph, Monorepo graph).
+    - `features/`: Complex, cross-cutting features or "smart" containers (e.g., ZenModeView).
+    - `pages/`: Top-level route components.
+    - `services/`: Core logic, state management, and API bridges.
+    - `types/`: TypeScript definitions, grouped by domain.
+    - `workflows/`: Multi-step business logic implementations (e.g., brainstorming).
+    - `lib/`: Shared utility functions and style helpers.
+
+- **Backend (`src-tauri/src/`):**
+    - `services/`: Rust modules handling specific domains (PTY, Git, LLM, IPC Bus).
+
+**Rule:** When creating a new feature, always place its components in the most relevant `src/components` subfolder. If a feature is complex enough to span multiple domains, place its primary container in `src/features`.
+
+### Implementation Standards
+
 - **Frontend Services:**
     - `sentinel-service.ts`: Implements the autonomous monitoring and intervention logic.
     - `handoff-service.ts`: Manages the handoff lifecycle, including snapshotting and HITL.

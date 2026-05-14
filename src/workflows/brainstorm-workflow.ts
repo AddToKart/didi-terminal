@@ -5,8 +5,8 @@ import {
   BRAINSTORM_CALLBACK_TARGET,
   getAgentId,
   type BrainstormResponsePayload,
-} from "../../services/app-core";
-import type { BrainstormSession } from "../../components/BrainstormModal";
+} from "../services/app-core";
+import type { BrainstormSession } from "../components/modals/BrainstormModal";
 
 interface CreateBrainstormWorkflowOptions {
   currentProjectRef: MutableRefObject<string | null>;

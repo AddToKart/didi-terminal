@@ -16,7 +16,7 @@ import {
   horizontalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { TerminalTab } from "../../App";
+import type { TerminalTab } from "../../types/workspace";
 
 interface AppTerminalTabsProps {
   tabs: TerminalTab[];

@@ -1,8 +1,8 @@
 import { Suspense, type ComponentType } from "react";
-import { ApprovalModal } from "../../components/ApprovalModal";
-import { BrainstormModal, type BrainstormSession } from "../../components/BrainstormModal";
-import { MasterPlanPanel } from "../../components/MasterPlanPanel";
-import { MonorepoGraph } from "./MonorepoGraph";
+import { ApprovalModal } from "../modals/ApprovalModal";
+import { BrainstormModal, type BrainstormSession } from "../modals/BrainstormModal";
+import { MasterPlanPanel } from "../panels/MasterPlanPanel";
+import { MonorepoGraph } from "../architecture/MonorepoGraph";
 import type { TaskRecord, HitlApprovalRequest, MasterPlanTaskDispatch } from "../../services/app-core";
 
 interface AppOverlaysProps {

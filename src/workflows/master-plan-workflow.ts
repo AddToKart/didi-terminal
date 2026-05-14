@@ -1,7 +1,7 @@
 import { emit } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
-import { getAgentId, type ActiveMasterPlanTask, type MasterPlanTaskDispatch } from "../../services/app-core";
+import { getAgentId, type ActiveMasterPlanTask, type MasterPlanTaskDispatch } from "../services/app-core";
 
 interface CreateMasterPlanWorkflowOptions {
   currentProjectRef: MutableRefObject<string | null>;
