@@ -18,9 +18,10 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "../../lib/cn";
+import type { AgentInstance } from "../../types/workspace";
 
 interface AppTerminalAreaProps {
-  agents: string[];
+  agents: AgentInstance[];
   currentProject: string | null;
   layoutOrientation: "horizontal" | "vertical" | "grid" | "focus" | "presentation" | "canvas" | "waterfall" | "dynamic";
   onRemoveAgent: (agent: string) => void;
@@ -39,11 +40,11 @@ interface AppTerminalAreaProps {
 // ── Sortable terminal wrapper ──────────────────────────────────────────────
 
 interface SortableTerminalWrapperProps {
-  agent: string;
+  agent: AgentInstance;
   currentProject: string | null;
-  onRemoveAgent: (agent: string) => void;
-  onDetachAgent: (agent: string) => void;
-  onSplitAgent: (agent: string) => void;
+  onRemoveAgent: (agentId: string) => void;
+  onDetachAgent: (agentId: string) => void;
+  onSplitAgent: (agentId: string) => void;
   flexBasis?: string;
   height?: string;
   width?: string;
@@ -70,12 +71,12 @@ const shallowEqualStyle = (left?: React.CSSProperties, right?: React.CSSProperti
 
 const SortableTerminalWrapper = memo(function SortableTerminalWrapper({ agent, currentProject, onRemoveAgent, onDetachAgent, onSplitAgent, flexBasis, height, width, styleOverrides, workspaceName, workspaceId, isZenMode, isFocused, onFocus, focusedAgentId }: SortableTerminalWrapperProps) {
   const { attributes, listeners, setNodeRef, isDragging, transform, transition } = useSortable({
-    id: agent,
-    data: { agentName: agent }
+    id: agent.id,
+    data: { agentName: agent.name }
   });
-  const handleRemove = useCallback(() => onRemoveAgent(agent), [agent, onRemoveAgent]);
-  const handleDetach = useCallback(() => onDetachAgent(agent), [agent, onDetachAgent]);
-  const handleSplit = useCallback(() => onSplitAgent(agent), [agent, onSplitAgent]);
+  const handleRemove = useCallback(() => onRemoveAgent(agent.id), [agent.id, onRemoveAgent]);
+  const handleDetach = useCallback(() => onDetachAgent(agent.id), [agent.id, onDetachAgent]);
+  const handleSplit = useCallback(() => onSplitAgent(agent.id), [agent.id, onSplitAgent]);
 
   const style: React.CSSProperties = {
     position: 'relative' as const,
@@ -104,17 +105,18 @@ const SortableTerminalWrapper = memo(function SortableTerminalWrapper({ agent, c
       )}
       style={style}
     >
-      {agent.startsWith("browser:") ? (
+      {agent.name.startsWith("browser:") ? (
         <BrowserInstance
-          id={agent}
-          url={agent.split(":").slice(2).join(":") || ""}
+          id={agent.id}
+          url={agent.name.split(":").slice(2).join(":") || ""}
           onRemove={handleRemove}
           dragAttributes={attributes}
           dragListeners={listeners}
         />
       ) : (
         <TerminalInstance
-          agentName={agent}
+          agentId={agent.id}
+          agentName={agent.name}
           cwd={currentProject}
           workspaceName={workspaceName}
           workspaceId={workspaceId}
@@ -130,7 +132,8 @@ const SortableTerminalWrapper = memo(function SortableTerminalWrapper({ agent, c
     </div>
   );
 }, (prev, next) =>
-  prev.agent === next.agent &&
+  prev.agent.id === next.agent.id &&
+  prev.agent.name === next.agent.name &&
   prev.currentProject === next.currentProject &&
   prev.flexBasis === next.flexBasis &&
   prev.height === next.height &&
@@ -145,80 +148,7 @@ const SortableTerminalWrapper = memo(function SortableTerminalWrapper({ agent, c
   shallowEqualStyle(prev.styleOverrides, next.styleOverrides)
 );
 
-// ── Free float terminal wrapper ────────────────────────────────────────────
 
-interface FreeFloatTerminalWrapperProps {
-  agent: string;
-  currentProject: string | null;
-  onRemoveAgent: (agent: string) => void;
-  onDetachAgent: (agent: string) => void;
-  onSplitAgent: (agent: string) => void;
-  positionX: number;
-  positionY: number;
-  zIndex: number;
-  workspaceName?: string;
-  workspaceId: string;
-}
-
-const FreeFloatTerminalWrapper = memo(function FreeFloatTerminalWrapper({ agent, currentProject, onRemoveAgent, onDetachAgent, onSplitAgent, positionX, positionY, zIndex, workspaceName, workspaceId }: FreeFloatTerminalWrapperProps) {
-  const { attributes, listeners, setNodeRef, isDragging, transform } = useDraggable({
-    id: agent,
-    data: { agentName: agent }
-  });
-  const handleRemove = useCallback(() => onRemoveAgent(agent), [agent, onRemoveAgent]);
-  const handleDetach = useCallback(() => onDetachAgent(agent), [agent, onDetachAgent]);
-  const handleSplit = useCallback(() => onSplitAgent(agent), [agent, onSplitAgent]);
-
-  const style: React.CSSProperties = {
-    position: 'absolute',
-    top: `${positionY}px`,
-    left: `${positionX}px`,
-    width: '600px',
-    height: '400px',
-    zIndex: isDragging ? 1000 : zIndex,
-    boxShadow: isDragging ? "0 25px 50px -12px rgba(0, 0, 0, 0.5)" : "0 10px 15px -3px rgba(0, 0, 0, 0.3)",
-    transform: CSS.Translate.toString(transform),
-    transition: isDragging ? "none" : "box-shadow 0.2s ease",
-    backgroundColor: 'transparent'
-  };
-
-  return (
-    <div ref={setNodeRef} style={style} className={`min-h-0 min-w-0 flex flex-col bg-transparent rounded-lg overflow-hidden ring-1 ring-brand-accent/20 ${isDragging ? "opacity-90 scale-[1.02] ring-brand-accent/50 cursor-grabbing" : "cursor-grab"}`}>
-      {agent.startsWith("browser:") ? (
-        <BrowserInstance
-          id={agent}
-          url={agent.split(":").slice(2).join(":") || ""}
-          onRemove={handleRemove}
-          dragAttributes={attributes}
-          dragListeners={listeners}
-        />
-      ) : (
-        <TerminalInstance
-          agentName={agent}
-          cwd={currentProject}
-          workspaceName={workspaceName}
-          workspaceId={workspaceId}
-          onRemove={handleRemove}
-          onDetach={handleDetach}
-          onSplit={handleSplit}
-          dragAttributes={attributes}
-          dragListeners={listeners}
-        />
-      )}
-    </div>
-  );
-}, (prev, next) =>
-  prev.agent === next.agent &&
-  prev.currentProject === next.currentProject &&
-  prev.positionX === next.positionX &&
-  prev.positionY === next.positionY &&
-  prev.zIndex === next.zIndex &&
-  prev.workspaceName === next.workspaceName &&
-  prev.workspaceId === next.workspaceId &&
-  prev.onRemoveAgent === next.onRemoveAgent &&
-  prev.onDetachAgent === next.onDetachAgent &&
-  prev.onSplitAgent === next.onSplitAgent
-);
 
 // ── Main terminal area ────────────────────────────────────────────────────────
 
@@ -264,7 +194,7 @@ export function AppTerminalArea({
     if (layoutOrientation === "canvas") {
       setCanvasPositions(prev => {
         const existing = prev[active.id as string];
-        const defaultIndex = agents.indexOf(active.id as string);
+        const defaultIndex = agents.findIndex(a => a.id === active.id as string);
         const startX = existing ? existing.x : Math.min(defaultIndex * 40, 300);
         const startY = existing ? existing.y : Math.min(defaultIndex * 40, 300);
 
@@ -277,7 +207,7 @@ export function AppTerminalArea({
         };
       });
 
-      const currentIndex = agents.indexOf(active.id as string);
+      const currentIndex = agents.findIndex(a => a.id === active.id as string);
       if (currentIndex !== -1 && currentIndex !== agents.length - 1) {
         onReorderAgents(currentIndex, agents.length - 1);
       }
@@ -286,8 +216,8 @@ export function AppTerminalArea({
 
     if (!over || active.id === over.id) return;
 
-    const oldIndex = agents.indexOf(active.id as string);
-    const newIndex = agents.indexOf(over.id as string);
+    const oldIndex = agents.findIndex(a => a.id === active.id as string);
+    const newIndex = agents.findIndex(a => a.id === over.id as string);
     if (oldIndex !== -1 && newIndex !== -1) {
       onReorderAgents(oldIndex, newIndex);
     }
@@ -314,10 +244,10 @@ export function AppTerminalArea({
           {layoutOrientation === "canvas" ? (
             <div className="relative flex-1 min-h-0 min-w-0 rounded-lg overflow-hidden border border-app-border bg-app-bg/50 overflow-auto">
               {agents.map((agent, index) => {
-                const pos = canvasPositions[agent] || { x: Math.min(index * 40, 300), y: Math.min(index * 40, 300) };
+                const pos = canvasPositions[agent.id] || { x: Math.min(index * 40, 300), y: Math.min(index * 40, 300) };
                 return (
                   <FreeFloatTerminalWrapper
-                    key={agent}
+                    key={agent.id}
                     agent={agent}
                     currentProject={currentProject}
                     onRemoveAgent={stableRemoveAgent}
@@ -333,7 +263,7 @@ export function AppTerminalArea({
               })}
             </div>
           ) : (
-            <SortableContext items={agentsToRender} strategy={rectSortingStrategy}>
+            <SortableContext items={agentsToRender.map(a => a.id)} strategy={rectSortingStrategy}>
               <div
                 className={cn(
                   "flex-1 min-h-0 min-w-0 transition-all duration-500 ease-in-out",
@@ -444,7 +374,7 @@ export function AppTerminalArea({
 
                   return (
                     <SortableTerminalWrapper
-                      key={agent}
+                      key={agent.id}
                       agent={agent}
                       currentProject={currentProject}
                       onRemoveAgent={stableRemoveAgent}
@@ -458,9 +388,9 @@ export function AppTerminalArea({
                       workspaceId={workspaceId}
                       isZenMode={isZenMode}
                       focusedAgentId={focusedAgentId}
-                      isFocused={agent === focusedAgentId}
+                      isFocused={agent.id === focusedAgentId}
                       isGlass={isGlass}
-                      onFocus={() => onFocusAgent?.(agent)}
+                      onFocus={() => onFocusAgent?.(agent.id)}
                     />
                   );
                 })}
@@ -472,3 +402,68 @@ export function AppTerminalArea({
     </div>
   );
 }
+
+// ── Free float terminal wrapper ────────────────────────────────────────────
+
+interface FreeFloatTerminalWrapperProps {
+  agent: AgentInstance;
+  currentProject: string | null;
+  onRemoveAgent: (agentId: string) => void;
+  onDetachAgent: (agentId: string) => void;
+  onSplitAgent: (agentId: string) => void;
+  positionX: number;
+  positionY: number;
+  zIndex: number;
+  workspaceName?: string;
+  workspaceId: string;
+}
+
+const FreeFloatTerminalWrapper = memo(function FreeFloatTerminalWrapper({ agent, currentProject, onRemoveAgent, onDetachAgent, onSplitAgent, positionX, positionY, zIndex, workspaceName, workspaceId }: FreeFloatTerminalWrapperProps) {
+  const { attributes, listeners, setNodeRef, isDragging, transform } = useDraggable({
+    id: agent.id,
+    data: { agentName: agent.name }
+  });
+  const handleRemove = useCallback(() => onRemoveAgent(agent.id), [agent.id, onRemoveAgent]);
+  const handleDetach = useCallback(() => onDetachAgent(agent.id), [agent.id, onDetachAgent]);
+  const handleSplit = useCallback(() => onSplitAgent(agent.id), [agent.id, onSplitAgent]);
+
+  const style: React.CSSProperties = {
+    position: 'absolute',
+    top: `${positionY}px`,
+    left: `${positionX}px`,
+    width: '600px',
+    height: '400px',
+    zIndex: isDragging ? 1000 : zIndex,
+    boxShadow: isDragging ? "0 25px 50px -12px rgba(0, 0, 0, 0.5)" : "0 10px 15px -3px rgba(0, 0, 0, 0.3)",
+    transform: CSS.Translate.toString(transform),
+    transition: isDragging ? "none" : "box-shadow 0.2s ease",
+    backgroundColor: 'transparent'
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className={`min-h-0 min-w-0 flex flex-col bg-transparent rounded-lg overflow-hidden ring-1 ring-brand-accent/20 ${isDragging ? "opacity-90 scale-[1.02] ring-brand-accent/50 cursor-grabbing" : "cursor-grab"}`}>
+      {agent.name.startsWith("browser:") ? (
+        <BrowserInstance
+          id={agent.id}
+          url={agent.name.split(":").slice(2).join(":") || ""}
+          onRemove={handleRemove}
+          dragAttributes={attributes}
+          dragListeners={listeners}
+        />
+      ) : (
+        <TerminalInstance
+          agentId={agent.id}
+          agentName={agent.name}
+          cwd={currentProject}
+          workspaceName={workspaceName}
+          workspaceId={workspaceId}
+          onRemove={handleRemove}
+          onDetach={handleDetach}
+          onSplit={handleSplit}
+          dragAttributes={attributes}
+          dragListeners={listeners}
+        />
+      )}
+    </div>
+  );
+});

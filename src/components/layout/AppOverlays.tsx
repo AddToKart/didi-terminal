@@ -4,27 +4,28 @@ import { BrainstormModal, type BrainstormSession } from "../modals/BrainstormMod
 import { MasterPlanPanel } from "../panels/MasterPlanPanel";
 import { MonorepoGraph } from "../architecture/MonorepoGraph";
 import type { TaskRecord, HitlApprovalRequest, MasterPlanTaskDispatch } from "../../services/app-core";
+import type { AgentInstance } from "../../types/workspace";
 
 interface AppOverlaysProps {
   showNetworkGraph: boolean;
   NetworkGraphComponent: ComponentType<{
-    agents: string[];
+    agents: AgentInstance[];
     tasks?: TaskRecord[];
     onClose: () => void;
-    onKillAgent?: (agent: string) => void;
-    onInterruptAgent?: (agent: string) => void;
-    onInjectHint?: (agent: string, hint: string) => void;
+    onKillAgent?: (agentId: string) => void;
+    onInterruptAgent?: (agentId: string) => void;
+    onInjectHint?: (agentId: string, hint: string) => void;
     onQuickDispatch?: (target: string, task: string) => void;
   }>;
   showMonorepoGraph: boolean;
   onCloseMonorepoGraph: () => void;
   onOpenInTerminal: (path: string, name: string) => void;
-  agents: string[];
+  agents: AgentInstance[];
   tasks: TaskRecord[];
   onCloseNetworkGraph: () => void;
-  onKillAgent: (agent: string) => void;
-  onInterruptAgent: (agent: string) => void;
-  onInjectHint: (agent: string, hint: string) => void;
+  onKillAgent: (agentId: string) => void;
+  onInterruptAgent: (agentId: string) => void;
+  onInjectHint: (agentId: string, hint: string) => void;
   onQuickDispatch: (target: string, task: string) => void;
   showSettings: boolean;
   SettingsModalComponent: ComponentType<{ onClose: () => void }>;

@@ -52,14 +52,14 @@ export async function loadWorkspaces(): Promise<WorkspaceState[]> {
       );
       
       for (const tab of tabsRaw) {
-        const agentsRaw = await db.select<{ name: string }[]>(
-          "SELECT name FROM agents WHERE tab_id = $1 ORDER BY order_index ASC",
+        const agentsRaw = await db.select<{ name: string; agent_uuid: string }[]>(
+          "SELECT name, agent_uuid FROM agents WHERE tab_id = $1 ORDER BY order_index ASC",
           [tab.id]
         );
         defaultSection.tabs.push({
           id: tab.id,
           name: tab.name,
-          agents: agentsRaw.map(a => a.name),
+          agents: agentsRaw.map(a => ({ id: a.agent_uuid || crypto.randomUUID(), name: a.name })),
           layoutOrientation: tab.layoutOrientation as any,
         });
       }
@@ -73,15 +73,15 @@ export async function loadWorkspaces(): Promise<WorkspaceState[]> {
         
         const tabs: TerminalTab[] = [];
         for (const tab of tabsRaw) {
-          const agentsRaw = await db.select<{ name: string }[]>(
-            "SELECT name FROM agents WHERE tab_id = $1 ORDER BY order_index ASC",
+          const agentsRaw = await db.select<{ name: string; agent_uuid: string }[]>(
+            "SELECT name, agent_uuid FROM agents WHERE tab_id = $1 ORDER BY order_index ASC",
             [tab.id]
           );
           
           tabs.push({
             id: tab.id,
             name: tab.name,
-            agents: agentsRaw.map(a => a.name),
+            agents: agentsRaw.map(a => ({ id: a.agent_uuid || crypto.randomUUID(), name: a.name })),
             layoutOrientation: tab.layoutOrientation as any,
           });
         }
@@ -111,7 +111,11 @@ export async function saveWorkspaces(workspaces: WorkspaceState[]): Promise<void
   const db = await getDb();
   
   try {
-    // Clear existing explicitly to avoid foreign key issues since SQLite FKs are disabled by default
+    // Start atomic transaction
+    await db.execute("BEGIN TRANSACTION");
+
+    // Clear existing relations to ensure clean state within the transaction
+    // (Still using delete but inside a transaction it's atomic)
     await db.execute("DELETE FROM agents");
     await db.execute("DELETE FROM tabs");
     await db.execute("DELETE FROM sections");
@@ -119,7 +123,6 @@ export async function saveWorkspaces(workspaces: WorkspaceState[]): Promise<void
     
     for (let wIndex = 0; wIndex < workspaces.length; wIndex++) {
       const ws = workspaces[wIndex];
-      // Note: we insert activeSectionId here (need to ensure the migration has run, otherwise we might get an error if column doesn't exist, but migration handles it)
       await db.execute(
         "INSERT INTO workspaces (id, name, directory, activeTabId, activeSectionId, order_index) VALUES ($1, $2, $3, $4, $5, $6)",
         [ws.id, ws.name, ws.directory, ws.activeTabId, ws.activeSectionId || "", wIndex]
@@ -140,16 +143,25 @@ export async function saveWorkspaces(workspaces: WorkspaceState[]): Promise<void
           );
           
           for (let aIndex = 0; aIndex < tab.agents.length; aIndex++) {
-            const agentName = tab.agents[aIndex];
+            const agent = tab.agents[aIndex];
             await db.execute(
-              "INSERT INTO agents (tab_id, name, order_index) VALUES ($1, $2, $3)",
-              [tab.id, agentName, aIndex]
+              "INSERT INTO agents (tab_id, name, agent_uuid, order_index) VALUES ($1, $2, $3, $4)",
+              [tab.id, agent.name, agent.id, aIndex]
             );
           }
         }
       }
     }
+
+    // Commit all changes atomically
+    await db.execute("COMMIT");
   } catch (error) {
+    // Rollback on any failure to prevent partial state corruption
+    try {
+      await db.execute("ROLLBACK");
+    } catch (rollbackError) {
+      console.error("Rollback failed:", rollbackError);
+    }
     console.error("Failed to save workspaces to DB:", error);
     throw error;
   }

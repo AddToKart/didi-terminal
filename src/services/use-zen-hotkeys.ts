@@ -1,18 +1,18 @@
-import { useEffect, type Dispatch, type SetStateAction } from "react";
+import { useEffect } from "react";
 import { emit } from "@tauri-apps/api/event";
-import type { AppMode, ZenLayoutOrientation } from "../types/workspace";
+import type { AppMode } from "../types/workspace";
 import { matchesKeys } from "./keybindings";
 
 interface UseZenHotkeysParams {
   appMode: AppMode;
-  setAppMode: Dispatch<SetStateAction<AppMode>>;
+  setAppMode: (mode: any) => void;
   zenAgents: string[];
-  setZenAgents: Dispatch<SetStateAction<string[]>>;
-  setZenLayout: Dispatch<SetStateAction<ZenLayoutOrientation>>;
+  setZenAgents: (agents: any) => void;
+  setZenLayout: (layout: any) => void;
   lastActiveZenAgent: string | null;
-  setLastActiveZenAgent: Dispatch<SetStateAction<string | null>>;
+  setLastActiveZenAgent: (agent: any) => void;
   focusedZenAgent: string | null;
-  setFocusedZenAgent: Dispatch<SetStateAction<string | null>>;
+  setFocusedZenAgent: (agent: any) => void;
 }
 
 export const useZenHotkeys = ({
@@ -31,7 +31,7 @@ export const useZenHotkeys = ({
       if (matchesKeys(e, "zen-toggle")) {
         e.preventDefault();
         e.stopPropagation();
-        setAppMode(prev => (prev === "zen" ? "terminal" : "zen"));
+        setAppMode(appMode === "zen" ? "terminal" : "zen");
       }
 
       if (appMode === "zen") {
@@ -50,7 +50,7 @@ export const useZenHotkeys = ({
           e.stopPropagation();
           setFocusedZenAgent(null);
           const newId = `zen-terminal-${crypto.randomUUID().slice(0, 4)}`;
-          setZenAgents(prev => [...prev, newId]);
+          setZenAgents((prev: any) => [...prev, newId]);
           setLastActiveZenAgent(newId);
           setTimeout(() => emit("focus-agent", { agent: newId }), 100);
         }
@@ -79,8 +79,8 @@ export const useZenHotkeys = ({
           setFocusedZenAgent(null);
           if (zenAgents.length > 1) {
             const target = lastActiveZenAgent || zenAgents[zenAgents.length - 1];
-            setZenAgents(prev => {
-              const next = prev.filter(a => a !== target);
+            setZenAgents((prev: any) => {
+              const next = prev.filter((a: any) => a !== target);
               setLastActiveZenAgent(next[next.length - 1]);
               return next;
             });

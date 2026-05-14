@@ -255,6 +255,9 @@ pub fn spawn_pty(
     std::thread::spawn(move || {
         let mut buf = [0; PTY_READ_BUFFER_SIZE];
         let mut pending = Vec::new();
+        let mut last_emit = std::time::Instant::now();
+        let mut pending_emit = Vec::new();
+
         while let Ok(n) = reader.read(&mut buf) {
             if n == 0 {
                 break;
@@ -279,12 +282,20 @@ pub fn spawn_pty(
 
             if process_len > 0 {
                 let chunk: Vec<u8> = pending.drain(..process_len).collect();
-                emit_pty_output(&app_handle, &agent_clone, chunk);
+                pending_emit.extend_from_slice(&chunk);
+
+                if last_emit.elapsed().as_millis() > 16 || pending_emit.len() > 256 * 1024 {
+                    emit_pty_output(&app_handle, &agent_clone, std::mem::take(&mut pending_emit));
+                    last_emit = std::time::Instant::now();
+                }
             }
         }
 
         if !pending.is_empty() {
-            emit_pty_output(&app_handle, &agent_clone, pending);
+            pending_emit.extend_from_slice(&pending);
+        }
+        if !pending_emit.is_empty() {
+            emit_pty_output(&app_handle, &agent_clone, pending_emit);
         }
 
         if let Some(state) = app_handle.try_state::<AppState>() {

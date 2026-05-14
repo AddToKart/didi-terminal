@@ -1,5 +1,6 @@
 import { FormEvent, useMemo, useState } from "react";
 import { Brain, RadioTower, X, ChevronLeft, ChevronRight, MessageSquareText } from "lucide-react";
+import type { AgentInstance } from "../../types/workspace";
 
 export interface BrainstormSession {
   id: string;
@@ -17,14 +18,14 @@ export interface BrainstormSession {
 }
 
 interface Props {
-  agents: string[];
+  agents: AgentInstance[];
   sessions: BrainstormSession[];
   onStart: (prompt: string, participants: string[], turns: number) => void;
   onClose: () => void;
 }
 
 export const BrainstormModal = ({ agents, sessions, onStart, onClose }: Props) => {
-  const defaultAgents = useMemo(() => agents.slice(0, 3), [agents]);
+  const defaultAgents = useMemo(() => agents.slice(0, 3).map(a => a.name), [agents]);
   const [prompt, setPrompt] = useState("");
   const [turns, setTurns] = useState(2);
   const [participants, setParticipants] = useState<string[]>(defaultAgents);
@@ -33,11 +34,11 @@ export const BrainstormModal = ({ agents, sessions, onStart, onClose }: Props) =
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [carouselRoundIndex, setCarouselRoundIndex] = useState(0);
 
-  const toggleAgent = (agent: string) => {
+  const toggleAgent = (agentName: string) => {
     setParticipants(prev => (
-      prev.includes(agent)
-        ? prev.filter(item => item !== agent)
-        : [...prev, agent]
+      prev.includes(agentName)
+        ? prev.filter(item => item !== agentName)
+        : [...prev, agentName]
     ));
   };
 
@@ -105,14 +106,14 @@ export const BrainstormModal = ({ agents, sessions, onStart, onClose }: Props) =
               <label className="text-xs font-semibold text-zinc-400 tracking-tight">Select Participants</label>
               <div className="mt-2 grid grid-cols-2 gap-3">
                 {agents.map(agent => (
-                  <label key={agent} className="flex items-center gap-3 border border-zinc-800/50 bg-app-panel/50 hover:bg-zinc-900/40 px-3 py-2.5 rounded-md text-sm text-zinc-300 cursor-pointer transition-colors">
+                  <label key={agent.id} className="flex items-center gap-3 border border-zinc-800/50 bg-app-panel/50 hover:bg-zinc-900/40 px-3 py-2.5 rounded-md text-sm text-zinc-300 cursor-pointer transition-colors">
                     <input
                       type="checkbox"
-                      checked={participants.includes(agent)}
-                      onChange={() => toggleAgent(agent)}
+                      checked={participants.includes(agent.name)}
+                      onChange={() => toggleAgent(agent.name)}
                       className="accent-brand-accent w-4 h-4 rounded-sm border-zinc-700/50 bg-app-panel"
                     />
-                    <span className="truncate font-medium">{agent}</span>
+                    <span className="truncate font-medium">{agent.name}</span>
                   </label>
                 ))}
               </div>

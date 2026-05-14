@@ -10,7 +10,7 @@ function App() {
     return (
       <div className="h-screen w-screen bg-app-bg">
         <ErrorBoundary title="Terminal crashed">
-          <TerminalInstance agentName={standaloneAgent} cwd={standaloneCwd} />
+          <TerminalInstance agentId={standaloneAgent} agentName={standaloneAgent} cwd={standaloneCwd} />
         </ErrorBoundary>
       </div>
     );

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { matchesKeys } from "../../services/keybindings";
 import {
   X,
   Search,
@@ -695,6 +696,18 @@ export function ConfigEditor({ currentProject, isOpen, onClose }: ConfigEditorPr
       setTimeout(() => setCopied(false), 2000);
     } catch { }
   };
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (matchesKeys(e, "save-file") && isEditing) {
+        e.preventDefault();
+        handleSave();
+      }
+    };
+    if (!isOpen) return;
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [isOpen, isEditing, handleSave]);
 
   const toggleExpand = (path: string) => {
     setExpandedPaths(prev => {

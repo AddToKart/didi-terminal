@@ -5522,6 +5522,7 @@ dependencies = [
  "tokio",
  "tower-http",
  "url",
+ "uuid",
  "window-vibrancy",
 ]
 

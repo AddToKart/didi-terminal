@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { matchesKeys } from "../../services/keybindings";
 import {
   X,
   FileText,
@@ -243,12 +244,12 @@ export function MdViewer({ currentProject, isOpen, onClose }: MdViewerProps) {
   };
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === "f") {
+    if (matchesKeys(e, "find-in-file")) {
       e.preventDefault();
       setShowFind(prev => !prev);
       setFindText("");
     }
-    if ((e.ctrlKey || e.metaKey) && e.key === "s" && isEditing) {
+    if (matchesKeys(e, "save-file") && isEditing) {
       e.preventDefault();
       handleSave();
     }

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, MutableRefObject } from "react";
 import { Terminal, ITerminalOptions } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
+import { SearchAddon } from "@xterm/addon-search";
 import "@xterm/xterm/css/xterm.css";
 
 export interface UseXTermOptions extends ITerminalOptions {
@@ -18,6 +19,7 @@ export function useXTerm(
 ) {
   const [termLoaded, setTermLoaded] = useState(false);
   const terminalRef = useRef<Terminal | null>(null);
+  const searchAddonRef = useRef<SearchAddon | null>(null);
   const onDataRef = useRef(options.onData);
   const onBinaryRef = useRef(options.onBinary);
   const onKeyRef = useRef(options.onKey);
@@ -71,6 +73,10 @@ export function useXTerm(
 
       fitAddon = new FitAddon();
       term.loadAddon(fitAddon);
+
+      const searchAddon = new SearchAddon();
+      term.loadAddon(searchAddon);
+      searchAddonRef.current = searchAddon;
 
       term.open(containerRef.current);
       terminalRef.current = term;
@@ -130,6 +136,7 @@ export function useXTerm(
       if (resizeSettleTimer) clearTimeout(resizeSettleTimer);
       if (resizeObserver) resizeObserver.disconnect();
       terminalRef.current = null;
+      searchAddonRef.current = null;
       setTermLoaded(false);
       try {
         if (webglAddon) webglAddon.dispose();
@@ -143,5 +150,8 @@ export function useXTerm(
     };
   }, [options.agentName]);
 
-  return { terminal: terminalRef.current, isReady: termLoaded };
+  const findNext = (text: string) => searchAddonRef.current?.findNext(text);
+  const findPrevious = (text: string) => searchAddonRef.current?.findPrevious(text);
+
+  return { terminal: terminalRef.current, search: { findNext, findPrevious }, isReady: termLoaded };
 }

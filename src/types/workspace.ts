@@ -12,10 +12,15 @@ export type TerminalLayoutOrientation =
 
 export type ZenLayoutOrientation = "horizontal" | "vertical" | "grid";
 
+export interface AgentInstance {
+  id: string;
+  name: string;
+}
+
 export interface TerminalTab {
   id: string;
   name: string;
-  agents: string[];
+  agents: AgentInstance[];
   layoutOrientation: TerminalLayoutOrientation;
 }
 

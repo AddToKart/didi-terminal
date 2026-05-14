@@ -3,22 +3,24 @@ import { Network, X, Cpu, Clock, CheckCircle2, Server, TerminalSquare, AlertTria
 import "@xyflow/react/dist/style.css";
 import { useMemo, useState, MouseEvent as ReactMouseEvent, useCallback } from "react";
 
+import type { AgentInstance } from "../../types/workspace";
+
 interface TaskRecord {
   id: string;
   sender: string;
   target: string;
   summary: string;
-  status: "pending" | "in_progress" | "complete";
+  status: "pending" | "in_progress" | "complete" | "timeout";
   updatedAt: string;
 }
 
 interface Props {
-  agents: string[];
+  agents: AgentInstance[];
   tasks?: TaskRecord[];
   onClose: () => void;
-  onKillAgent?: (agent: string) => void;
-  onInterruptAgent?: (agent: string) => void;
-  onInjectHint?: (agent: string, hint: string) => void;
+  onKillAgent?: (agentId: string) => void;
+  onInterruptAgent?: (agentId: string) => void;
+  onInjectHint?: (agentId: string, hint: string) => void;
   onQuickDispatch?: (target: string, task: string) => void;
 }
 
@@ -119,33 +121,37 @@ export function NetworkGraph({ agents, tasks = [], onClose, onKillAgent, onInter
   
   const { nodes, edges } = useMemo(() => {
     const activeTasks = tasks.filter(t => t.status === "in_progress");
-    const orchestratorId = agents.find(a => a.toLowerCase() === 'orchestrator' || a.toLowerCase() === 'main terminal') || agents[0];
+    const orchestratorId = agents.find(a => a.name.toLowerCase() === 'orchestrator' || a.name.toLowerCase() === 'main terminal')?.id || agents[0]?.id;
 
     const initialNodes: FlowNode[] = agents.map((agent) => {
-      const workingOn = activeTasks.filter(t => t.target === agent);
-      const waitingTasks = activeTasks.filter(t => t.sender === agent);
+      const workingOn = activeTasks.filter(t => t.target === agent.id);
+      const waitingTasks = activeTasks.filter(t => t.sender === agent.id);
       
       const isWorking = workingOn.length > 0;
       const isWaiting = waitingTasks.length > 0;
-      const waitingOn = Array.from(new Set(waitingTasks.map(t => t.target)));
-      const isMain = agent === orchestratorId;
+      // Resolve the actual names of the agents being waited on
+      const waitingOnNames = Array.from(new Set(waitingTasks.map(t => {
+        const tgt = agents.find(a => a.id === t.target);
+        return tgt ? tgt.name : t.target;
+      })));
+      const isMain = agent.id === orchestratorId;
       
       return {
-        id: agent,
+        id: agent.id,
         type: 'agentNode',
         position: { x: 0, y: 0 },
-        data: { label: agent, isWorking, isWaiting, waitingOn, isMain },
+        data: { label: agent.name, isWorking, isWaiting, waitingOn: waitingOnNames, isMain },
       };
     });
 
     const initialEdges: FlowEdge[] = [];
 
     agents.forEach(agent => {
-      if (agent !== orchestratorId) {
+      if (agent.id !== orchestratorId && orchestratorId) {
         initialEdges.push({
-          id: `structural-${orchestratorId}-${agent}`,
+          id: `structural-${orchestratorId}-${agent.id}`,
           source: orchestratorId,
-          target: agent,
+          target: agent.id,
           type: 'smoothstep',
           animated: false,
           style: { stroke: '#27272a', strokeWidth: 1.5 },

@@ -3,9 +3,11 @@ import { invoke } from "@tauri-apps/api/core";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import { getAgentId, type ActiveMasterPlanTask, type MasterPlanTaskDispatch } from "../services/app-core";
 
+import type { AgentInstance } from "../types/workspace";
+
 interface CreateMasterPlanWorkflowOptions {
   currentProjectRef: MutableRefObject<string | null>;
-  agentsRef: MutableRefObject<string[]>;
+  agentsRef: MutableRefObject<AgentInstance[]>;
   activeMasterPlanTask: MutableRefObject<ActiveMasterPlanTask | null>;
   queuedMasterPlanTasks: MutableRefObject<MasterPlanTaskDispatch[]>;
   activeAgentPlanTasks: MutableRefObject<Map<string, string[]>>;

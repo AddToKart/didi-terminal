@@ -30,7 +30,7 @@ export function ZenModeView({ controller }: ZenModeProps) {
         </div>
 
         <AppTerminalArea
-          agents={zenAgents}
+          agents={zenAgents.map(a => ({ id: a, name: a }))}
           currentProject={null}
           layoutOrientation={zenLayout as any}
           onRemoveAgent={agent => setZenAgents(prev => prev.filter(a => a !== agent))}

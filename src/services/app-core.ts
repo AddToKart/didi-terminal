@@ -1,3 +1,5 @@
+import type { AgentInstance } from "../types/workspace";
+
 export const HANDOFF_SUBMIT_DELAY_MS = 400;
 export const BRAINSTORM_CALLBACK_TARGET = "Brainstorm";
 
@@ -6,24 +8,22 @@ export const getPtyKey = (agentName: string) => agentName.trim().toLowerCase();
 export const getAgentId = (agentName: string) =>
   getPtyKey(agentName).replace(/[^a-z0-9]/g, "");
 
-export const getUniqueAgents = (agentNames: string[]) => {
+export const getUniqueAgents = (agents: AgentInstance[]) => {
   const seen = new Set<string>();
 
-  return agentNames.filter(agentName => {
-    const id = getAgentId(agentName);
-    if (!id || seen.has(id)) return false;
-
-    seen.add(id);
+  return agents.filter(agent => {
+    if (!agent.id || seen.has(agent.id)) return false;
+    seen.add(agent.id);
     return true;
   });
 };
 
-export const findMatchingAgent = (agentNames: string[], targetName: string) => {
+export const findMatchingAgent = (agents: AgentInstance[], targetName: string) => {
   const targetPtyKey = getPtyKey(targetName);
   const targetId = getAgentId(targetName);
 
-  return agentNames.find(agentName =>
-    getPtyKey(agentName) === targetPtyKey || getAgentId(agentName) === targetId
+  return agents.find(agent =>
+    getPtyKey(agent.name) === targetPtyKey || getAgentId(agent.name) === targetId || agent.id === targetName
   );
 };
 
@@ -104,7 +104,7 @@ export interface ActivityLog {
 }
 
 export type HandoffKind = "task" | "completion" | "status";
-export type TaskStatus = "pending" | "in_progress" | "complete";
+export type TaskStatus = "pending" | "in_progress" | "complete" | "timeout";
 
 export interface TaskRecord {
   id: string;
@@ -113,6 +113,7 @@ export interface TaskRecord {
   summary: string;
   status: TaskStatus;
   updatedAt: string;
+  dispatchedAt?: number;
 }
 
 export interface MasterPlanTaskDispatch {
@@ -144,6 +145,8 @@ export interface SentinelAgentState {
   lastSignature: string;
   signatureCount: number;
   lastInterventionAt: number;
+  recentOutputBuffer?: string;
+  isCheckingLlm?: boolean;
 }
 
 export interface HitlApprovalRequest {

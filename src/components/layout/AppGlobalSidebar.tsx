@@ -244,15 +244,14 @@ function SortableWorkspaceItem({
     }
   }, [ws.directory]);
 
-  const isAnySectionRunning = ws.sections.some(section => 
-    section.tabs.some(tab => 
+  const isAnySectionRunning = ws.sections.some(section =>
+    section.tabs.some(tab =>
       tab.agents.some(agent => {
-        const key = `${ws.id || "default"}::${agent}`;
+        const key = `${ws.id || "default"}::${agent.name}`;
         return agentReadyStates?.[key] === false;
       })
     )
   );
-
   const style = {
     transform: CSS.Transform.toString(transform),
     transition: isDragOverlay ? undefined : transition,
@@ -717,3 +716,4 @@ export function AppGlobalSidebar({
     </TooltipProvider>
   );
 }
+

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { emit, listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { type SentinelIncident } from "../components/panels/SentinelPanel";
 import { type GitSnapshotRecord } from "../components/panels/SnapshotPanel";
 import { type BrainstormSession } from "../components/modals/BrainstormModal";
 import {
@@ -10,11 +9,8 @@ import {
   getPtyKey,
   getUniqueAgents,
   type ActiveMasterPlanTask,
-  type ActivityLog,
-  type HitlApprovalRequest,
   type MasterPlanTaskDispatch,
   type SentinelAgentState,
-  type TaskRecord,
 } from "./app-core";
 import { registerSentinelMonitoring } from "./sentinel-service";
 import { registerHandoffListeners } from "./handoff-service";
@@ -22,7 +18,7 @@ import { createHandoffQueueService } from "./handoff-queue-service";
 import { createMasterPlanWorkflow } from "../workflows/master-plan-workflow";
 import { createBrainstormWorkflow } from "../workflows/brainstorm-workflow";
 import { loadWorkspaces, saveWorkspaces, getSetting, setSetting } from "./db-service";
-import type { AppMode, SectionState, TerminalLayoutOrientation, TerminalTab, WorkspaceState, ZenLayoutOrientation } from "../types/workspace";
+import type { SectionState, TerminalLayoutOrientation, TerminalTab, WorkspaceState } from "../types/workspace";
 import {
   ROOT_TERMINAL_LANE_ID,
   clearTerminalLanes,
@@ -37,22 +33,123 @@ interface GitDiffStats {
   totalDeletions: number;
 }
 
+import { useUIStore } from "./stores/ui-store";
+import { useWorkspaceStore } from "./stores/workspace-store";
+import { useAgentStore } from "./stores/agent-store";
+import { useGitStore } from "./stores/git-store";
+import { useOrchestrationStore } from "./stores/orchestration-store";
+
 export function useAppController() {
-  const [appMode, setAppMode] = useState<AppMode>("terminal");
+  const appMode = useUIStore(s => s.appMode);
+  const setAppMode = useUIStore(s => s.setAppMode);
+  const isSidebarOpen = useUIStore(s => s.isSidebarOpen);
+  const setIsSidebarOpen = useUIStore(s => s.setIsSidebarOpen);
+  const showNetworkGraph = useUIStore(s => s.showNetworkGraph);
+  const setShowNetworkGraph = useUIStore(s => s.setShowNetworkGraph);
+  const showSettings = useUIStore(s => s.showSettings);
+  const setShowSettings = useUIStore(s => s.setShowSettings);
+  const showBrainstorm = useUIStore(s => s.showBrainstorm);
+  const setShowBrainstorm = useUIStore(s => s.setShowBrainstorm);
+  const showMasterPlan = useUIStore(s => s.showMasterPlan);
+  const setShowMasterPlan = useUIStore(s => s.setShowMasterPlan);
+  const isTasksCollapsed = useUIStore(s => s.isTasksCollapsed);
+  const setIsTasksCollapsed = useUIStore(s => s.setIsTasksCollapsed);
+  const isActivityCollapsed = useUIStore(s => s.isActivityCollapsed);
+  const setIsActivityCollapsed = useUIStore(s => s.setIsActivityCollapsed);
+  const showCodeReview = useUIStore(s => s.showCodeReview);
+  const setShowCodeReview = useUIStore(s => s.setShowCodeReview);
+  const showGitPanel = useUIStore(s => s.showGitPanel);
+  const setShowGitPanel = useUIStore(s => s.setShowGitPanel);
+  const showGitFullscreen = useUIStore(s => s.showGitFullscreen);
+  const setShowGitFullscreen = useUIStore(s => s.setShowGitFullscreen);
+  const showPersonalKanban = useUIStore(s => s.showPersonalKanban);
+  const setShowPersonalKanban = useUIStore(s => s.setShowPersonalKanban);
+  const showFileExplorer = useUIStore(s => s.showFileExplorer);
+  const setShowFileExplorer = useUIStore(s => s.setShowFileExplorer);
+  const showPortManager = useUIStore(s => s.showPortManager);
+  const setShowPortManager = useUIStore(s => s.setShowPortManager);
+  const showEnvManager = useUIStore(s => s.showEnvManager);
+  const setShowEnvManager = useUIStore(s => s.setShowEnvManager);
+  const showPackageManager = useUIStore(s => s.showPackageManager);
+  const setShowPackageManager = useUIStore(s => s.setShowPackageManager);
+  const showApiLab = useUIStore(s => s.showApiLab);
+  const setShowApiLab = useUIStore(s => s.setShowApiLab);
+  const showMonorepoGraph = useUIStore(s => s.showMonorepoGraph);
+  const setShowMonorepoGraph = useUIStore(s => s.setShowMonorepoGraph);
+  const showDbViewer = useUIStore(s => s.showDbViewer);
+  const setShowDbViewer = useUIStore(s => s.setShowDbViewer);
+  const showMdViewer = useUIStore(s => s.showMdViewer);
+  const setShowMdViewer = useUIStore(s => s.setShowMdViewer);
+  const showConfigEditor = useUIStore(s => s.showConfigEditor);
+  const setShowConfigEditor = useUIStore(s => s.setShowConfigEditor);
+  const showIconBrowser = useUIStore(s => s.showIconBrowser);
+  const setShowIconBrowser = useUIStore(s => s.setShowIconBrowser);
+  const showTailwindLabs = useUIStore(s => s.showTailwindLabs);
+  const setShowTailwindLabs = useUIStore(s => s.setShowTailwindLabs);
+  const showNpmLookup = useUIStore(s => s.showNpmLookup);
+  const setShowNpmLookup = useUIStore(s => s.setShowNpmLookup);
+  const showHtmlToJsx = useUIStore(s => s.showHtmlToJsx);
+  const setShowHtmlToJsx = useUIStore(s => s.setShowHtmlToJsx);
+  const showSvgOptimizer = useUIStore(s => s.showSvgOptimizer);
+  const setShowSvgOptimizer = useUIStore(s => s.setShowSvgOptimizer);
+  const showStorageInspector = useUIStore(s => s.showStorageInspector);
+  const setShowStorageInspector = useUIStore(s => s.setShowStorageInspector);
+  const showQuickPalette = useUIStore(s => s.showQuickPalette);
+  const setShowQuickPalette = useUIStore(s => s.setShowQuickPalette);
+  const showSecurityPanel = useUIStore(s => s.showSecurityPanel);
+  const setShowSecurityPanel = useUIStore(s => s.setShowSecurityPanel);
+  const pendingWorkspaceId = useUIStore(s => s.pendingWorkspaceId);
+  const setPendingWorkspaceId = useUIStore(s => s.setPendingWorkspaceId);
+  const isGlass = useUIStore(s => s.isGlass);
+  const setIsGlass = useUIStore(s => s.setIsGlass);
+  const sidecarStatus = useUIStore(s => s.sidecarStatus);
+  const setSidecarStatus = useUIStore(s => s.setSidecarStatus);
 
-  const [workspaces, setWorkspaces] = useState<WorkspaceState[]>(() => {
-    const defaultSectionId = crypto.randomUUID();
-    return [{
-      id: crypto.randomUUID(),
-      name: "Workspace 1",
-      directory: null,
-      sections: [{ id: defaultSectionId, name: "Section 1", tabs: [] }],
-      activeTabId: "",
-      activeSectionId: defaultSectionId
-    }];
-  });
+  const workspaces = useWorkspaceStore(s => s.workspaces);
+  const setWorkspaces = useWorkspaceStore(s => s.setWorkspaces);
+  const activeWorkspaceId = useWorkspaceStore(s => s.activeWorkspaceId);
+  const setActiveWorkspaceId = useWorkspaceStore(s => s.setActiveWorkspaceId);
 
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string>(() => "");
+  const newAgentName = useAgentStore(s => s.newAgentName);
+  const setNewAgentName = useAgentStore(s => s.setNewAgentName);
+  const agentQueueCounts = useAgentStore(s => s.agentQueueCounts);
+  const setAgentQueueCounts = useAgentStore(s => s.setAgentQueueCounts);
+  const agentStatusMap = useAgentStore(s => s.agentStatusMap);
+  const setAgentStatusMap = useAgentStore(s => s.setAgentStatusMap);
+  const zenAgents = useAgentStore(s => s.zenAgents);
+  const setZenAgents = useAgentStore(s => s.setZenAgents);
+  const zenLayout = useAgentStore(s => s.zenLayout);
+  const setZenLayout = useAgentStore(s => s.setZenLayout);
+  const lastActiveZenAgent = useAgentStore(s => s.lastActiveZenAgent);
+  const setLastActiveZenAgent = useAgentStore(s => s.setLastActiveZenAgent);
+  const focusedZenAgent = useAgentStore(s => s.focusedZenAgent);
+  const setFocusedZenAgent = useAgentStore(s => s.setFocusedZenAgent);
+  const portCount = useAgentStore(s => s.portCount);
+  const setPortCount = useAgentStore(s => s.setPortCount);
+
+  const codeReviewStats = useGitStore(s => s.codeReviewStats);
+  const setCodeReviewStats = useGitStore(s => s.setCodeReviewStats);
+  const snapshots = useGitStore(s => s.snapshots);
+  const setSnapshots = useGitStore(s => s.setSnapshots);
+  const snapshotBusy = useGitStore(s => s.snapshotBusy);
+  const setSnapshotBusy = useGitStore(s => s.setSnapshotBusy);
+
+  const activity = useOrchestrationStore(s => s.activity);
+  const setActivity = useOrchestrationStore(s => s.setActivity);
+  const tasks = useOrchestrationStore(s => s.tasks);
+  const setTasks = useOrchestrationStore(s => s.setTasks);
+  const masterPlanQueueState = useOrchestrationStore(s => s.masterPlanQueueState);
+  const setMasterPlanQueueState = useOrchestrationStore(s => s.setMasterPlanQueueState);
+  const sentinelEnabled = useOrchestrationStore(s => s.sentinelEnabled);
+  const setSentinelEnabled = useOrchestrationStore(s => s.setSentinelEnabled);
+  const hitlEnabled = useOrchestrationStore(s => s.hitlEnabled);
+  const setHitlEnabled = useOrchestrationStore(s => s.setHitlEnabled);
+  const approvalRequest = useOrchestrationStore(s => s.approvalRequest);
+  const setApprovalRequest = useOrchestrationStore(s => s.setApprovalRequest);
+  const sentinelIncidents = useOrchestrationStore(s => s.sentinelIncidents);
+  const setSentinelIncidents = useOrchestrationStore(s => s.setSentinelIncidents);
+  const brainstormSessions = useOrchestrationStore(s => s.brainstormSessions);
+  const setBrainstormSessions = useOrchestrationStore(s => s.setBrainstormSessions);
 
   const [isDbLoaded, setIsDbLoaded] = useState(false);
 
@@ -124,60 +221,6 @@ export function useAppController() {
   const allAgents = getUniqueAgents(tabs.flatMap((t: TerminalTab) => t.agents));
   const agents = activeTab ? activeTab.agents : [];
   const layoutOrientation = activeTab ? activeTab.layoutOrientation : "horizontal";
-
-  const [newAgentName, setNewAgentName] = useState("");
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [showNetworkGraph, setShowNetworkGraph] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [showBrainstorm, setShowBrainstorm] = useState(false);
-  const [showMasterPlan, setShowMasterPlan] = useState(false);
-  const [sidecarStatus, setSidecarStatus] = useState("Checking...");
-  const [activity, setActivity] = useState<ActivityLog[]>([{ id: 0, time: new Date().toLocaleTimeString(), message: "System initialized", type: "system" }]);
-  const [tasks, setTasks] = useState<TaskRecord[]>([]);
-  const [agentQueueCounts, setAgentQueueCounts] = useState<Record<string, number>>({});
-  const [agentStatusMap, setAgentStatusMap] = useState<Record<string, boolean>>({});
-  const [masterPlanQueueState, setMasterPlanQueueState] = useState<{ activeLine: number | null; queuedLines: number[] }>({
-    activeLine: null,
-    queuedLines: [],
-  });
-  const [isTasksCollapsed, setIsTasksCollapsed] = useState(false);
-  const [showCodeReview, setShowCodeReview] = useState(false);
-  const [showGitPanel, setShowGitPanel] = useState(false);
-  const [showGitFullscreen, setShowGitFullscreen] = useState(false);
-  const [showPersonalKanban, setShowPersonalKanban] = useState(false);
-  const [showFileExplorer, setShowFileExplorer] = useState(false);
-  const [showPortManager, setShowPortManager] = useState(false);
-  const [showEnvManager, setShowEnvManager] = useState(false);
-  const [showPackageManager, setShowPackageManager] = useState(false);
-  const [zenAgents, setZenAgents] = useState<string[]>(["zen-terminal"]);
-  const [zenLayout, setZenLayout] = useState<ZenLayoutOrientation>("grid");
-  const [lastActiveZenAgent, setLastActiveZenAgent] = useState<string | null>("zen-terminal");
-  const [focusedZenAgent, setFocusedZenAgent] = useState<string | null>(null);
-  const [showApiLab, setShowApiLab] = useState(false);
-  const [showMonorepoGraph, setShowMonorepoGraph] = useState(false);
-  const [showDbViewer, setShowDbViewer] = useState(false);
-  const [showMdViewer, setShowMdViewer] = useState(false);
-  const [showConfigEditor, setShowConfigEditor] = useState(false);
-  const [showIconBrowser, setShowIconBrowser] = useState(false);
-  const [showTailwindLabs, setShowTailwindLabs] = useState(false);
-  const [showNpmLookup, setShowNpmLookup] = useState(false);
-  const [showHtmlToJsx, setShowHtmlToJsx] = useState(false);
-  const [showSvgOptimizer, setShowSvgOptimizer] = useState(false);
-  const [showStorageInspector, setShowStorageInspector] = useState(false);
-  const [showQuickPalette, setShowQuickPalette] = useState(false);
-  const [showSecurityPanel, setShowSecurityPanel] = useState<string | null>(null);
-  const [pendingWorkspaceId, setPendingWorkspaceId] = useState<string | null>(null);
-  const [portCount, setPortCount] = useState(0);
-  const [codeReviewStats, setCodeReviewStats] = useState({ additions: 0, deletions: 0 });
-  const [isActivityCollapsed, setIsActivityCollapsed] = useState(false);
-  const [sentinelEnabled, setSentinelEnabled] = useState(false);
-  const [hitlEnabled, setHitlEnabled] = useState(false);
-  const [approvalRequest, setApprovalRequest] = useState<HitlApprovalRequest | null>(null);
-  const [sentinelIncidents, setSentinelIncidents] = useState<SentinelIncident[]>([]);
-  const [snapshots, setSnapshots] = useState<GitSnapshotRecord[]>([]);
-  const [snapshotBusy, setSnapshotBusy] = useState(false);
-  const [brainstormSessions, setBrainstormSessions] = useState<BrainstormSession[]>([]);
-  const [isGlass, setIsGlass] = useState(false);
 
   const pendingHandoffs = useRef<Map<string, string[]>>(new Map());
   const readyAgents = useRef<Set<string>>(new Set());
@@ -693,7 +736,8 @@ export function useAppController() {
       }
     }
 
-    setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, agents: [...t.agents, name] } : t));
+    const newAgent = { id: crypto.randomUUID(), name };
+    setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, agents: [...t.agents, newAgent] } : t));
     setNewAgentName("");
     addLog(`Spawned terminal: ${name}`, "system");
   };
@@ -706,12 +750,14 @@ export function useAppController() {
       agentName = `${name}-${counter}`;
     }
 
-    setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, agents: [...t.agents, agentName] } : t));
+    const newAgent = { id: crypto.randomUUID(), name: agentName };
+    setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, agents: [...t.agents, newAgent] } : t));
     addLog(`Opening ${name} in terminal...`, "system");
     setShowMonorepoGraph(false);
   }, [allAgents, activeTabId]);
 
-  const removeAgent = (agentToRemove: string) => {
+  const removeAgent = (agentToRemoveId: string) => {
+    const agentToRemove = agents.find(a => a.id === agentToRemoveId)?.name || agentToRemoveId;
     const agentKey = `${activeWorkspaceId}::${getPtyKey(agentToRemove)}`;
     closeStoredTerminalLanes(agentToRemove);
     invoke("close_pty", { agent: agentKey }).catch(console.error);
@@ -722,17 +768,19 @@ export function useAppController() {
       delete next[agentKey];
       return next;
     });
-    setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, agents: t.agents.filter(a => a !== agentToRemove) } : t));
+    setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, agents: t.agents.filter(a => a.id !== agentToRemoveId) } : t));
     addLog(`Terminated agent: ${agentToRemove}`, "system");
   };
 
-  const detachAgent = (agentToDetach: string) => {
-    setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, agents: t.agents.filter(a => a !== agentToDetach) } : t));
+  const detachAgent = (agentToDetachId: string) => {
+    const agentToDetach = agents.find(a => a.id === agentToDetachId)?.name || agentToDetachId;
+    setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, agents: t.agents.filter(a => a.id !== agentToDetachId) } : t));
     addLog(`Detached agent: ${agentToDetach}`, "system");
   };
 
   const handleSpawnBrowser = () => {
-    setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, agents: [...t.agents, `browser:${Date.now()}`] } : t));
+    const newAgent = { id: crypto.randomUUID(), name: `browser:${Date.now()}` };
+    setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, agents: [...t.agents, newAgent] } : t));
     addLog("Opened browser pane", "system");
   };
 
@@ -741,21 +789,23 @@ export function useAppController() {
     setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, layoutOrientation: orientation } : t));
   };
 
-  const handleSplit = (agentToSplit: string) => {
+  const handleSplit = (agentToSplitId: string) => {
+    const agentToSplit = agents.find(a => a.id === agentToSplitId)?.name || "Split Agent";
     const baseName = agentToSplit.replace(/-\d+$/, "");
     let counter = 1;
     let newName = `${baseName}-${counter}`;
-    while (allAgents.includes(newName)) {
+    while (findMatchingAgent(allAgents, newName)) {
       counter++;
       newName = `${baseName}-${counter}`;
     }
 
     setTabs(prev => prev.map(t => {
       if (t.id !== activeTabId) return t;
-      const index = t.agents.indexOf(agentToSplit);
-      if (index === -1) return { ...t, agents: [...t.agents, newName] };
+      const index = t.agents.findIndex(a => a.id === agentToSplitId);
+      const newAgent = { id: crypto.randomUUID(), name: newName };
+      if (index === -1) return { ...t, agents: [...t.agents, newAgent] };
       const newAgents = [...t.agents];
-      newAgents.splice(index + 1, 0, newName);
+      newAgents.splice(index + 1, 0, newAgent);
       return { ...t, agents: newAgents };
     }));
 

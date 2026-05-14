@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, emit } from "@tauri-apps/api/event";
 import { readText } from "@tauri-apps/plugin-clipboard-manager";
-import { Terminal as TerminalIcon, X, Zap, ExternalLink, Plus, GripVertical } from "lucide-react";
+import { Terminal as TerminalIcon, X, Zap, ExternalLink, Plus, GripVertical, Search, ChevronRight } from "lucide-react";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import type { Terminal } from "@xterm/xterm";
 import { useXTerm } from "./useXTerm";
@@ -96,6 +96,7 @@ const getNextLaneIndex = (lanes: TerminalLane[]) => {
 };
 
 interface Props {
+  agentId: string;
   agentName: string;
   cwd?: string | null;
   onRemove?: () => void;
@@ -207,14 +208,14 @@ const TerminalLaneStrip = memo(({
   </div>
 ));
 
-export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, dragAttributes, dragListeners, workspaceName, workspaceId, isZenMode, onFocus }: Props) {
+export function TerminalInstance({ agentId, agentName, cwd, onRemove, onDetach, onSplit, dragAttributes, dragListeners, workspaceName, workspaceId, isZenMode, onFocus }: Props) {
   const terminalRef = useRef<HTMLDivElement>(null);
 
   const [isPulsing, setIsPulsing] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [stats, setStats] = useState({ cpu: 0, mem: 0 });
   const [sentinelPaused, setSentinelPaused] = useState(false);
-  const [lanes, setLanes] = useState<TerminalLane[]>(() => loadTerminalLanes(agentName, workspaceId));
+  const [lanes, setLanes] = useState<TerminalLane[]>(() => loadTerminalLanes(agentId, workspaceId));
   const [activeLaneId, setActiveLaneId] = useState(ROOT_TERMINAL_LANE_ID);
   const [editingLaneId, setEditingLaneId] = useState<string | null>(null);
   const [editLaneLabel, setEditLaneLabel] = useState("");
@@ -229,9 +230,9 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
   const lanesRef = useRef(lanes);
   const terminalApiRef = useRef<Terminal | null>(null);
 
-  const activeLane = lanes.find(lane => lane.id === activeLaneId) ?? lanes[0] ?? { id: ROOT_TERMINAL_LANE_ID, label: "Main", agentName };
-  const getLanePtyKey = useCallback((laneAgentName: string) => {
-    return getTerminalLanePtyKey(workspaceId, laneAgentName);
+  const activeLane = lanes.find(lane => lane.id === activeLaneId) ?? lanes[0] ?? { id: ROOT_TERMINAL_LANE_ID, label: "Main", agentName: agentId };
+  const getLanePtyKey = useCallback((laneAgentId: string) => {
+    return getTerminalLanePtyKey(workspaceId, laneAgentId);
   }, [workspaceId]);
 
   // The globally unique identifier for the active lane's process in the Rust backend
@@ -258,41 +259,37 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
   }, [lanes]);
 
   useEffect(() => {
-    const restoredLanes = loadTerminalLanes(agentName, workspaceId);
+    const restoredLanes = loadTerminalLanes(agentId, workspaceId);
     setLanes(restoredLanes);
     setActiveLaneId(ROOT_TERMINAL_LANE_ID);
     setEditingLaneId(null);
     setEditLaneLabel("");
-    setReadyState(false);
-    setStatsState({ cpu: 0, mem: 0 });
-  }, [agentName, workspaceId, setReadyState, setStatsState]);
+    // Removed setReadyState and setStatsState from deps to fix cycle bug
+  }, [agentId, workspaceId]);
 
   useEffect(() => {
-    saveTerminalLanes(agentName, workspaceId, lanes);
-  }, [agentName, workspaceId, lanes]);
+    saveTerminalLanes(agentId, workspaceId, lanes);
+  }, [agentId, workspaceId, lanes]);
 
   const handleSelectLane = useCallback((laneId: string) => {
     if (laneId === activeLaneId) return;
     setActiveLaneId(laneId);
-    setReadyState(false);
-    setStatsState({ cpu: 0, mem: 0 });
-  }, [activeLaneId, setReadyState, setStatsState]);
+  }, [activeLaneId]);
 
   const handleAddLane = useCallback((event: React.MouseEvent) => {
     event.stopPropagation();
     const nextIndex = getNextLaneIndex(lanesRef.current);
 
+    const laneId = crypto.randomUUID();
     const lane: TerminalLane = {
-      id: crypto.randomUUID(),
+      id: laneId,
       label: `Lane ${nextIndex}`,
-      agentName: `${agentName} lane ${nextIndex}`,
+      agentName: `${agentId}::lane::${laneId}`,
     };
 
     setLanes(prev => [...prev, lane]);
     setActiveLaneId(lane.id);
-    setReadyState(false);
-    setStatsState({ cpu: 0, mem: 0 });
-  }, [agentName, setReadyState, setStatsState]);
+  }, [agentId]);
 
   const handleCloseLane = useCallback((event: React.MouseEvent, laneId: string) => {
     event.stopPropagation();
@@ -494,8 +491,6 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
     }).catch(console.error);
   }, [ptyKey]);
 
-
-
   const handleTerminalKey = useCallback((e: KeyboardEvent) => {
     // Let xterm.js process standard keys by returning true
     
@@ -514,23 +509,53 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
       return false; 
     }
 
-    if (e.ctrlKey && e.key === "v" && e.type === "keydown") {
-      readText().then((text) => {
-        pasteTerminalInput(text);
-      }).catch(console.error);
-      return false; // Swallow paste, we handle it manually
+    if (e.type === "keydown") {
+      if (e.ctrlKey && e.shiftKey && e.key === "f") {
+        e.preventDefault();
+        setShowTerminalFind(prev => !prev);
+        return false;
+      }
+
+      if (e.ctrlKey && e.key === "v") {
+        readText().then((text) => {
+          pasteTerminalInput(text);
+        }).catch(console.error);
+        return false;
+      }
     }
 
     return true; // Allow all other keys to be processed by xterm.js!
   }, [pasteTerminalInput]);
 
-  const { terminal, isReady: isTerminalReady } = useXTerm(terminalRef, {
+  const [terminalFindQuery, setTerminalFindQuery] = useState("");
+  const [showTerminalFind, setShowTerminalFind] = useState(false);
+  const terminalSearchRef = useRef<{ findNext: (t: string) => void; findPrevious: (t: string) => void } | null>(null);
+
+  const handleTerminalFindChange = useCallback((value: string) => {
+    setTerminalFindQuery(value);
+    if (value) terminalSearchRef.current?.findNext(value);
+  }, []);
+
+  const handleTerminalFindKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (e.shiftKey) terminalSearchRef.current?.findPrevious(terminalFindQuery);
+      else terminalSearchRef.current?.findNext(terminalFindQuery);
+    }
+    if (e.key === "Escape") {
+      setShowTerminalFind(false);
+      setTerminalFindQuery("");
+    }
+  }, [terminalFindQuery]);
+
+  const { terminal, search: terminalSearch, isReady: isTerminalReady } = useXTerm(terminalRef, {
     agentName,
     onData: handleTerminalData,
     onResize: handleTerminalResize,
     onKey: handleTerminalKey,
   });
 
+  terminalSearchRef.current = terminalSearch;
   terminalApiRef.current = terminal;
 
   const handleContainerClick = () => {
@@ -734,6 +759,45 @@ export function TerminalInstance({ agentName, cwd, onRemove, onDetach, onSplit, 
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Terminal Find */}
+      {showTerminalFind && (
+        <div className="flex items-center gap-2 px-3 py-1.5 border-b border-app-border bg-zinc-900/60 shrink-0">
+          <Search size={12} className="text-zinc-500 shrink-0" />
+          <input
+            type="text"
+            value={terminalFindQuery}
+            onChange={e => handleTerminalFindChange(e.target.value)}
+            onKeyDown={handleTerminalFindKeyDown}
+            placeholder="Find in terminal..."
+            className="flex-1 bg-transparent text-xs text-zinc-200 placeholder:text-zinc-600 outline-none border-none"
+            autoFocus
+          />
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => terminalSearch?.findPrevious(terminalFindQuery)}
+              className="p-1 text-zinc-500 hover:text-zinc-300 transition-colors"
+              title="Previous (Shift+Enter)"
+            >
+              <ChevronRight size={12} className="rotate-180" />
+            </button>
+            <button
+              onClick={() => terminalSearch?.findNext(terminalFindQuery)}
+              className="p-1 text-zinc-500 hover:text-zinc-300 transition-colors"
+              title="Next (Enter)"
+            >
+              <ChevronRight size={12} />
+            </button>
+            <button
+              onClick={() => { setShowTerminalFind(false); setTerminalFindQuery(""); }}
+              className="p-1 text-zinc-500 hover:text-zinc-300 transition-colors"
+              title="Close"
+            >
+              <X size={12} />
+            </button>
           </div>
         </div>
       )}

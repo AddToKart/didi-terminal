@@ -2,6 +2,7 @@ import { Activity, ChevronDown, ChevronRight, Cpu, FolderOpen, Server, ShieldAle
 import { SentinelPanel, type SentinelIncident } from "../panels/SentinelPanel";
 import { SnapshotPanel, type GitSnapshotRecord } from "../panels/SnapshotPanel";
 import { getPtyKey, type ActivityLog, type TaskRecord } from "../../services/app-core";
+import type { AgentInstance } from "../../types/workspace";
 
 interface AppSidebarProps {
   sidecarStatus: string;
@@ -13,9 +14,9 @@ interface AppSidebarProps {
   onToggleSentinel: () => void;
   hitlEnabled: boolean;
   onToggleHitl: () => void;
-  agents: string[];
+  agents: AgentInstance[];
   agentQueueCounts: Record<string, number>;
-  onRemoveAgent: (agent: string) => void;
+  onRemoveAgent: (agentId: string) => void;
   snapshots: GitSnapshotRecord[];
   snapshotBusy: boolean;
   onManualSnapshot: () => void;
@@ -117,18 +118,18 @@ export function AppSidebar({
           </div>
           <div className="p-3 space-y-2">
             {agents.map(agent => (
-              <div key={agent} className="group flex items-center justify-between px-3 py-2 bg-app-panel border border-zinc-800/50 hover:border-zinc-700/50 transition-colors rounded-lg">
+              <div key={agent.id} className="group flex items-center justify-between px-3 py-2 bg-app-panel border border-zinc-800/50 hover:border-zinc-700/50 transition-colors rounded-lg">
                 <div className="flex items-center gap-2 truncate">
                   <div className="w-1.5 h-1.5 rounded-full bg-brand-accent animate-pulse" />
-                  <span className="text-xs font-medium text-zinc-300 truncate">{agent}</span>
+                  <span className="text-xs font-medium text-zinc-300 truncate">{agent.name}</span>
                 </div>
-                {agentQueueCounts[getPtyKey(agent)] ? (
+                {agentQueueCounts[getPtyKey(agent.id)] ? (
                   <span className="text-[10px] text-amber-400 border border-amber-500/20 bg-amber-500/10 px-1.5 py-0.5 rounded-lg">
-                    {agentQueueCounts[getPtyKey(agent)]} queued
+                    {agentQueueCounts[getPtyKey(agent.id)]} queued
                   </span>
                 ) : null}
                 <button
-                  onClick={() => onRemoveAgent(agent)}
+                  onClick={() => onRemoveAgent(agent.id)}
                   className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-red-400 transition-all"
                   title="Terminate Agent"
                 >

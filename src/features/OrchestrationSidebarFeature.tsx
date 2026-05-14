@@ -40,7 +40,7 @@ export function OrchestrationSidebarFeature({ controller }: OrchestrationModePro
       onInitialize={handleInitialize}
       sentinelEnabled={sentinelEnabled}
       sentinelIncidents={sentinelIncidents}
-      onToggleSentinel={() => setSentinelEnabled(value => !value)}
+      onToggleSentinel={() => setSentinelEnabled(!sentinelEnabled)}
       hitlEnabled={hitlEnabled}
       onToggleHitl={() => setHitlEnabled(!hitlEnabled)}
       agents={agents}
