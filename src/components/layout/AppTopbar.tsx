@@ -1,6 +1,5 @@
-import { useState, type FormEvent } from "react";
-import { Brain, ClipboardList, Columns, Globe, Grid2X2, Network, PanelLeft, PanelLeftClose, Plus, Rows, Layers, AlignLeft, Sparkles, ChevronRight, ChevronLeft, GitMerge, LayoutList, FolderSearch, FileKey2, Package, Zap, FolderTree, FileText, FileCode, Palette, ChevronDown } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useState, useRef, useEffect, type FormEvent } from "react";
+import { Brain, ClipboardList, Columns, Globe, Grid2X2, Network, PanelLeft, PanelLeftClose, Plus, Rows, Layers, AlignLeft, Sparkles, ChevronRight, ChevronLeft, GitMerge, LayoutList, FolderSearch, FileKey2, Package, Zap, FolderTree, FileText, FileCode, Palette } from "lucide-react";
 
 interface AppTopbarProps {
   appMode: "terminal" | "orchestrator";
@@ -28,6 +27,80 @@ interface AppTopbarProps {
   onToggleConfigEditor?: () => void;
   onToggleIconBrowser?: () => void;
   currentProject: string | null;
+}
+
+function WebDevPopover({ onToggleIconBrowser }: { onToggleIconBrowser?: () => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    if (open) document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  const items = [
+    {
+      icon: Palette,
+      label: "Icon Browser",
+      desc: "Browse & copy lucide icons",
+      gradient: "from-indigo-500/20 to-purple-500/20",
+      color: "text-indigo-400",
+      badge: "1,703",
+      action: () => { onToggleIconBrowser?.(); setOpen(false); },
+    },
+  ];
+
+  return (
+    <div ref={ref} className="relative shrink-0">
+      <button
+        onClick={() => setOpen(!open)}
+        className={`flex items-center gap-1.5 px-3 py-1 rounded-full transition-all text-[11px] font-bold border ${
+          open
+            ? 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30 shadow-[0_0_12px_rgba(99,102,241,0.08)]'
+            : 'text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border-zinc-800/60 hover:border-zinc-700'
+        }`}
+        title="Web Development Tools"
+      >
+        <Palette size={12} />
+        <span>Web Dev</span>
+        <kbd className={`text-[8px] font-mono px-1 py-0.5 rounded transition-colors ${open ? 'bg-indigo-500/20 text-indigo-400' : 'bg-white/5 text-zinc-600'}`}>⌘K</kbd>
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full mt-2 w-64 bg-[#0b0b0d]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.5)] overflow-hidden z-[200] animate-in fade-in slide-in-from-top-2 duration-150">
+          <div className="px-4 py-2.5 border-b border-white/5">
+            <span className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest">Web Development</span>
+          </div>
+          <div className="p-1.5">
+            {items.map(item => (
+              <button
+                key={item.label}
+                onClick={item.action}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all hover:bg-white/[0.04] group text-left"
+              >
+                <div className={`p-2 rounded-lg bg-gradient-to-br ${item.gradient} border border-white/5`}>
+                  <item.icon size={16} className={item.color} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-bold text-zinc-200 group-hover:text-white transition-colors">{item.label}</div>
+                  <div className="text-[9px] text-zinc-600 mt-0.5">{item.desc}</div>
+                </div>
+                {item.badge && (
+                  <span className="text-[9px] font-mono text-zinc-600 bg-white/5 px-1.5 py-0.5 rounded border border-white/5">{item.badge}</span>
+                )}
+              </button>
+            ))}
+          </div>
+          <div className="px-4 py-2 border-t border-white/5 bg-white/[0.02]">
+            <span className="text-[8px] text-zinc-700">More tools coming soon</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function AppTopbar({
@@ -189,28 +262,8 @@ export function AppTopbar({
                 <span>Config</span>
               </button>
 
-              {/* Web Dev Tools Dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    className="flex items-center gap-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all text-[11px] font-bold shrink-0"
-                    title="Web Development Tools"
-                  >
-                    <Palette size={12} />
-                    <span>Web Dev</span>
-                    <ChevronDown size={10} />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-zinc-950 border-white/10 z-[200] min-w-[180px]">
-                  <DropdownMenuItem
-                    onClick={onToggleIconBrowser}
-                    className="text-xs font-medium text-zinc-300 focus:bg-white/10 focus:text-white cursor-pointer"
-                  >
-                    <Palette size={14} className="mr-2 text-indigo-400" />
-                    Icon Browser
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {/* Web Dev Tools Popover */}
+              <WebDevPopover onToggleIconBrowser={onToggleIconBrowser} />
 
               <button
                 onClick={onToggleGitPanel}
