@@ -228,6 +228,52 @@ export function SettingsModal({ onClose }: Props) {
             {/* === INFRASTRUCTURE TAB === */}
             {activeTab === "infra" && (
               <div className="space-y-4">
+                <h3 className="text-[9px] font-bold uppercase tracking-[0.2em] text-blue-400/80 border-b border-white/5 pb-2">Environment Portability</h3>
+                <div className="flex items-center gap-3 pb-2">
+                  <button
+                    onClick={async () => {
+                      try {
+                        const { save } = await import("@tauri-apps/plugin-dialog");
+                        const { invoke } = await import("@tauri-apps/api/core");
+                        const path = await save({ filters: [{ name: "Didi Profile", extensions: ["didi-profile"] }] });
+                        if (path) {
+                          const ls = JSON.stringify(localStorage);
+                          await invoke("export_profile", { destinationPath: path, localStorageJson: ls });
+                          alert("Profile exported successfully.");
+                        }
+                      } catch (e) {
+                        alert(`Export failed: ${e}`);
+                      }
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg text-xs font-medium transition-colors"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Export Profile
+                  </button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const { open } = await import("@tauri-apps/plugin-dialog");
+                        const { invoke } = await import("@tauri-apps/api/core");
+                        const path = await open({ filters: [{ name: "Didi Profile", extensions: ["didi-profile"] }] });
+                        if (path) {
+                          const lsStr = await invoke<string>("import_profile", { sourcePath: path });
+                          const ls = JSON.parse(lsStr);
+                          Object.keys(ls).forEach(k => localStorage.setItem(k, ls[k]));
+                          alert("Profile imported. The application will now restart.");
+                          window.location.reload();
+                        }
+                      } catch (e) {
+                        alert(`Import failed: ${e}`);
+                      }
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-brand-accent/20 hover:bg-brand-accent/30 text-brand-primary border border-brand-accent/30 rounded-lg text-xs font-medium transition-colors"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    Import Profile
+                  </button>
+                </div>
+
                 <h3 className="text-[9px] font-bold uppercase tracking-[0.2em] text-blue-400/80 border-b border-white/5 pb-2">Shell & Runtime</h3>
                 <div className="space-y-4">
                   <div className="space-y-2">

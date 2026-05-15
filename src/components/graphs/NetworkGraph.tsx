@@ -1,7 +1,7 @@
 import { ReactFlow, Background, Controls, Node as FlowNode, Edge as FlowEdge, MarkerType, Handle, Position, NodeProps, Connection } from "@xyflow/react";
 import { Network, X, Cpu, Clock, CheckCircle2, Server, TerminalSquare, AlertTriangle, Send } from "lucide-react";
 import "@xyflow/react/dist/style.css";
-import { useMemo, useState, MouseEvent as ReactMouseEvent, useCallback } from "react";
+import { useState, MouseEvent as ReactMouseEvent, useCallback, useRef, useEffect } from "react";
 
 import type { AgentInstance } from "../../types/workspace";
 
@@ -79,47 +79,27 @@ const nodeTypes = {
   agentNode: AgentNode,
 };
 
-function getLayoutedElements(nodes: FlowNode[], edges: FlowEdge[]) {
-  if (nodes.length === 0) return { nodes, edges };
-
-  const orchestratorIndex = nodes.findIndex(n => n.id.toLowerCase() === 'orchestrator' || n.id.toLowerCase() === 'main terminal');
-  const mainNodeIndex = orchestratorIndex >= 0 ? orchestratorIndex : 0;
-  
-  const mainNode = nodes[mainNodeIndex];
-  const otherNodes = nodes.filter((_, i) => i !== mainNodeIndex);
-
-  const centerX = window.innerWidth / 2; 
-  const topY = 80;
-  const bottomY = 320;
-
-  mainNode.position = { x: centerX - 110, y: topY };
-
-  const spacingX = 280;
-  const maxPerRow = Math.max(3, Math.floor(window.innerWidth / spacingX) - 1);
-  
-  otherNodes.forEach((node, i) => {
-    const row = Math.floor(i / maxPerRow);
-    const col = i % maxPerRow;
-    const nodesInThisRow = Math.min(otherNodes.length - row * maxPerRow, maxPerRow);
-    
-    const totalWidth = (nodesInThisRow - 1) * spacingX;
-    const startX = centerX - (totalWidth / 2);
-
-    node.position = {
-      x: startX + (col * spacingX) - 110,
-      y: bottomY + (row * 200)
-    };
-  });
-
-  return { nodes, edges };
-}
+import GraphWorker from "../../workers/graph.worker?worker";
 
 export function NetworkGraph({ agents, tasks = [], onClose, onKillAgent, onInterruptAgent, onInjectHint, onQuickDispatch }: Props) {
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, agent: string } | null>(null);
   const [hintModal, setHintModal] = useState<{ agent: string, text: string } | null>(null);
   const [dispatchModal, setDispatchModal] = useState<{ source: string, target: string, text: string } | null>(null);
   
-  const { nodes, edges } = useMemo(() => {
+  const [nodes, setNodes] = useState<FlowNode[]>([]);
+  const [edges, setEdges] = useState<FlowEdge[]>([]);
+  const workerRef = useRef<Worker | null>(null);
+
+  useEffect(() => {
+    workerRef.current = new GraphWorker();
+    workerRef.current.onmessage = (e: MessageEvent) => {
+      setNodes(e.data.nodes);
+      setEdges(e.data.edges);
+    };
+    return () => workerRef.current?.terminate();
+  }, []);
+
+  useEffect(() => {
     const activeTasks = tasks.filter(t => t.status === "in_progress");
     const orchestratorId = agents.find(a => a.name.toLowerCase() === 'orchestrator' || a.name.toLowerCase() === 'main terminal')?.id || agents[0]?.id;
 
@@ -206,7 +186,7 @@ export function NetworkGraph({ agents, tasks = [], onClose, onKillAgent, onInter
       }
     });
 
-    return getLayoutedElements(initialNodes, initialEdges);
+    workerRef.current?.postMessage({ nodes: initialNodes, edges: initialEdges });
   }, [agents, tasks]);
 
   const handleNodeContextMenu = useCallback((event: ReactMouseEvent, node: FlowNode) => {

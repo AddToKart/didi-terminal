@@ -226,6 +226,10 @@ pub fn spawn_pty(
         .map_err(|e| format!("{:?}", e))?;
     let pid = child.process_id();
 
+    if let Some(p) = pid {
+        crate::services::job::assign_process_to_job(p);
+    }
+
     let master = pair.master;
     let writer = master.take_writer().map_err(|e| format!("{:?}", e))?;
     let mut reader = master.try_clone_reader().map_err(|e| format!("{:?}", e))?;

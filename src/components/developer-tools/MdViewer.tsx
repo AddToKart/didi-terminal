@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { matchesKeys } from "../../services/keybindings";
 import {
   X,
@@ -71,41 +71,6 @@ function getFileIconComponent(entry: FileEntry) {
   return File;
 }
 
-function renderMarkdownPreview(text: string): string {
-  let html = text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/^### (.+)$/gm, (_, t) => `<h3 id="${encodeURIComponent(t.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, ""))}">${t}</h3>`)
-    .replace(/^## (.+)$/gm, (_, t) => `<h2 id="${encodeURIComponent(t.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, ""))}">${t}</h2>`)
-    .replace(/^# (.+)$/gm, (_, t) => `<h1 id="${encodeURIComponent(t.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, ""))}">${t}</h1>`)
-    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*(.+?)\*/g, "<em>$1</em>")
-    .replace(/`{3}(\w*)\n([\s\S]*?)`{3}/g, '<pre><code class="language-$1">$2</code></pre>')
-    .replace(/`(.+?)`/g, "<code>$1</code>")
-    .replace(/^- (.+)$/gm, "<li>$1</li>")
-    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-400 underline hover:text-blue-300">$1</a>')
-    .replace(/\n\n/g, "</p><p>")
-    .replace(/\n/g, "<br>");
-
-  html = "<p>" + html + "</p>";
-  return html;
-}
-
-function extractToc(text: string): TocEntry[] {
-  const toc: TocEntry[] = [];
-  const regex = /^(#{1,3})\s+(.+)$/gm;
-  let match;
-  while ((match = regex.exec(text)) !== null) {
-    toc.push({
-      level: match[1].length,
-      text: match[2],
-      anchor: encodeURIComponent(match[2].toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")),
-    });
-  }
-  return toc;
-}
-
 function countWords(text: string): number {
   return text.trim() ? text.trim().split(/\s+/).length : 0;
 }
@@ -113,6 +78,8 @@ function countWords(text: string): number {
 function countLines(text: string): number {
   return text ? text.split("\n").length : 0;
 }
+
+import MarkdownWorker from "../../workers/markdown.worker?worker";
 
 export function MdViewer({ currentProject, isOpen, onClose }: MdViewerProps) {
   const [entries, setEntries] = useState<FileEntry[]>([]);
@@ -134,7 +101,25 @@ export function MdViewer({ currentProject, isOpen, onClose }: MdViewerProps) {
   const [showFind, setShowFind] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const toc = useMemo(() => extractToc(content), [content]);
+  const [toc, setToc] = useState<TocEntry[]>([]);
+  const [renderedHtml, setRenderedHtml] = useState("");
+  const workerRef = useRef<Worker | null>(null);
+
+  useEffect(() => {
+    workerRef.current = new MarkdownWorker();
+    workerRef.current.onmessage = (e: MessageEvent) => {
+      setToc(e.data.toc);
+      setRenderedHtml(e.data.html);
+    };
+    return () => {
+      workerRef.current?.terminate();
+    };
+  }, []);
+
+  useEffect(() => {
+    workerRef.current?.postMessage({ text: content });
+  }, [content]);
+
   const wordCount = useMemo(() => countWords(content), [content]);
   const lineCount = useMemo(() => countLines(content), [content]);
   const charCount = content.length;
@@ -642,7 +627,7 @@ export function MdViewer({ currentProject, isOpen, onClose }: MdViewerProps) {
                         <div className="p-8">
                           <div
                             className="prose prose-invert max-w-none text-sm leading-relaxed text-zinc-300 [&_h1]:text-xl [&_h1]:font-bold [&_h1]:text-white [&_h1]:mb-5 [&_h1]:pb-2 [&_h1]:border-b [&_h1]:border-white/10 [&_h2]:text-lg [&_h2]:font-bold [&_h2]:text-white [&_h2]:mt-8 [&_h2]:mb-3 [&_h2]:pb-1 [&_h2]:border-b [&_h2]:border-white/5 [&_h3]:text-base [&_h3]:font-bold [&_h3]:text-white [&_h3]:mt-6 [&_h3]:mb-2 [&_p]:mb-4 [&_p]:leading-relaxed [&_code]:bg-zinc-800 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:font-mono [&_code]:text-orange-300 [&_pre]:bg-zinc-900 [&_pre]:p-5 [&_pre]:rounded-xl [&_pre]:mb-6 [&_pre]:border [&_pre]:border-white/5 [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:text-zinc-300 [&_pre_code]:text-xs [&_li]:ml-5 [&_li]:mb-1.5 [&_li]:pl-1 [&_a]:text-blue-400 [&_a]:underline [&_a]:hover:text-blue-300 [&_a]:transition-colors [&_strong]:text-white [&_em]:text-zinc-200 [&_img]:rounded-lg [&_img]:my-4 [&_img]:max-w-full [&_hr]:border-zinc-800 [&_hr]:my-6"
-                            dangerouslySetInnerHTML={{ __html: renderMarkdownPreview(content) }}
+                            dangerouslySetInnerHTML={{ __html: renderedHtml }}
                           />
                         </div>
                       ) : (

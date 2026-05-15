@@ -328,6 +328,8 @@ pub fn run() {
             services::db_client::db_get_postgres_tables,
             services::db_client::db_query_mysql,
             services::db_client::db_get_mysql_tables,
+            services::profile::export_profile,
+            services::profile::import_profile,
             initialize_project,
             open_browser_view,
             update_browser_bounds,

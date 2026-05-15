@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { matchesKeys } from "../../services/keybindings";
 import {
   X,
@@ -414,6 +414,8 @@ function PrettyView({ text, ext }: { text: string; ext: string }) {
   );
 }
 
+import JsonWorker from "../../workers/json.worker?worker";
+
 export function ConfigEditor({ currentProject, isOpen, onClose }: ConfigEditorProps) {
   const [entries, setEntries] = useState<FileEntry[]>([]);
   const [currentDir, setCurrentDir] = useState<string>("");
@@ -435,18 +437,27 @@ export function ConfigEditor({ currentProject, isOpen, onClose }: ConfigEditorPr
   const [editValue, setEditValue] = useState("");
   const [copied, setCopied] = useState(false);
 
-  const parsed = useMemo(() => {
-    if (!rawContent || !selectedFile || !FORMATTED_EXTENSIONS.has(selectedFile.extension?.toLowerCase() || "")) return null;
-    try {
-      return JSON.parse(rawContent);
-    } catch {
-      return null;
-    }
-  }, [rawContent, selectedFile]);
+  const [parsed, setParsed] = useState<any>(null);
+  const [parseError, setParseError] = useState<string | null>(null);
 
-  const parseError = useMemo(() => {
-    if (!rawContent || !selectedFile || !FORMATTED_EXTENSIONS.has(selectedFile.extension?.toLowerCase() || "")) return null;
-    return validateJson(rawContent);
+  const workerRef = useRef<Worker | null>(null);
+
+  useEffect(() => {
+    workerRef.current = new JsonWorker();
+    workerRef.current.onmessage = (e: MessageEvent) => {
+      setParsed(e.data.parsed);
+      setParseError(e.data.error);
+    };
+    return () => workerRef.current?.terminate();
+  }, []);
+
+  useEffect(() => {
+    if (rawContent && selectedFile && FORMATTED_EXTENSIONS.has(selectedFile.extension?.toLowerCase() || "")) {
+      workerRef.current?.postMessage({ raw: rawContent });
+    } else {
+      setParsed(null);
+      setParseError(null);
+    }
   }, [rawContent, selectedFile]);
 
   const isParseable = parsed !== null && parseError === null;
@@ -1181,7 +1192,7 @@ export function ConfigEditor({ currentProject, isOpen, onClose }: ConfigEditorPr
                         <div className="text-[11px] leading-relaxed text-zinc-300">
                           {"{"}
                           <div className="ml-4 border-l border-white/5 pl-4">
-                            {Object.entries(parsed).map(([k, v]) => (
+                            {parsed && Object.entries(parsed).map(([k, v]) => (
                               <div key={k} className="flex items-start gap-1 py-0.5 group">
                                 {renderTree(v, k, 1)}
                                 <button
@@ -1198,7 +1209,7 @@ export function ConfigEditor({ currentProject, isOpen, onClose }: ConfigEditorPr
                             <span>{"}"}</span>
                             <button
                               onClick={() => {
-                                const newKey = `key${Object.keys(parsed).length}`;
+                                const newKey = `key${parsed ? Object.keys(parsed).length : 0}`;
                                 handleAddKey("", newKey);
                               }}
                               className="flex items-center gap-1 text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors"

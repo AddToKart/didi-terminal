@@ -129,11 +129,8 @@ export async function saveWorkspaces(workspaces: WorkspaceState[]): Promise<void
   while (true) {
     const db = await getDb();
     try {
-      // Start atomic transaction
-      await db.execute("BEGIN TRANSACTION");
-
-      // Clear existing relations to ensure clean state within the transaction
-      // (Still using delete but inside a transaction it's atomic)
+      // Clear existing relations (cascade deletes will handle children if PRAGMA foreign_keys = ON)
+      // but we explicitly delete to be safe across SQLite versions
       await db.execute("DELETE FROM agents");
       await db.execute("DELETE FROM tabs");
       await db.execute("DELETE FROM sections");
@@ -171,15 +168,7 @@ export async function saveWorkspaces(workspaces: WorkspaceState[]): Promise<void
         }
       }
 
-      // Commit all changes atomically
-      await db.execute("COMMIT");
     } catch (error) {
-      // Rollback on any failure to prevent partial state corruption
-      try {
-        await db.execute("ROLLBACK");
-      } catch (rollbackError) {
-        console.error("Rollback failed:", rollbackError);
-      }
       console.error("Failed to save workspaces to DB:", error);
     }
 
