@@ -65,13 +65,17 @@ pub struct FileEntry {
 }
 
 #[tauri::command]
-pub fn read_file_content(path: String, root: String) -> Result<String, String> {
-    let p = Path::new(&path).canonicalize().map_err(|e| e.to_string())?;
-    let r = Path::new(&root).canonicalize().map_err(|e| e.to_string())?;
-    if !p.starts_with(&r) {
-        return Err("Path traversal attempt blocked".to_string());
-    }
-    fs::read_to_string(&p).map_err(|e| e.to_string())
+pub async fn read_file_content(path: String, root: String) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || {
+        let p = Path::new(&path).canonicalize().map_err(|e| e.to_string())?;
+        let r = Path::new(&root).canonicalize().map_err(|e| e.to_string())?;
+        if !p.starts_with(&r) {
+            return Err("Path traversal attempt blocked".to_string());
+        }
+        fs::read_to_string(&p).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -89,53 +93,57 @@ pub fn write_file_content(path: String, root: String, content: String) -> Result
 }
 
 #[tauri::command]
-pub fn list_directory(path: String, root: String) -> Result<Vec<FileEntry>, String> {
-    let p = Path::new(&path).canonicalize().map_err(|e| e.to_string())?;
-    let r = Path::new(&root).canonicalize().map_err(|e| e.to_string())?;
-    if !p.starts_with(&r) {
-        return Err("Path traversal attempt blocked".to_string());
-    }
-
-    if !p.is_dir() {
-        return Err("Path is not a directory".to_string());
-    }
-
-    let mut entries = Vec::new();
-    if let Ok(read_dir) = fs::read_dir(p) {
-        for entry in read_dir.flatten() {
-            let metadata = entry.metadata().map_err(|e| e.to_string())?;
-            let path_buf = entry.path();
-            let name = path_buf.file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("")
-                .to_string();
-            
-            let is_dir = metadata.is_dir();
-            let size = metadata.len();
-            let extension = path_buf.extension()
-                .and_then(|e| e.to_str())
-                .map(|e| e.to_string());
-
-            entries.push(FileEntry {
-                name,
-                path: path_buf.to_str().unwrap_or("").to_string(),
-                is_dir,
-                size,
-                extension,
-            });
+pub async fn list_directory(path: String, root: String) -> Result<Vec<FileEntry>, String> {
+    tokio::task::spawn_blocking(move || {
+        let p = Path::new(&path).canonicalize().map_err(|e| e.to_string())?;
+        let r = Path::new(&root).canonicalize().map_err(|e| e.to_string())?;
+        if !p.starts_with(&r) {
+            return Err("Path traversal attempt blocked".to_string());
         }
-    }
 
-    // Sort: Directories first, then alphabetically
-    entries.sort_by(|a, b| {
-        if a.is_dir && !b.is_dir {
-            std::cmp::Ordering::Less
-        } else if !a.is_dir && b.is_dir {
-            std::cmp::Ordering::Greater
-        } else {
-            a.name.to_lowercase().cmp(&b.name.to_lowercase())
+        if !p.is_dir() {
+            return Err("Path is not a directory".to_string());
         }
-    });
 
-    Ok(entries)
+        let mut entries = Vec::new();
+        if let Ok(read_dir) = fs::read_dir(p) {
+            for entry in read_dir.flatten() {
+                let metadata = entry.metadata().map_err(|e| e.to_string())?;
+                let path_buf = entry.path();
+                let name = path_buf.file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("")
+                    .to_string();
+                
+                let is_dir = metadata.is_dir();
+                let size = metadata.len();
+                let extension = path_buf.extension()
+                    .and_then(|e| e.to_str())
+                    .map(|e| e.to_string());
+
+                entries.push(FileEntry {
+                    name,
+                    path: path_buf.to_str().unwrap_or("").to_string(),
+                    is_dir,
+                    size,
+                    extension,
+                });
+            }
+        }
+
+        // Sort: Directories first, then alphabetically
+        entries.sort_by(|a, b| {
+            if a.is_dir && !b.is_dir {
+                std::cmp::Ordering::Less
+            } else if !a.is_dir && b.is_dir {
+                std::cmp::Ordering::Greater
+            } else {
+                a.name.to_lowercase().cmp(&b.name.to_lowercase())
+            }
+        });
+
+        Ok(entries)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
