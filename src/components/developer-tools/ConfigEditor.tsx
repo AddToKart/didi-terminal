@@ -619,7 +619,7 @@ export function ConfigEditor({ currentProject, isOpen, onClose }: ConfigEditorPr
     setContentLoading(true);
     setError(null);
     try {
-      const result = await invoke<string>("read_file_content", { path: filePath });
+      const result = await invoke<string>("read_file_content", { path: filePath, root: currentProject });
       setRawContent(result);
       setEditContent(result);
       setIsEditing(false);
@@ -648,7 +648,7 @@ export function ConfigEditor({ currentProject, isOpen, onClose }: ConfigEditorPr
     setSaving(true);
     setError(null);
     try {
-      await invoke("write_file_content", { path: selectedFile.path, content: toSave });
+      await invoke("write_file_content", { path: selectedFile.path, root: currentProject, content: toSave });
       setRawContent(toSave);
       setEditContent(toSave);
       setIsEditing(false);

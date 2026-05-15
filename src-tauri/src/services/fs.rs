@@ -65,27 +65,43 @@ pub struct FileEntry {
 }
 
 #[tauri::command]
-pub fn read_file_content(path: String) -> Result<String, String> {
-    fs::read_to_string(&path).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub fn write_file_content(path: String, content: String) -> Result<(), String> {
-    fs::write(&path, content).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub fn list_directory(path: String) -> Result<Vec<FileEntry>, String> {
-    let dir_path = Path::new(&path);
-    if !dir_path.exists() {
-        return Err("Path does not exist".to_string());
+pub fn read_file_content(path: String, root: String) -> Result<String, String> {
+    let p = Path::new(&path).canonicalize().map_err(|e| e.to_string())?;
+    let r = Path::new(&root).canonicalize().map_err(|e| e.to_string())?;
+    if !p.starts_with(&r) {
+        return Err("Path traversal attempt blocked".to_string());
     }
-    if !dir_path.is_dir() {
+    fs::read_to_string(&p).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn write_file_content(path: String, root: String, content: String) -> Result<(), String> {
+    // We allow writing to paths that might not exist yet, so we canonicalize the parent
+    let p = Path::new(&path);
+    let parent = p.parent().ok_or("No parent directory")?;
+    let canon_parent = parent.canonicalize().map_err(|e| e.to_string())?;
+    let r = Path::new(&root).canonicalize().map_err(|e| e.to_string())?;
+    
+    if !canon_parent.starts_with(&r) {
+        return Err("Path traversal attempt blocked".to_string());
+    }
+    fs::write(p, content).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn list_directory(path: String, root: String) -> Result<Vec<FileEntry>, String> {
+    let p = Path::new(&path).canonicalize().map_err(|e| e.to_string())?;
+    let r = Path::new(&root).canonicalize().map_err(|e| e.to_string())?;
+    if !p.starts_with(&r) {
+        return Err("Path traversal attempt blocked".to_string());
+    }
+
+    if !p.is_dir() {
         return Err("Path is not a directory".to_string());
     }
 
     let mut entries = Vec::new();
-    if let Ok(read_dir) = fs::read_dir(dir_path) {
+    if let Ok(read_dir) = fs::read_dir(p) {
         for entry in read_dir.flatten() {
             let metadata = entry.metadata().map_err(|e| e.to_string())?;
             let path_buf = entry.path();

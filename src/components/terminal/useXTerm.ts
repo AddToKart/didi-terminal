@@ -59,7 +59,7 @@ export function useXTerm(
         cursorBlink: false,
         cursorStyle: 'block',
         fontSize: 13,
-        scrollback: 100000,
+        scrollback: 5000,
         allowTransparency: true,
         ...terminalOptions,
         theme: {

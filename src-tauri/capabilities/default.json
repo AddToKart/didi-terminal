@@ -7,7 +7,6 @@
     "core:default",
     "opener:default",
     "dialog:default",
-    "shell:default",
     "clipboard-manager:default",
     "sql:default",
     "sql:allow-execute",

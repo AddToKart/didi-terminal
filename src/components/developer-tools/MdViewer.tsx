@@ -182,7 +182,7 @@ export function MdViewer({ currentProject, isOpen, onClose }: MdViewerProps) {
     setSaving(true);
     setError(null);
     try {
-      await invoke("write_file_content", { path: selectedFile.path, content: editContent });
+      await invoke("write_file_content", { path: selectedFile.path, root: currentProject, content: editContent });
       setContent(editContent);
       setIsEditing(false);
     } catch (err) {

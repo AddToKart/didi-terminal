@@ -125,7 +125,7 @@ export function PackageManager({ currentProject, isOpen, onClose }: PackageManag
     setPackages([]);
     
     try {
-      const content = await invoke<string>("read_file_content", { path: `${config.path}/${config.file_type}` });
+      const content = await invoke<string>("read_file_content", { path: `${config.path}/${config.file_type}`, root: currentProject });
       let pkgs: PackageItem[] = [];
 
       if (config.manager === "npm") {

@@ -16,6 +16,13 @@ let dbInstance: Database | null = null;
 export async function getDb(): Promise<Database> {
   if (!dbInstance) {
     dbInstance = await Database.load("sqlite:didi.db");
+    try {
+      await dbInstance.execute("PRAGMA journal_mode = WAL;");
+      await dbInstance.execute("PRAGMA synchronous = NORMAL;");
+      await dbInstance.execute("PRAGMA foreign_keys = ON;");
+    } catch (e) {
+      console.warn("Failed to set SQLite PRAGMAs", e);
+    }
   }
   return dbInstance;
 }
@@ -107,64 +114,84 @@ export async function loadWorkspaces(): Promise<WorkspaceState[]> {
   return workspaces;
 }
 
+let isSaving = false;
+let pendingWorkspaces: WorkspaceState[] | null = null;
+
 export async function saveWorkspaces(workspaces: WorkspaceState[]): Promise<void> {
-  const db = await getDb();
-  
-  try {
-    // Start atomic transaction
-    await db.execute("BEGIN TRANSACTION");
+  if (isSaving) {
+    pendingWorkspaces = workspaces;
+    return;
+  }
 
-    // Clear existing relations to ensure clean state within the transaction
-    // (Still using delete but inside a transaction it's atomic)
-    await db.execute("DELETE FROM agents");
-    await db.execute("DELETE FROM tabs");
-    await db.execute("DELETE FROM sections");
-    await db.execute("DELETE FROM workspaces");
-    
-    for (let wIndex = 0; wIndex < workspaces.length; wIndex++) {
-      const ws = workspaces[wIndex];
-      await db.execute(
-        "INSERT INTO workspaces (id, name, directory, activeTabId, activeSectionId, order_index) VALUES ($1, $2, $3, $4, $5, $6)",
-        [ws.id, ws.name, ws.directory, ws.activeTabId, ws.activeSectionId || "", wIndex]
-      );
+  isSaving = true;
+  let currentWorkspaces = workspaces;
+
+  while (true) {
+    const db = await getDb();
+    try {
+      // Start atomic transaction
+      await db.execute("BEGIN TRANSACTION");
+
+      // Clear existing relations to ensure clean state within the transaction
+      // (Still using delete but inside a transaction it's atomic)
+      await db.execute("DELETE FROM agents");
+      await db.execute("DELETE FROM tabs");
+      await db.execute("DELETE FROM sections");
+      await db.execute("DELETE FROM workspaces");
       
-      for (let sIndex = 0; sIndex < ws.sections.length; sIndex++) {
-        const section = ws.sections[sIndex];
+      for (let wIndex = 0; wIndex < currentWorkspaces.length; wIndex++) {
+        const ws = currentWorkspaces[wIndex];
         await db.execute(
-          "INSERT INTO sections (id, workspace_id, name, order_index) VALUES ($1, $2, $3, $4)",
-          [section.id, ws.id, section.name, sIndex]
+          "INSERT INTO workspaces (id, name, directory, activeTabId, activeSectionId, order_index) VALUES ($1, $2, $3, $4, $5, $6)",
+          [ws.id, ws.name, ws.directory, ws.activeTabId, ws.activeSectionId || "", wIndex]
         );
-
-        for (let tIndex = 0; tIndex < section.tabs.length; tIndex++) {
-          const tab = section.tabs[tIndex];
+        
+        for (let sIndex = 0; sIndex < ws.sections.length; sIndex++) {
+          const section = ws.sections[sIndex];
           await db.execute(
-            "INSERT INTO tabs (id, workspace_id, section_id, name, layoutOrientation, order_index) VALUES ($1, $2, $3, $4, $5, $6)",
-            [tab.id, ws.id, section.id, tab.name, tab.layoutOrientation, tIndex]
+            "INSERT INTO sections (id, workspace_id, name, order_index) VALUES ($1, $2, $3, $4)",
+            [section.id, ws.id, section.name, sIndex]
           );
-          
-          for (let aIndex = 0; aIndex < tab.agents.length; aIndex++) {
-            const agent = tab.agents[aIndex];
+
+          for (let tIndex = 0; tIndex < section.tabs.length; tIndex++) {
+            const tab = section.tabs[tIndex];
             await db.execute(
-              "INSERT INTO agents (tab_id, name, agent_uuid, order_index) VALUES ($1, $2, $3, $4)",
-              [tab.id, agent.name, agent.id, aIndex]
+              "INSERT INTO tabs (id, workspace_id, section_id, name, layoutOrientation, order_index) VALUES ($1, $2, $3, $4, $5, $6)",
+              [tab.id, ws.id, section.id, tab.name, tab.layoutOrientation, tIndex]
             );
+            
+            for (let aIndex = 0; aIndex < tab.agents.length; aIndex++) {
+              const agent = tab.agents[aIndex];
+              await db.execute(
+                "INSERT INTO agents (tab_id, name, agent_uuid, order_index) VALUES ($1, $2, $3, $4)",
+                [tab.id, agent.name, agent.id, aIndex]
+              );
+            }
           }
         }
       }
+
+      // Commit all changes atomically
+      await db.execute("COMMIT");
+    } catch (error) {
+      // Rollback on any failure to prevent partial state corruption
+      try {
+        await db.execute("ROLLBACK");
+      } catch (rollbackError) {
+        console.error("Rollback failed:", rollbackError);
+      }
+      console.error("Failed to save workspaces to DB:", error);
     }
 
-    // Commit all changes atomically
-    await db.execute("COMMIT");
-  } catch (error) {
-    // Rollback on any failure to prevent partial state corruption
-    try {
-      await db.execute("ROLLBACK");
-    } catch (rollbackError) {
-      console.error("Rollback failed:", rollbackError);
+    if (pendingWorkspaces) {
+      currentWorkspaces = pendingWorkspaces;
+      pendingWorkspaces = null;
+    } else {
+      break;
     }
-    console.error("Failed to save workspaces to DB:", error);
-    throw error;
   }
+
+  isSaving = false;
 }
 
 

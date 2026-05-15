@@ -247,6 +247,18 @@ pub fn run() {
             description: "add_agent_uuid",
             sql: "ALTER TABLE agents ADD COLUMN agent_uuid TEXT;",
             kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 6,
+            description: "add_performance_indexes",
+            sql: "
+                CREATE INDEX IF NOT EXISTS idx_workspaces_order ON workspaces(order_index);
+                CREATE INDEX IF NOT EXISTS idx_sections_ws ON sections(workspace_id);
+                CREATE INDEX IF NOT EXISTS idx_tabs_sec ON tabs(section_id);
+                CREATE INDEX IF NOT EXISTS idx_agents_tab ON agents(tab_id);
+                CREATE INDEX IF NOT EXISTS idx_personal_tasks_ws ON personal_tasks(workspace_id);
+            ",
+            kind: MigrationKind::Up,
         }
     ];
 
@@ -325,6 +337,8 @@ pub fn run() {
             get_local_ip,
         ])
         .setup(|app| {
+            services::job::init_job_object();
+            
             let loaded_config = load_config(app.handle());
             
             // Apply initial vibrancy based on config
@@ -348,7 +362,9 @@ pub fn run() {
             });
             use tauri_plugin_shell::ShellExt;
             if let Ok(sidecar_command) = app.handle().shell().sidecar("llama-server") {
-                let _ = sidecar_command.spawn();
+                if let Ok((_rx, child)) = sidecar_command.spawn() {
+                    services::job::assign_process_to_job(child.pid());
+                }
             }
             Ok(())
         })

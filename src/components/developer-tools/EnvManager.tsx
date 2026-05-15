@@ -85,6 +85,7 @@ export function EnvManager({ currentProject, isOpen, onClose }: EnvManagerProps)
         try {
           const content = await invoke<string>("read_file_content", {
             path: config.path,
+            root: currentProject,
           });
           const parsedVars: EnvVar[] = content
             .split("\n")
