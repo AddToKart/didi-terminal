@@ -122,16 +122,14 @@ interface AppTopbarProps {
     <div ref={ref} className="relative shrink-0">
       <button
         onClick={() => setOpen(!open)}
-        className={`flex items-center gap-1.5 px-3 py-1 rounded-full transition-all text-[11px] font-bold border whitespace-nowrap ${
+        className={`flex items-center justify-center p-1.5 rounded-lg transition-all border ${
           open
             ? 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30 shadow-[0_0_12px_rgba(99,102,241,0.08)]'
             : 'text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border-zinc-800/60 hover:border-zinc-700'
         }`}
-        title="Web Development Tools"
+        title="Web Development Tools (⌘K)"
       >
-        <Palette size={12} />
-        <span>Web Dev</span>
-        <kbd className={`text-[8px] font-mono px-1 py-0.5 rounded transition-colors ${open ? 'bg-indigo-500/20 text-indigo-400' : 'bg-white/5 text-zinc-600'}`}>⌘K</kbd>
+        <Palette size={14} />
       </button>
 
       {open && (
@@ -235,7 +233,7 @@ export function AppTopbar({
         </button>
       </form>
 
-      <div className="flex items-center gap-6 px-2">
+      <div className="flex items-center gap-3 px-2">
         {appMode === "orchestrator" && (
           <>
             <button
@@ -262,78 +260,70 @@ export function AppTopbar({
           </>
         )}
         {currentProject && (
-          <div className="flex items-center bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-3 py-1 gap-3 shadow-sm ml-6">
-          <div className={`flex items-center gap-3 transition-all duration-700 ease-in-out ${isToolsOpen ? "max-w-[1200px] opacity-100 px-0.5" : "max-w-0 opacity-0 overflow-hidden"}`}>
+          <div className="flex items-center bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-1.5 py-1 gap-1 shadow-sm ml-2">
+            <div className={`flex items-center gap-1.5 transition-all duration-700 ease-in-out ${isToolsOpen ? "max-w-[1200px] opacity-100 px-0.5" : "max-w-0 opacity-0 overflow-hidden"}`}>
               <button
                 onClick={onToggleFileExplorer}
-                className="flex items-center gap-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all text-[11px] font-bold shrink-0"
+                className="p-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all shrink-0"
                 title="Project Explorer"
               >
-                <FolderSearch size={12} />
-                <span>Files</span>
+                <FolderSearch size={14} />
               </button>
 
               <button
                 onClick={onTogglePersonalKanban}
-                className="flex items-center gap-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all text-[11px] font-bold shrink-0"
+                className="p-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all shrink-0"
                 title="My Tasks"
               >
-                <LayoutList size={12} />
-                <span>My Tasks</span>
+                <LayoutList size={14} />
               </button>
 
               <button
                 onClick={onToggleEnvManager}
-                className="flex items-center gap-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all text-[11px] font-bold shrink-0"
+                className="p-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all shrink-0"
                 title="Env Manager"
               >
-                <FileKey2 size={12} />
-                <span>.env</span>
+                <FileKey2 size={14} />
               </button>
 
               <button
                 onClick={onTogglePackageManager}
-                className="flex items-center gap-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all text-[11px] font-bold shrink-0"
+                className="p-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all shrink-0"
                 title="Package Manager"
               >
-                <Package size={12} />
-                <span>Packages</span>
+                <Package size={14} />
               </button>
 
               <button
                 onClick={onToggleApiLab}
-                className="flex items-center gap-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all text-[11px] font-bold shrink-0"
+                className="p-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all shrink-0"
                 title="API Lab"
               >
-                <Zap size={12} />
-                <span>API Lab</span>
+                <Zap size={14} />
               </button>
 
               <button
                 onClick={onToggleMonorepoGraph}
-                className="flex items-center gap-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all text-[11px] font-bold shrink-0"
+                className="p-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all shrink-0"
                 title="Dependency Graph"
               >
-                <FolderTree size={12} />
-                <span>Graph</span>
+                <FolderTree size={14} />
               </button>
 
               <button
                 onClick={onToggleMdViewer}
-                className="flex items-center gap-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all text-[11px] font-bold shrink-0"
+                className="p-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all shrink-0"
                 title="Markdown Viewer"
               >
-                <FileText size={12} />
-                <span>Docs</span>
+                <FileText size={14} />
               </button>
 
               <button
                 onClick={onToggleConfigEditor}
-                className="flex items-center gap-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all text-[11px] font-bold shrink-0"
+                className="p-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all shrink-0"
                 title="Config Editor"
               >
-                <FileCode size={12} />
-                <span>Config</span>
+                <FileCode size={14} />
               </button>
 
               {/* Web Dev Tools Popover */}
@@ -348,11 +338,10 @@ export function AppTopbar({
               />
               <button
                 onClick={onToggleGitPanel}
-                className="flex items-center gap-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all text-[11px] font-bold shrink-0"
+                className="p-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all shrink-0"
                 title="Source Control"
               >
-                <GitMerge size={12} />
-                <span>Source Control</span>
+                <GitMerge size={14} />
               </button>
             </div>
 
@@ -367,11 +356,11 @@ export function AppTopbar({
             {codeReviewStats && (
               <button
                 onClick={onToggleCodeReview}
-                className="flex items-center group relative overflow-hidden bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-700/50 hover:border-zinc-600 rounded-full px-3 py-1 transition-all ml-1 shadow-lg shrink-0"
+                className="flex items-center group relative overflow-hidden bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-700/50 hover:border-zinc-600 rounded-lg px-2 py-1 transition-all ml-0.5 shadow-lg shrink-0"
                 title="Open Code Review"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 to-red-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <div className="flex items-center gap-3 relative z-10 font-mono text-[11px] font-bold tracking-tight">
+                <div className="flex items-center gap-1.5 relative z-10 font-mono text-[10px] font-bold tracking-tight">
                   <span className={`flex items-center gap-0.5 ${codeReviewStats.additions > 0 ? "text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.3)]" : "text-emerald-400/50"}`}>
                     <span>+</span>{codeReviewStats.additions}
                   </span>
@@ -384,7 +373,7 @@ export function AppTopbar({
           </div>
         )}
 
-        <div className="flex items-center bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-3 py-1 gap-3 shadow-sm ml-4">
+        <div className="flex items-center bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-1.5 py-1 gap-1 shadow-sm ml-2">
           <button
             onClick={() => onSetLayoutOrientation("vertical")}
             className={`p-1.5 rounded-lg transition-all shrink-0 ${layoutOrientation === "vertical" ? "bg-brand-accent/30 text-white shadow-inner" : "text-zinc-500 hover:text-zinc-300"}`}
