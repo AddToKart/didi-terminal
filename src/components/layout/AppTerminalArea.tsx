@@ -99,10 +99,10 @@ const SortableTerminalWrapper = memo(function SortableTerminalWrapper({ agent, c
       ref={setNodeRef}
       className={cn(
         "min-h-0 min-w-0 flex-1 flex flex-col transition-all duration-500 ease-in-out",
-        isZenMode && "rounded-lg overflow-hidden",
-        isZenMode && isFocused ? "bg-app-panel border-brand-accent/30 ring-1 ring-brand-accent/10 shadow-[0_0_20px_rgba(59,130,246,0.05)]" : "bg-app-panel",
-        isZenMode && !isFocused && "border border-app-border",
-        isDragging && "shadow-2xl opacity-90 scale-[1.02] ring-1 ring-brand-accent/50 rounded-md overflow-hidden"
+        isZenMode && "rounded-md overflow-hidden",
+        isZenMode && isFocused ? "bg-app-panel ring-1 ring-brand-accent/50 shadow-[0_0_30px_rgba(59,130,246,0.15)] z-10" : "bg-app-panel",
+        isZenMode && !isFocused && "ring-1 ring-white/5",
+        isDragging && "shadow-2xl opacity-90 scale-[1.02] ring-1 ring-brand-accent/50 rounded-md overflow-hidden z-50"
       )}
       style={style}
     >
@@ -276,7 +276,7 @@ export function AppTerminalArea({
               <div
                 className={cn(
                   "flex-1 min-h-0 min-w-0 transition-all duration-500 ease-in-out",
-                  isZenMode ? "bg-transparent gap-2 p-2" : "rounded-lg overflow-hidden border border-app-border bg-app-border gap-1",
+                  isZenMode ? "bg-transparent gap-[2px] p-[2px]" : "rounded-lg overflow-hidden border border-app-border bg-app-border gap-1",
                   !focusedAgentId && layoutOrientation === "horizontal" && "flex flex-row",
                   !focusedAgentId && layoutOrientation === "vertical" && "flex flex-col",
                   !focusedAgentId && layoutOrientation === "focus" && "flex flex-col flex-wrap content-stretch",
@@ -353,33 +353,35 @@ export function AppTerminalArea({
                       styleOverrides.gridColumn = `span ${columnsToSpan}`;
                     }
                   } else if (layoutOrientation === "focus") {
+                    const gapSize = isZenMode ? 2 : 4;
                     if (agents.length === 1) {
                       flexBasis = "100%";
                       width = "100%";
                     } else {
                       if (index === 0) {
                         flexBasis = "100%";
-                        width = "calc(75% - 2px)";
+                        width = `calc(75% - ${gapSize / 2}px)`;
                       } else {
                         const rows = agents.length - 1;
-                        const gapRowsTotal = (rows - 1) * 4;
+                        const gapRowsTotal = (rows - 1) * gapSize;
                         flexBasis = `calc((100% - ${gapRowsTotal}px) / ${rows})`;
-                        width = "calc(25% - 2px)";
+                        width = `calc(25% - ${gapSize / 2}px)`;
                       }
                     }
                   } else if (layoutOrientation === "presentation") {
+                    const gapSize = isZenMode ? 2 : 4;
                     if (agents.length === 1) {
                       flexBasis = "100%";
                       height = "100%";
                     } else {
                       if (index === 0) {
                         flexBasis = "100%";
-                        height = "calc(75% - 2px)";
+                        height = `calc(75% - ${gapSize / 2}px)`;
                       } else {
                         const cols = agents.length - 1;
-                        const gapColsTotal = (cols - 1) * 4;
+                        const gapColsTotal = (cols - 1) * gapSize;
                         flexBasis = `calc((100% - ${gapColsTotal}px) / ${cols})`;
-                        height = "calc(25% - 2px)";
+                        height = `calc(25% - ${gapSize / 2}px)`;
                       }
                     }
                   } else if (layoutOrientation === "dynamic") {
