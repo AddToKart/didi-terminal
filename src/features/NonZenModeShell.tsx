@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useState, useCallback, type ReactNode } from "react";
+import { lazy, Suspense, useMemo, useState, useCallback, useRef, type ReactNode } from "react";
 
 function ModalBoundary({ children, title }: { children: ReactNode; title?: string }) {
   return (
@@ -161,10 +161,30 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
 
   // ── Tab Merge state ───────────────────────────────────────────────────────
   const [mergedTabId, setMergedTabId] = useState<string | null>(null);
+  const [isDraggingTab, setIsDraggingTab] = useState(false);
+  const draggingTabIdRef = useRef<string | null>(null);
+
+  const handleDragTabStart = useCallback((tabId: string) => {
+    draggingTabIdRef.current = tabId;
+    setIsDraggingTab(true);
+  }, []);
+
+  const handleDragTabEnd = useCallback(() => {
+    draggingTabIdRef.current = null;
+    setIsDraggingTab(false);
+  }, []);
 
   const handleTabMerge = useCallback((tabId: string) => {
     setMergedTabId(prev => prev === tabId ? null : tabId);
   }, []);
+
+  const handleDropZonePointerUp = useCallback(() => {
+    const tabId = draggingTabIdRef.current;
+    if (tabId && tabId !== activeTabId) {
+      handleTabMerge(tabId);
+    }
+    handleDragTabEnd();
+  }, [activeTabId, handleTabMerge, handleDragTabEnd]);
 
   const handleUnmerge = useCallback(() => {
     setMergedTabId(null);
@@ -297,7 +317,7 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
         onRejectHitl={handleHitlReject}
       />
 
-      <section className="flex-1 flex flex-col min-w-0">
+      <section className="flex-1 flex flex-col min-w-0 relative">
 
 
         <AppTerminalTabs
@@ -309,7 +329,26 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
           onTabRename={handleTabRename}
           onTabReorder={handleTabReorder}
           onTabMerge={handleTabMerge}
+          onDragTabStart={handleDragTabStart}
+          onDragTabEnd={handleDragTabEnd}
         />
+
+        {/* ── Drop Zone overlay — appears when dragging a tab ── */}
+        {isDraggingTab && (
+          <div
+            className="absolute inset-0 top-8 z-50 flex items-center justify-center"
+            style={{ pointerEvents: "all" }}
+            onPointerUp={handleDropZonePointerUp}
+            onPointerMove={(e) => e.stopPropagation()}
+          >
+            <div className="w-full h-full border-2 border-dashed border-indigo-500/60 bg-indigo-500/8 flex items-center justify-center">
+              <div className="bg-zinc-900/90 border border-indigo-500/40 rounded-xl px-8 py-4 flex flex-col items-center gap-2 shadow-2xl">
+                <div className="text-indigo-400 text-sm font-semibold">Drop to Merge Tab</div>
+                <div className="text-zinc-500 text-xs">Release here to split view side by side</div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {effectiveMergedTabId ? (
           <MergedTabView

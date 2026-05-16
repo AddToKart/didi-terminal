@@ -27,6 +27,8 @@ interface AppTerminalTabsProps {
   onTabRename: (id: string, newName: string) => void;
   onTabReorder: (oldIndex: number, newIndex: number) => void;
   onTabMerge?: (tabId: string) => void;
+  onDragTabStart?: (tabId: string) => void;
+  onDragTabEnd?: () => void;
 }
 
 // ── Sortable Tab Item ─────────────────────────────────────────────────────────
@@ -134,6 +136,8 @@ export function AppTerminalTabs({
   onTabRename,
   onTabReorder,
   onTabMerge,
+  onDragTabStart,
+  onDragTabEnd,
 }: AppTerminalTabsProps) {
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -174,15 +178,17 @@ export function AppTerminalTabs({
   };
 
   const handleDragStart = (event: DragStartEvent) => {
-    setActiveDragId(event.active.id as string);
+    const id = event.active.id as string;
+    setActiveDragId(id);
+    onDragTabStart?.(id);
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveDragId(null);
+    onDragTabEnd?.();
 
-    // If no drop target — the tab was dragged outside the tab bar
-    // (downward into terminal area) → trigger merge
+    // No over target = dropped outside tab bar (into terminal area)
     if (!over) {
       if (onTabMerge && active.id !== activeTabId) {
         onTabMerge(active.id as string);
