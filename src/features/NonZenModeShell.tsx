@@ -192,30 +192,64 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
 
   return (
     <>
-      {isSidebarOpen && (
-        <AppGlobalSidebar
-          appMode={appMode}
-          onSetAppMode={setAppMode}
-          workspaces={workspaces}
-          activeWorkspaceId={activeWorkspaceId}
-          activeSectionId={activeWorkspace?.activeSectionId || ""}
-          onWorkspaceSelect={handleWorkspaceSelect}
-          onCreateWorkspace={handleCreateWorkspace}
-          onOpenDirectory={handleOpenDirectory}
-          onOpenSettings={() => setShowSettings(true)}
-          onWorkspaceReorder={handleWorkspaceReorder}
-          onWorkspaceRename={handleWorkspaceRename}
-          onWorkspaceDelete={handleWorkspaceDelete}
-          onOpenSecurity={id => setShowSecurityPanel(id)}
-          onSectionCreate={handleSectionCreate}
-          onSectionRename={handleSectionRename}
-          onSectionDelete={handleSectionDelete}
-          onSectionSelect={handleSectionSelect}
-          tasks={tasks}
-          agentReadyStates={agentStatusMap}
-          onCloseSidebar={() => setIsSidebarOpen(false)}
+      <div className="flex flex-col h-full w-full">
+        <AppTopbar
+          appMode={topbarMode}
+          onSpawnAgent={spawnAgent}
+          newAgentName={newAgentName}
+          onChangeNewAgentName={setNewAgentName}
+          onOpenBrainstorm={() => setShowBrainstorm(true)}
+          onOpenMasterPlan={() => setShowMasterPlan(true)}
+          onOpenNetworkGraph={() => setShowNetworkGraph(true)}
+          layoutOrientation={layoutOrientation}
+          onSetLayoutOrientation={handleSetLayoutOrientation}
+          isSidebarOpen={isSidebarOpen}
+          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+          onSpawnBrowser={handleSpawnBrowser}
+          codeReviewStats={codeReviewStats}
+          onToggleCodeReview={() => setShowCodeReview(!showCodeReview)}
+          onToggleGitPanel={() => setShowGitPanel(!showGitPanel)}
+          onTogglePersonalKanban={() => setShowPersonalKanban(!showPersonalKanban)}
+          onToggleFileExplorer={() => setShowFileExplorer(!showFileExplorer)}
+          onToggleEnvManager={() => setShowEnvManager(!showEnvManager)}
+          onTogglePackageManager={() => setShowPackageManager(!showPackageManager)}
+          onToggleApiLab={() => setShowApiLab(!showApiLab)}
+          onToggleMonorepoGraph={() => setShowMonorepoGraph(!showMonorepoGraph)}
+          onToggleMdViewer={() => setShowMdViewer(!showMdViewer)}
+          onToggleConfigEditor={() => setShowConfigEditor(!showConfigEditor)}
+          onToggleIconBrowser={() => setShowIconBrowser(!showIconBrowser)}
+          onToggleTailwindLabs={() => setShowTailwindLabs(!showTailwindLabs)}
+          onToggleNpmLookup={() => setShowNpmLookup(!showNpmLookup)}
+          onToggleHtmlToJsx={() => setShowHtmlToJsx(!showHtmlToJsx)}
+          onToggleSvgOptimizer={() => setShowSvgOptimizer(!showSvgOptimizer)}
+          onToggleStorageInspector={() => setShowStorageInspector(!showStorageInspector)}
+          currentProject={currentProject}
         />
-      )}
+        <div className="flex flex-1 min-h-0 relative">
+          {isSidebarOpen && (
+            <AppGlobalSidebar
+              appMode={appMode}
+              onSetAppMode={setAppMode}
+              workspaces={workspaces}
+              activeWorkspaceId={activeWorkspaceId}
+              activeSectionId={activeWorkspace?.activeSectionId || ""}
+              onWorkspaceSelect={handleWorkspaceSelect}
+              onCreateWorkspace={handleCreateWorkspace}
+              onOpenDirectory={handleOpenDirectory}
+              onOpenSettings={() => setShowSettings(true)}
+              onWorkspaceReorder={handleWorkspaceReorder}
+              onWorkspaceRename={handleWorkspaceRename}
+              onWorkspaceDelete={handleWorkspaceDelete}
+              onOpenSecurity={id => setShowSecurityPanel(id)}
+              onSectionCreate={handleSectionCreate}
+              onSectionRename={handleSectionRename}
+              onSectionDelete={handleSectionDelete}
+              onSectionSelect={handleSectionSelect}
+              tasks={tasks}
+              agentReadyStates={agentStatusMap}
+              onCloseSidebar={() => setIsSidebarOpen(false)}
+            />
+          )}
 
       <AppOverlays
         showNetworkGraph={showNetworkGraph}
@@ -249,38 +283,7 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
       />
 
       <section className="flex-1 flex flex-col min-w-0">
-        <AppTopbar
-          appMode={topbarMode}
-          onSpawnAgent={spawnAgent}
-          newAgentName={newAgentName}
-          onChangeNewAgentName={setNewAgentName}
-          onOpenBrainstorm={() => setShowBrainstorm(true)}
-          onOpenMasterPlan={() => setShowMasterPlan(true)}
-          onOpenNetworkGraph={() => setShowNetworkGraph(true)}
-          layoutOrientation={layoutOrientation}
-          onSetLayoutOrientation={handleSetLayoutOrientation}
-          isSidebarOpen={isSidebarOpen}
-          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-          onSpawnBrowser={handleSpawnBrowser}
-          codeReviewStats={codeReviewStats}
-          onToggleCodeReview={() => setShowCodeReview(!showCodeReview)}
-          onToggleGitPanel={() => setShowGitPanel(!showGitPanel)}
-          onTogglePersonalKanban={() => setShowPersonalKanban(!showPersonalKanban)}
-          onToggleFileExplorer={() => setShowFileExplorer(!showFileExplorer)}
-          onToggleEnvManager={() => setShowEnvManager(!showEnvManager)}
-          onTogglePackageManager={() => setShowPackageManager(!showPackageManager)}
-          onToggleApiLab={() => setShowApiLab(!showApiLab)}
-          onToggleMonorepoGraph={() => setShowMonorepoGraph(!showMonorepoGraph)}
-          onToggleMdViewer={() => setShowMdViewer(!showMdViewer)}
-          onToggleConfigEditor={() => setShowConfigEditor(!showConfigEditor)}
-          onToggleIconBrowser={() => setShowIconBrowser(!showIconBrowser)}
-          onToggleTailwindLabs={() => setShowTailwindLabs(!showTailwindLabs)}
-          onToggleNpmLookup={() => setShowNpmLookup(!showNpmLookup)}
-          onToggleHtmlToJsx={() => setShowHtmlToJsx(!showHtmlToJsx)}
-          onToggleSvgOptimizer={() => setShowSvgOptimizer(!showSvgOptimizer)}
-          onToggleStorageInspector={() => setShowStorageInspector(!showStorageInspector)}
-          currentProject={currentProject}
-        />
+
 
         <AppTerminalTabs
           tabs={tabs}
@@ -356,6 +359,8 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
           />
         </>
       </section>
+      </div>
+      </div>
 
       <>
         <ModalBoundary><PortManager

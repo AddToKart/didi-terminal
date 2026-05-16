@@ -207,10 +207,18 @@ export function AppTopbar({
   const showExtras = isExtraLayoutsOpen || isExtraActive;
   return (
     <div 
-      className="h-10 border-b border-app-border flex items-center justify-between pl-4 pr-0 bg-app-bg relative z-50 select-none"
+      className="h-10 border-b border-app-border flex items-center justify-between pl-2 pr-0 bg-app-bg relative z-50 select-none"
     >
       <div className="absolute inset-0 -z-10" data-tauri-drag-region />
-      <form onSubmit={onSpawnAgent} className="flex items-center gap-2">
+      <div className="flex items-center gap-2">
+        <button
+          onClick={onToggleSidebar}
+          className="p-1 rounded-md transition-colors text-zinc-400 hover:text-white hover:bg-white/5 z-10"
+          title="Toggle Sidebar"
+        >
+          {isSidebarOpen ? <PanelLeftClose size={16} strokeWidth={2} /> : <PanelLeft size={16} strokeWidth={2} />}
+        </button>
+        <form onSubmit={onSpawnAgent} className="flex items-center gap-2">
         <div className="relative flex items-center">
           <button type="submit" className="absolute left-1.5 text-brand-primary transition-colors p-1 z-10 rounded">
             <Plus size={14} strokeWidth={3} />
@@ -232,6 +240,7 @@ export function AppTopbar({
           <Globe size={16} strokeWidth={2.5} />
         </button>
       </form>
+      </div>
 
       <div className="flex items-center gap-3 px-2">
         {appMode === "orchestrator" && (
@@ -428,17 +437,6 @@ export function AppTopbar({
             {showExtras ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
           </button>
         </div>
-
-
-        {appMode === "orchestrator" && (
-          <button
-            onClick={onToggleSidebar}
-            className="p-1 rounded-lg transition-colors text-zinc-300 hover:text-brand-primary bg-app-panel border border-app-border"
-            title="Toggle Sidebar"
-          >
-            {isSidebarOpen ? <PanelLeftClose size={16} strokeWidth={2.5} /> : <PanelLeft size={16} strokeWidth={2.5} />}
-          </button>
-        )}
         
         <div className="h-full ml-6">
           <WindowControls />

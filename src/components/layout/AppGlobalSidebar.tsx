@@ -503,20 +503,7 @@ export function AppGlobalSidebar({
   return (
     <TooltipProvider delayDuration={300}>
       <aside className="w-80 border-r border-white/5 bg-[#0b0c0e] flex flex-col shadow-2xl z-20 shrink-0 relative overflow-hidden">
-        {/* Top spacer to account for the top bar */}
-        <div className="h-10 shrink-0 border-b border-app-border flex items-center justify-end px-4" data-tauri-drag-region>
-          {onCloseSidebar && (
-            <button
-              onClick={onCloseSidebar}
-              className="p-1 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition-colors no-drag"
-              title="Collapse Sidebar"
-            >
-              <PanelLeftClose size={14} />
-            </button>
-          )}
-        </div>
-        
-        <ScrollArea className="flex-1 px-3 mt-0">
+        <ScrollArea className="flex-1 px-3 mt-4">
           <div className="space-y-6 pb-6">
             <div>
               <div className="flex items-center justify-between px-2 mb-3">
