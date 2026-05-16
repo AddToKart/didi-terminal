@@ -247,7 +247,6 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
               onSectionSelect={handleSectionSelect}
               tasks={tasks}
               agentReadyStates={agentStatusMap}
-              onCloseSidebar={() => setIsSidebarOpen(false)}
             />
           )}
 

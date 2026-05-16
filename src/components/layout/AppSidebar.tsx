@@ -54,7 +54,7 @@ export function AppSidebar({
   activity,
 }: AppSidebarProps) {
   return (
-    <aside className="w-72 border-l border-app-border bg-app-panel flex flex-col shadow-md z-10 shrink-0">
+    <aside className="w-56 md:w-64 lg:w-72 transition-all duration-300 border-l border-app-border bg-app-panel flex flex-col shadow-md z-10 shrink-0">
       <div className="flex-1 overflow-y-auto flex flex-col">
         <div className="shrink-0 p-4 border-b border-app-border space-y-4">
           <div className="flex justify-between items-center text-xs font-semibold text-zinc-400">
@@ -68,7 +68,7 @@ export function AppSidebar({
             </div>
             <button
               onClick={onOpenProject}
-              className="w-full bg-app-panel hover:bg-zinc-900/40 border border-zinc-800/50 hover:border-zinc-700/50 px-3 py-2 text-xs font-medium text-zinc-300 flex items-center justify-between transition-colors group rounded-lg"
+              className="w-full bg-app-panel hover:bg-zinc-900/40 border border-zinc-800/50 hover:border-zinc-700/50 px-3 py-2 text-xs font-medium text-zinc-300 flex items-center justify-between transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] group rounded-lg"
             >
               <span className="truncate">{currentProject ? currentProject.split("\\").pop() : "Select Directory..."}</span>
               <FolderOpen size={14} className="text-zinc-500 group-hover:text-zinc-300 transition-colors" />
@@ -78,7 +78,7 @@ export function AppSidebar({
           {currentProject && (
             <button
               onClick={onInitialize}
-              className="w-full bg-brand-accent/10 hover:bg-brand-accent/20 text-brand-primary border border-brand-accent/30 hover:border-brand-accent/50 px-3 py-2 text-xs font-bold uppercase transition-colors flex items-center justify-center gap-2 rounded-lg"
+              className="w-full bg-brand-accent/10 hover:bg-brand-accent/20 text-brand-primary border border-brand-accent/30 hover:border-brand-accent/50 px-3 py-2 text-xs font-bold uppercase transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 rounded-lg"
             >
               <ShieldAlert size={14} /> Initialize Didi Protocol
             </button>
@@ -118,7 +118,7 @@ export function AppSidebar({
           </div>
           <div className="p-3 space-y-2">
             {agents.map(agent => (
-              <div key={agent.id} className="group flex items-center justify-between px-3 py-2 bg-app-panel border border-zinc-800/50 hover:border-zinc-700/50 transition-colors rounded-lg">
+              <div key={agent.id} className="group flex items-center justify-between px-3 py-2 bg-app-panel border border-zinc-800/50 hover:border-zinc-700/50 transition-all duration-200 hover:scale-[1.02] rounded-lg">
                 <div className="flex items-center gap-2 truncate">
                   <div className="w-1.5 h-1.5 rounded-full bg-brand-accent animate-pulse" />
                   <span className="text-xs font-medium text-zinc-300 truncate">{agent.name}</span>
@@ -164,7 +164,7 @@ export function AppSidebar({
                 <div className="text-xs text-zinc-500">No tracked tasks</div>
               ) : (
                 tasks.slice(0, 8).map(task => (
-                  <div key={task.id} className="border border-zinc-800/50 bg-app-panel/50 px-3 py-2 rounded-lg">
+                  <div key={task.id} className="border border-zinc-800/50 bg-app-panel/50 px-3 py-2 rounded-lg transition-all duration-200 hover:scale-[1.02] hover:bg-app-panel hover:border-zinc-700/50">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-xs font-medium text-brand-primary truncate">{task.target}</span>
                       <span className={`text-[10px] uppercase ${task.status === "complete" ? "text-emerald-400" : "text-amber-400"}`}>

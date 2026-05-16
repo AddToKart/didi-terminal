@@ -1,7 +1,6 @@
-import { AppTerminalArea } from "../components/layout/AppTerminalArea";
 import { WindowControls } from "../components/layout/WindowControls";
+import { ZenTerminalArea } from "../components/terminal/ZenTerminalArea";
 import type { ZenModeProps } from "../types/zen-mode.types";
-
 
 export function ZenModeView({ controller }: ZenModeProps) {
   const {
@@ -10,7 +9,7 @@ export function ZenModeView({ controller }: ZenModeProps) {
     zenAgents,
     setZenAgents,
     zenLayout,
-    focusedZenAgent,
+    lastActiveZenAgent,
     setLastActiveZenAgent,
   } = controller;
 
@@ -20,6 +19,7 @@ export function ZenModeView({ controller }: ZenModeProps) {
         className="flex-1 min-h-0 min-w-0 flex relative transition-colors duration-500"
         style={{ backgroundColor: isGlass ? "transparent" : "#000000" }}
       >
+        {/* Hidden hover zone at top → reveals exit + window controls */}
         <div className="absolute top-0 left-0 right-0 h-2 z-[100] group/exit pointer-events-auto">
           <div className="absolute top-0 left-0 right-0 -translate-y-full group-hover/exit:translate-y-0 transition-transform duration-300 flex items-center justify-center py-4">
             <button
@@ -34,24 +34,18 @@ export function ZenModeView({ controller }: ZenModeProps) {
           </div>
         </div>
 
-        <AppTerminalArea
+        <ZenTerminalArea
           agents={zenAgents.map(a => ({ id: a, name: a }))}
-          currentProject={null}
-          layoutOrientation={zenLayout as any}
+          layoutOrientation={zenLayout}
           onRemoveAgent={agent => setZenAgents(prev => prev.filter(a => a !== agent))}
-          onDetachAgent={() => {}}
           onReorderAgents={() => {}}
           onSplit={() => {
             const newId = `zen-terminal-${crypto.randomUUID().slice(0, 4)}`;
             setZenAgents(prev => [...prev, newId]);
             setLastActiveZenAgent(newId);
           }}
-          workspaceId="zen"
-          isZenMode
-          focusedAgentId={focusedZenAgent}
-          onFocusAgent={agent => {
-            setLastActiveZenAgent(agent);
-          }}
+          spotlightAgentId={lastActiveZenAgent}
+          onSpotlightAgent={setLastActiveZenAgent}
           isGlass={isGlass}
         />
       </div>

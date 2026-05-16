@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, type FormEvent } from "react";
 import { Brain, ClipboardList, Columns, Globe, Grid2X2, Network, PanelLeft, PanelLeftClose, Plus, Rows, Layers, AlignLeft, Sparkles, ChevronRight, ChevronLeft, GitMerge, LayoutList, FolderSearch, FileKey2, Package, Zap, FolderTree, FileText, FileCode, Palette, Box, HardDrive, Code2, Database } from "lucide-react";
 import { WindowControls } from "./WindowControls";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+
 
 
 interface AppTopbarProps {
@@ -36,12 +36,12 @@ interface AppTopbarProps {
   onToggleStorageInspector?: () => void;
   onToggleMockDataGenerator?: () => void;
   currentProject: string | null;
-  }
+}
 
-  function WebDevPopover({ onToggleIconBrowser, onToggleTailwindLabs, onToggleNpmLookup, onToggleHtmlToJsx, onToggleSvgOptimizer, onToggleStorageInspector, onToggleMockDataGenerator }: {
+function WebDevPopover({ onToggleIconBrowser, onToggleTailwindLabs, onToggleNpmLookup, onToggleHtmlToJsx, onToggleSvgOptimizer, onToggleStorageInspector, onToggleMockDataGenerator }: {
   onToggleIconBrowser?: () => void; onToggleTailwindLabs?: () => void;
   onToggleNpmLookup?: () => void; onToggleHtmlToJsx?: () => void; onToggleSvgOptimizer?: () => void; onToggleStorageInspector?: () => void; onToggleMockDataGenerator?: () => void;
-  }) {
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -123,11 +123,10 @@ interface AppTopbarProps {
     <div ref={ref} className="relative shrink-0">
       <button
         onClick={() => setOpen(!open)}
-        className={`flex items-center justify-center p-1 rounded-lg transition-all border ${
-          open
+        className={`flex items-center justify-center p-1 rounded-lg transition-all border ${open
             ? 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30 shadow-[0_0_12px_rgba(99,102,241,0.08)]'
             : 'text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border-zinc-800/60 hover:border-zinc-700'
-        }`}
+          }`}
         title="Web Development Tools (⌘K)"
       >
         <Palette size={14} />
@@ -208,20 +207,20 @@ export function AppTopbar({
   const showExtras = isExtraLayoutsOpen || isExtraActive;
   return (
     <div 
-      className="h-10 border-b border-app-border bg-app-bg relative z-50 select-none flex items-stretch justify-between pl-2 pr-0"
+      className="h-10 border-b border-app-border bg-app-bg relative z-50 select-none flex items-stretch justify-between pl-2 pr-0 overflow-x-auto scrollbar-hide overflow-y-hidden"
       data-tauri-drag-region
     >
       <div className="flex items-center gap-2 h-full" data-tauri-drag-region>
         <button
           onClick={onToggleSidebar}
-          className="p-1 rounded-md transition-colors text-zinc-400 hover:text-white hover:bg-white/5 z-10"
+          className="p-1 rounded-md transition-all duration-200 hover:text-white hover:bg-white/5 hover:scale-105 active:scale-95 z-10"
           title="Toggle Sidebar"
         >
           {isSidebarOpen ? <PanelLeftClose size={16} strokeWidth={2} /> : <PanelLeft size={16} strokeWidth={2} />}
         </button>
-        <form onSubmit={onSpawnAgent} className="flex items-center gap-2" data-tauri-drag-region>
+        <form onSubmit={onSpawnAgent} className="flex items-center gap-1 md:gap-2" data-tauri-drag-region>
         <div className="relative flex items-center">
-          <button type="submit" className="absolute left-1.5 text-brand-primary transition-colors p-1 z-10 rounded">
+          <button type="submit" className="absolute left-1.5 text-brand-primary transition-all duration-200 hover:scale-110 active:scale-95 p-1 z-10 rounded">
             <Plus size={14} strokeWidth={3} />
           </button>
           <input
@@ -229,13 +228,13 @@ export function AppTopbar({
             value={newAgentName}
             onChange={e => onChangeNewAgentName(e.target.value)}
             placeholder={appMode === "terminal" ? "Spawn new terminal..." : "Spawn new agent..."}
-            className="bg-app-panel border border-app-border focus:border-brand-accent text-white pl-8 pr-3 py-0 text-[10px] font-bold outline-none transition-colors w-64 placeholder:text-zinc-400 rounded-md shadow-sm h-5"
+            className="bg-app-panel border border-app-border focus:border-brand-accent text-white pl-8 pr-3 py-0 text-[10px] font-bold outline-none transition-all duration-300 w-24 sm:w-32 md:w-48 lg:w-64 placeholder:text-zinc-400 rounded-md shadow-sm h-5"
           />
         </div>
         <button
           type="button"
           onClick={onSpawnBrowser}
-          className="p-1 rounded-lg transition-colors text-zinc-300 hover:text-brand-primary bg-app-panel border border-app-border"
+          className="p-1 rounded-lg transition-all duration-200 text-zinc-300 hover:text-brand-primary bg-app-panel border border-app-border hover:border-brand-primary/30 hover:scale-105 active:scale-95 hover:shadow-[0_0_8px_rgba(var(--brand-primary),0.2)]"
           title="Open Browser Pane"
         >
           <Globe size={16} strokeWidth={2.5} />
@@ -243,40 +242,40 @@ export function AppTopbar({
       </form>
       </div>
 
-      <div className="flex items-stretch h-full gap-3" data-tauri-drag-region>
+      <div className="flex items-stretch h-full gap-1 md:gap-3" data-tauri-drag-region>
         {appMode === "orchestrator" && (
-          <div className="flex items-center gap-3 px-2" data-tauri-drag-region>
+          <div className="flex items-center gap-1 md:gap-3 px-1 md:px-2" data-tauri-drag-region>
 
             <button
               onClick={onOpenBrainstorm}
-              className="p-1 rounded-lg transition-colors text-zinc-300 hover:text-brand-primary bg-app-panel border border-app-border"
+              className="p-1 rounded-lg transition-all duration-200 text-zinc-300 hover:text-brand-primary bg-app-panel border border-app-border hover:border-brand-primary/30 hover:scale-105 active:scale-95 hover:shadow-[0_0_8px_rgba(var(--brand-primary),0.2)]"
               title="Brainstorm Mode"
             >
               <Brain size={16} strokeWidth={2.5} />
             </button>
             <button
               onClick={onOpenMasterPlan}
-              className="p-1 rounded-lg transition-colors text-zinc-300 hover:text-brand-primary bg-app-panel border border-app-border"
+              className="p-1 rounded-lg transition-all duration-200 text-zinc-300 hover:text-brand-primary bg-app-panel border border-app-border hover:border-brand-primary/30 hover:scale-105 active:scale-95 hover:shadow-[0_0_8px_rgba(var(--brand-primary),0.2)]"
               title="Master Plan Board"
             >
               <ClipboardList size={16} strokeWidth={2.5} />
             </button>
             <button
               onClick={onOpenNetworkGraph}
-              className="p-1 rounded-lg transition-colors text-zinc-300 hover:text-brand-primary bg-app-panel border border-app-border"
+              className="p-1 rounded-lg transition-all duration-200 text-zinc-300 hover:text-brand-primary bg-app-panel border border-app-border hover:border-brand-primary/30 hover:scale-105 active:scale-95 hover:shadow-[0_0_8px_rgba(var(--brand-primary),0.2)]"
               title="Collaboration Graph"
             >
               <Network size={16} strokeWidth={2.5} />
             </button>
           </div>
         )}
-        <div className="flex items-center gap-3 px-2" data-tauri-drag-region>
+        <div className="flex items-center gap-1 md:gap-3 px-1 md:px-2" data-tauri-drag-region>
         {currentProject && (
           <div className="flex items-center bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-1.5 py-0.5 gap-1 shadow-sm ml-2">
             <div className={`flex items-center gap-1 transition-all duration-700 ease-in-out ${isToolsOpen ? "max-w-[1200px] opacity-100 px-0.5" : "max-w-0 opacity-0 overflow-hidden"}`}>
               <button
                 onClick={onToggleFileExplorer}
-                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all shrink-0"
+                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all duration-200 shrink-0 hover:scale-105 active:scale-95"
                 title="Project Explorer"
               >
                 <FolderSearch size={14} />
@@ -284,7 +283,7 @@ export function AppTopbar({
 
               <button
                 onClick={onTogglePersonalKanban}
-                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all shrink-0"
+                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all duration-200 shrink-0 hover:scale-105 active:scale-95"
                 title="My Tasks"
               >
                 <LayoutList size={14} />
@@ -292,7 +291,7 @@ export function AppTopbar({
 
               <button
                 onClick={onToggleEnvManager}
-                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all shrink-0"
+                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all duration-200 shrink-0 hover:scale-105 active:scale-95"
                 title="Env Manager"
               >
                 <FileKey2 size={14} />
@@ -300,7 +299,7 @@ export function AppTopbar({
 
               <button
                 onClick={onTogglePackageManager}
-                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all shrink-0"
+                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all duration-200 shrink-0 hover:scale-105 active:scale-95"
                 title="Package Manager"
               >
                 <Package size={14} />
@@ -308,7 +307,7 @@ export function AppTopbar({
 
               <button
                 onClick={onToggleApiLab}
-                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all shrink-0"
+                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all duration-200 shrink-0 hover:scale-105 active:scale-95"
                 title="API Lab"
               >
                 <Zap size={14} />
@@ -316,7 +315,7 @@ export function AppTopbar({
 
               <button
                 onClick={onToggleMonorepoGraph}
-                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all shrink-0"
+                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all duration-200 shrink-0 hover:scale-105 active:scale-95"
                 title="Dependency Graph"
               >
                 <FolderTree size={14} />
@@ -324,7 +323,7 @@ export function AppTopbar({
 
               <button
                 onClick={onToggleMdViewer}
-                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all shrink-0"
+                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all duration-200 shrink-0 hover:scale-105 active:scale-95"
                 title="Markdown Viewer"
               >
                 <FileText size={14} />
@@ -332,7 +331,7 @@ export function AppTopbar({
 
               <button
                 onClick={onToggleConfigEditor}
-                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all shrink-0"
+                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all duration-200 shrink-0 hover:scale-105 active:scale-95"
                 title="Config Editor"
               >
                 <FileCode size={14} />
@@ -350,7 +349,7 @@ export function AppTopbar({
               />
               <button
                 onClick={onToggleGitPanel}
-                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all shrink-0"
+                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all duration-200 shrink-0 hover:scale-105 active:scale-95"
                 title="Source Control"
               >
                 <GitMerge size={14} />
@@ -359,7 +358,7 @@ export function AppTopbar({
 
             <button
               onClick={() => setIsToolsOpen(!isToolsOpen)}
-              className={`p-1 rounded-md transition-all ${isToolsOpen ? "bg-white/5 text-zinc-300" : "text-zinc-500 hover:text-zinc-300"}`}
+              className={`p-1 rounded-md transition-all duration-200 hover:scale-105 active:scale-95 ${isToolsOpen ? "bg-white/5 text-zinc-300" : "text-zinc-500 hover:text-zinc-300"}`}
               title={isToolsOpen ? "Collapse Tools" : "Expand Tools"}
             >
               {isToolsOpen ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
@@ -388,14 +387,14 @@ export function AppTopbar({
         <div className="flex items-center bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-1.5 py-0.5 gap-1 shadow-sm ml-2">
           <button
             onClick={() => onSetLayoutOrientation("vertical")}
-            className={`p-1 rounded-lg transition-all shrink-0 ${layoutOrientation === "vertical" ? "bg-brand-accent/30 text-white shadow-inner" : "text-zinc-500 hover:text-zinc-300"}`}
+            className={`p-1 rounded-md transition-all duration-200 hover:scale-105 active:scale-95 ${layoutOrientation === "vertical" ? "bg-brand-accent/30 text-white shadow-inner" : "text-zinc-500 hover:text-zinc-300"}`}
             title="Vertical Split (Side-by-side)"
           >
             <Columns size={14} strokeWidth={2.5} />
           </button>
           <button
             onClick={() => onSetLayoutOrientation("horizontal")}
-            className={`p-1 rounded-lg transition-all shrink-0 ${layoutOrientation === "horizontal" ? "bg-brand-accent/30 text-white shadow-inner" : "text-zinc-500 hover:text-zinc-300"}`}
+            className={`p-1 rounded-md transition-all duration-200 hover:scale-105 active:scale-95 ${layoutOrientation === "horizontal" ? "bg-brand-accent/30 text-white shadow-inner" : "text-zinc-500 hover:text-zinc-300"}`}
             title="Horizontal Stack"
           >
             <Rows size={14} strokeWidth={2.5} />
@@ -434,7 +433,7 @@ export function AppTopbar({
 
           <button
             onClick={() => setIsExtraLayoutsOpen(!isExtraLayoutsOpen)}
-            className={`p-1 rounded-md transition-all ${showExtras ? "bg-white/5 text-zinc-300" : "text-zinc-500 hover:text-zinc-300"}`}
+            className={`p-1 rounded-md transition-all duration-200 hover:scale-105 active:scale-95 ${showExtras ? "bg-white/5 text-zinc-300" : "text-zinc-500 hover:text-zinc-300"}`}
             title={showExtras ? "Collapse Layouts" : "More Layouts"}
           >
             {showExtras ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}

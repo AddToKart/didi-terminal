@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { FolderOpen, Settings, Bell, Palette, Plus, TerminalSquare, Workflow, MoreVertical, Pencil, Trash2, Globe, Copy, Check, GitBranch, Share2, Focus, Shield, ChevronDown, ChevronRight, Activity, PanelLeftClose } from "lucide-react";
+import { FolderOpen, Settings, Bell, Palette, Plus, TerminalSquare, Workflow, MoreVertical, Pencil, Trash2, Globe, Copy, Check, GitBranch, Share2, Focus, Shield, ChevronDown, ChevronRight, Activity } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   DndContext,
@@ -57,7 +57,7 @@ interface AppGlobalSidebarProps {
   onSectionSelect: (workspaceId: string, sectionId: string) => void;
   tasks?: TaskRecord[];
   agentReadyStates?: Record<string, boolean>;
-  onCloseSidebar?: () => void;
+
 }
 
 interface SectionItemProps {
@@ -457,7 +457,6 @@ export function AppGlobalSidebar({
   onSectionSelect,
   tasks,
   agentReadyStates,
-  onCloseSidebar,
 }: AppGlobalSidebarProps) {
   const [editingWsId, setEditingWsId] = useState<string | null>(null);
   const [editWsName, setEditWsName] = useState("");

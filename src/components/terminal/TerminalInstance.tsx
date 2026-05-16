@@ -686,7 +686,7 @@ export function TerminalInstance({ agentId, agentName, cwd, onRemove, onDetach, 
 
   return (
     <div
-      className={`flex flex-col h-full w-full bg-transparent transition-colors duration-300 ${isZenMode ? '' : sentinelPaused ? 'border border-red-400 shadow-sm z-10 relative' : isPulsing ? 'border border-brand-accent animate-pulse-border shadow-sm z-10 relative' : isFocused ? 'border border-brand-accent shadow-sm z-10 relative' : 'border border-app-border z-0'}`}
+      className={`flex flex-col h-full w-full transition-colors duration-300 ${isZenMode ? 'bg-black zen-terminal' : sentinelPaused ? 'bg-transparent border border-red-400 shadow-sm z-10 relative' : isPulsing ? 'bg-transparent border border-brand-accent animate-pulse-border shadow-sm z-10 relative' : isFocused ? 'bg-transparent border border-brand-accent shadow-sm z-10 relative' : 'bg-transparent border border-app-border z-0'}`}
       tabIndex={-1}
       onFocus={handleFocus}
       onBlur={handleBlur}

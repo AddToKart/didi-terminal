@@ -21,7 +21,7 @@ import { cn } from "../../lib/cn";
 import type { AgentInstance } from "../../types/workspace";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
-interface AppTerminalAreaProps {
+export interface AppTerminalAreaProps {
   agents: AgentInstance[];
   currentProject: string | null;
   layoutOrientation: "horizontal" | "vertical" | "grid" | "focus" | "presentation" | "canvas" | "waterfall" | "dynamic";
@@ -32,7 +32,6 @@ interface AppTerminalAreaProps {
   onOpenDirectory?: () => void;
   workspaceName?: string;
   workspaceId: string;
-  isZenMode?: boolean;
   focusedAgentId?: string | null;
   onFocusAgent?: (agent: string) => void;
   isGlass?: boolean;
@@ -52,7 +51,6 @@ interface SortableTerminalWrapperProps {
   styleOverrides?: React.CSSProperties;
   workspaceName?: string;
   workspaceId: string;
-  isZenMode?: boolean;
   isFocused?: boolean;
   onFocus?: () => void;
   focusedAgentId?: string | null;
@@ -62,15 +60,17 @@ interface SortableTerminalWrapperProps {
 const shallowEqualStyle = (left?: React.CSSProperties, right?: React.CSSProperties) => {
   if (left === right) return true;
   if (!left || !right) return !left && !right;
-
   const leftKeys = Object.keys(left);
   const rightKeys = Object.keys(right);
   if (leftKeys.length !== rightKeys.length) return false;
-
   return leftKeys.every(key => left[key as keyof React.CSSProperties] === right[key as keyof React.CSSProperties]);
 };
 
-const SortableTerminalWrapper = memo(function SortableTerminalWrapper({ agent, currentProject, onRemoveAgent, onDetachAgent, onSplitAgent, flexBasis, height, width, styleOverrides, workspaceName, workspaceId, isZenMode, isFocused, onFocus, focusedAgentId }: SortableTerminalWrapperProps) {
+const SortableTerminalWrapper = memo(function SortableTerminalWrapper({
+  agent, currentProject, onRemoveAgent, onDetachAgent, onSplitAgent,
+  flexBasis, height, width, styleOverrides, workspaceName, workspaceId,
+  isFocused, onFocus, focusedAgentId,
+}: SortableTerminalWrapperProps) {
   const { attributes, listeners, setNodeRef, isDragging, transform, transition } = useSortable({
     id: agent.id,
     data: { agentName: agent.name }
@@ -98,10 +98,7 @@ const SortableTerminalWrapper = memo(function SortableTerminalWrapper({ agent, c
     <div
       ref={setNodeRef}
       className={cn(
-        "min-h-0 min-w-0 flex-1 flex flex-col transition-all duration-500 ease-in-out",
-        isZenMode && "rounded-md overflow-hidden",
-        isZenMode && isFocused ? "bg-app-panel ring-1 ring-brand-accent/50 shadow-[0_0_30px_rgba(59,130,246,0.15)] z-10" : "bg-app-panel",
-        isZenMode && !isFocused && "ring-1 ring-white/5",
+        "min-h-0 min-w-0 flex-1 flex flex-col bg-app-panel",
         isDragging && "shadow-2xl opacity-90 scale-[1.02] ring-1 ring-brand-accent/50 rounded-md overflow-hidden z-50"
       )}
       style={style}
@@ -126,7 +123,6 @@ const SortableTerminalWrapper = memo(function SortableTerminalWrapper({ agent, c
           onSplit={handleSplit}
           dragAttributes={attributes}
           dragListeners={listeners}
-          isZenMode={isZenMode}
           onFocus={onFocus}
         />
       )}
@@ -141,15 +137,14 @@ const SortableTerminalWrapper = memo(function SortableTerminalWrapper({ agent, c
   prev.width === next.width &&
   prev.workspaceName === next.workspaceName &&
   prev.workspaceId === next.workspaceId &&
-  prev.isZenMode === next.isZenMode &&
   prev.onRemoveAgent === next.onRemoveAgent &&
   prev.onDetachAgent === next.onDetachAgent &&
   prev.onSplitAgent === next.onSplitAgent &&
   prev.isGlass === next.isGlass &&
+  prev.focusedAgentId === next.focusedAgentId &&
+  prev.isFocused === next.isFocused &&
   shallowEqualStyle(prev.styleOverrides, next.styleOverrides)
 );
-
-
 
 // ── Main terminal area ────────────────────────────────────────────────────────
 
@@ -164,7 +159,6 @@ export function AppTerminalArea({
   onOpenDirectory,
   workspaceName,
   workspaceId,
-  isZenMode,
   focusedAgentId,
   onFocusAgent,
   isGlass,
@@ -198,16 +192,11 @@ export function AppTerminalArea({
         const defaultIndex = agents.findIndex(a => a.id === active.id as string);
         const startX = existing ? existing.x : Math.min(defaultIndex * 40, 300);
         const startY = existing ? existing.y : Math.min(defaultIndex * 40, 300);
-
         return {
           ...prev,
-          [active.id as string]: {
-            x: startX + delta.x,
-            y: startY + delta.y
-          }
+          [active.id as string]: { x: startX + delta.x, y: startY + delta.y }
         };
       });
-
       const currentIndex = agents.findIndex(a => a.id === active.id as string);
       if (currentIndex !== -1 && currentIndex !== agents.length - 1) {
         onReorderAgents(currentIndex, agents.length - 1);
@@ -216,7 +205,6 @@ export function AppTerminalArea({
     }
 
     if (!over || active.id === over.id) return;
-
     const oldIndex = agents.findIndex(a => a.id === active.id as string);
     const newIndex = agents.findIndex(a => a.id === over.id as string);
     if (oldIndex !== -1 && newIndex !== -1) {
@@ -224,13 +212,13 @@ export function AppTerminalArea({
     }
   };
 
-  const agentsToRender = agents; // Keep all in DOM for animations
+  const agentsToRender = agents;
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const virtualizer = useVirtualizer({
     count: agents.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => 404, // 400px height + 4px margin
+    estimateSize: () => 404,
     overscan: 2,
   });
 
@@ -276,7 +264,7 @@ export function AppTerminalArea({
               <div
                 className={cn(
                   "flex-1 min-h-0 min-w-0 transition-all duration-500 ease-in-out",
-                  isZenMode ? "bg-transparent gap-[2px] p-[2px]" : "rounded-lg overflow-hidden border border-app-border bg-app-border gap-1",
+                  "rounded-lg overflow-hidden border border-app-border bg-app-border gap-[1px]",
                   !focusedAgentId && layoutOrientation === "horizontal" && "flex flex-row",
                   !focusedAgentId && layoutOrientation === "vertical" && "flex flex-col",
                   !focusedAgentId && layoutOrientation === "focus" && "flex flex-col flex-wrap content-stretch",
@@ -324,7 +312,6 @@ export function AppTerminalArea({
                             onSplitAgent={stableSplitAgent}
                             workspaceName={workspaceName}
                             workspaceId={workspaceId}
-                            isZenMode={isZenMode}
                             focusedAgentId={focusedAgentId}
                             isFocused={agent.id === focusedAgentId}
                             isGlass={isGlass}
@@ -343,17 +330,14 @@ export function AppTerminalArea({
 
                   if (layoutOrientation === "grid") {
                     styleOverrides = { width: "100%", height: "100%" };
-
                     const cols = Math.ceil(Math.sqrt(Math.max(1, agents.length)));
                     const remainder = agents.length % cols;
-
-                    // If this is the last item and there's a remainder, span the rest of the columns
                     if (index === agents.length - 1 && remainder !== 0) {
                       const columnsToSpan = cols - remainder + 1;
                       styleOverrides.gridColumn = `span ${columnsToSpan}`;
                     }
                   } else if (layoutOrientation === "focus") {
-                    const gapSize = isZenMode ? 2 : 4;
+                    const gapSize = 4;
                     if (agents.length === 1) {
                       flexBasis = "100%";
                       width = "100%";
@@ -369,7 +353,7 @@ export function AppTerminalArea({
                       }
                     }
                   } else if (layoutOrientation === "presentation") {
-                    const gapSize = isZenMode ? 2 : 4;
+                    const gapSize = 4;
                     if (agents.length === 1) {
                       flexBasis = "100%";
                       height = "100%";
@@ -386,33 +370,21 @@ export function AppTerminalArea({
                     }
                   } else if (layoutOrientation === "dynamic") {
                     if (agents.length > 2 && index === 0) {
-                      styleOverrides = {
-                        gridColumn: "span 2",
-                        gridRow: "span 2",
-                      };
+                      styleOverrides = { gridColumn: "span 2", gridRow: "span 2" };
                     } else {
-                      styleOverrides = {
-                        gridColumn: "span 1",
-                        gridRow: "span 1",
-                      };
+                      styleOverrides = { gridColumn: "span 1", gridRow: "span 1" };
                     }
-
-                    // The dynamic grid has 4 columns.
-                    // The first item (if >2 agents) takes up 2x2 (equivalent to 4 standard 1x1 cells).
-                    // The remaining items take up 1 cell each.
-                    // We calculate the total "cell slots" consumed so far to find the remainder on the last item.
                     if (index === agents.length - 1) {
                       let totalCellsConsumed = 0;
                       if (agents.length > 2) {
-                        totalCellsConsumed = 4 + (agents.length - 1 - 1); // 4 for the big one, plus 1 for each other item before this one
+                        totalCellsConsumed = 4 + (agents.length - 1 - 1);
                       } else {
                         totalCellsConsumed = agents.length - 1;
                       }
-
                       const remainder = totalCellsConsumed % 4;
                       if (remainder !== 0) {
                         const columnsToSpan = 4 - remainder;
-                        styleOverrides.gridColumn = `span ${columnsToSpan + 1}`; // +1 because the item itself is 1 column
+                        styleOverrides.gridColumn = `span ${columnsToSpan + 1}`;
                       }
                     }
                   }
@@ -431,7 +403,6 @@ export function AppTerminalArea({
                       styleOverrides={styleOverrides}
                       workspaceName={workspaceName}
                       workspaceId={workspaceId}
-                      isZenMode={isZenMode}
                       focusedAgentId={focusedAgentId}
                       isFocused={agent.id === focusedAgentId}
                       isGlass={isGlass}
