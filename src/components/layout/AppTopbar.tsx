@@ -262,7 +262,7 @@ export function AppTopbar({
           </>
         )}
         {currentProject && (
-          <div className="flex items-center bg-zinc-900/60 border border-zinc-800/80 rounded-xl p-1 gap-1 shadow-sm ml-2">
+          <div className="flex items-center bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-2 py-1 gap-2 shadow-sm ml-6">
           <div className={`flex items-center gap-1 transition-all duration-700 ease-in-out ${isToolsOpen ? "max-w-[1200px] opacity-100 px-0.5 overflow-visible" : "max-w-0 opacity-0 overflow-hidden"}`}>
               <button
                 onClick={onToggleFileExplorer}
@@ -384,7 +384,7 @@ export function AppTopbar({
           </div>
         )}
 
-        <div className="flex items-center bg-zinc-900/60 border border-zinc-800/80 rounded-xl p-1 gap-1 shadow-sm ml-2">
+        <div className="flex items-center bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-2 py-1 gap-2 shadow-sm ml-4">
           <button
             onClick={() => onSetLayoutOrientation("vertical")}
             className={`p-1.5 rounded-lg transition-all shrink-0 ${layoutOrientation === "vertical" ? "bg-brand-accent/30 text-white shadow-inner" : "text-zinc-500 hover:text-zinc-300"}`}
