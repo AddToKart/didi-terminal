@@ -207,7 +207,7 @@ export function AppTopbar({
   const showExtras = isExtraLayoutsOpen || isExtraActive;
   return (
     <div 
-      className="h-8 border-b border-app-border flex items-center justify-between pl-4 pr-0 bg-app-bg relative z-50 select-none"
+      className="h-10 border-b border-app-border flex items-center justify-between pl-4 pr-0 bg-app-bg relative z-50 select-none"
     >
       <div className="absolute inset-0 -z-10" data-tauri-drag-region />
       <form onSubmit={onSpawnAgent} className="flex items-center gap-2">

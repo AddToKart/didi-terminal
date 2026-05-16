@@ -502,7 +502,7 @@ export function AppGlobalSidebar({
     <TooltipProvider delayDuration={300}>
       <aside className="w-80 border-r border-white/5 bg-[#0b0c0e] flex flex-col shadow-2xl z-20 shrink-0 relative overflow-hidden">
         {/* Top spacer to account for the top bar */}
-        <div className="h-8 shrink-0 border-b border-app-border" data-tauri-drag-region />
+        <div className="h-10 shrink-0 border-b border-app-border" data-tauri-drag-region />
         
         <ScrollArea className="flex-1 px-3 mt-0">
           <div className="space-y-6 pb-6">
