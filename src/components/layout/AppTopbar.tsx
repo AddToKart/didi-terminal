@@ -235,7 +235,7 @@ export function AppTopbar({
         </button>
       </form>
 
-      <div className="flex items-center gap-4 px-2">
+      <div className="flex items-center gap-6 px-2">
         {appMode === "orchestrator" && (
           <>
             <button
@@ -262,8 +262,8 @@ export function AppTopbar({
           </>
         )}
         {currentProject && (
-          <div className="flex items-center bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-2 py-1 gap-2 shadow-sm ml-6">
-          <div className={`flex items-center gap-1 transition-all duration-700 ease-in-out ${isToolsOpen ? "max-w-[1200px] opacity-100 px-0.5 overflow-visible" : "max-w-0 opacity-0 overflow-hidden"}`}>
+          <div className="flex items-center bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-3 py-1 gap-3 shadow-sm ml-6">
+          <div className={`flex items-center gap-3 transition-all duration-700 ease-in-out ${isToolsOpen ? "max-w-[1200px] opacity-100 px-0.5" : "max-w-0 opacity-0 overflow-hidden"}`}>
               <button
                 onClick={onToggleFileExplorer}
                 className="flex items-center gap-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all text-[11px] font-bold shrink-0"
@@ -384,7 +384,7 @@ export function AppTopbar({
           </div>
         )}
 
-        <div className="flex items-center bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-2 py-1 gap-2 shadow-sm ml-4">
+        <div className="flex items-center bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-3 py-1 gap-3 shadow-sm ml-4">
           <button
             onClick={() => onSetLayoutOrientation("vertical")}
             className={`p-1.5 rounded-lg transition-all shrink-0 ${layoutOrientation === "vertical" ? "bg-brand-accent/30 text-white shadow-inner" : "text-zinc-500 hover:text-zinc-300"}`}
