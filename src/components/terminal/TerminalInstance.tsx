@@ -806,7 +806,7 @@ export function TerminalInstance({ agentId, agentName, cwd, onRemove, onDetach, 
             <div className="animate-pulse text-zinc-500 text-xs tracking-widest uppercase">Loading Engine...</div>
           </div>
         )}
-        <div className={`absolute terminal-surface bg-transparent overflow-hidden ${isZenMode ? 'inset-0' : 'inset-1.5'}`} ref={terminalRef} onClick={handleContainerClick}></div>
+        <div className={`absolute terminal-surface bg-transparent overflow-hidden flex items-center justify-center ${isZenMode ? 'inset-0' : 'inset-1.5'}`} ref={terminalRef} onClick={handleContainerClick}></div>
       </div>
 
     </div>
