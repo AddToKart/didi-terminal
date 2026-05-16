@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import "flexlayout-react/style/dark.css";
 
 @tailwind base;
 @tailwind components;
@@ -247,3 +248,192 @@
   animation: flashBg 1s ease-out;
 }
 
+/* ── FlexLayout Docking Engine — Glass Atelier Theme ─────────────────────── */
+
+
+.docking-layout {
+  --color-tabset-background: #09090b;
+  --color-tabset-header-background: #09090b;
+  --color-tabset-tab-selected-background: #18181b;
+  --color-tabset-tab-unselected-background: transparent;
+  --color-tabset-tab-top-border: transparent;
+  --color-tabset-divider-line: #27272a;
+  --color-splitter: #27272a;
+  --color-splitter-hover: #3f3f46;
+  --color-splitter-drag: #6366f1;
+  --color-drag-rect-border: rgba(99, 102, 241, 0.6);
+  --color-drag-rect-background: rgba(99, 102, 241, 0.08);
+  --color-drop-target-background: rgba(99, 102, 241, 0.06);
+  --color-drop-target-border: rgba(99, 102, 241, 0.4);
+  --color-edge-indicator: rgba(99, 102, 241, 0.5);
+  --color-border: #27272a;
+  --color-tab-selected-color: #e4e4e7;
+  --color-tab-unselected-color: #71717a;
+  --color-maximize-button: #71717a;
+  --color-close-button: #71717a;
+  --color-close-button-hover: #ef4444;
+}
+
+/* Fill the parent container completely */
+.docking-layout .flexlayout__layout {
+  background: transparent;
+  position: absolute;
+  inset: 0;
+}
+
+/* Tab strip (the header row of each pane group) */
+.docking-layout .flexlayout__tabset_header {
+  background: #09090b;
+  border-bottom: 1px solid #27272a;
+  padding: 0 2px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+}
+
+/* Individual tab button */
+.docking-layout .flexlayout__tab_button {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  gap: 6px;
+  border-right: none;
+  border-bottom: 2px solid transparent;
+  color: #71717a;
+  font-size: 11px;
+  font-family: ui-monospace, monospace;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  cursor: pointer;
+  user-select: none;
+  background: transparent;
+  border-radius: 0;
+}
+
+.docking-layout .flexlayout__tab_button:hover {
+  color: #a1a1aa;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.docking-layout .flexlayout__tab_button--selected {
+  color: #e4e4e7;
+  border-bottom-color: #6366f1;
+  background: transparent;
+}
+
+/* Tab close button */
+.docking-layout .flexlayout__tab_button_close {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+  background: transparent;
+}
+
+.docking-layout .flexlayout__tab_button:hover .flexlayout__tab_button_close {
+  opacity: 1;
+}
+
+.docking-layout .flexlayout__tab_button_close:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+/* Tab content area */
+.docking-layout .flexlayout__tab {
+  background: #09090b;
+  overflow: hidden;
+}
+
+/* Splitter (resizable divider between panes) */
+.docking-layout .flexlayout__splitter {
+  background: #27272a;
+  transition: background 0.15s;
+}
+
+.docking-layout .flexlayout__splitter:hover,
+.docking-layout .flexlayout__splitter_drag {
+  background: #6366f1;
+}
+
+/* Drop target overlay when dragging */
+.docking-layout .flexlayout__outline_rect {
+  border: 2px solid rgba(99, 102, 241, 0.7);
+  background: rgba(99, 102, 241, 0.07);
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+/* Edge drop zones (top/bottom/left/right of pane) */
+.docking-layout .flexlayout__edge_rect {
+  background: rgba(99, 102, 241, 0.15);
+  border: 1px solid rgba(99, 102, 241, 0.4);
+}
+
+/* Tabset toolbar (right side of tab strip — maximize + custom buttons) */
+.docking-layout .flexlayout__tabset_header_inner_right {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: 4px;
+}
+
+.docking-layout .flexlayout__tabset_maximize_button,
+.docking-layout .flexlayout__tabset_restore_button {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: #52525b;
+  transition: color 0.15s, background 0.15s;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.docking-layout .flexlayout__tabset_maximize_button:hover,
+.docking-layout .flexlayout__tabset_restore_button:hover {
+  color: #a1a1aa;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Floating tab window (when tab is dragged off into floating) */
+.docking-layout .flexlayout__popup_menu {
+  background: #18181b;
+  border: 1px solid #27272a;
+  border-radius: 6px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+
+.docking-layout .flexlayout__popup_menu_item {
+  padding: 6px 12px;
+  font-size: 11px;
+  font-family: ui-monospace, monospace;
+  color: #a1a1aa;
+  cursor: pointer;
+}
+
+.docking-layout .flexlayout__popup_menu_item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #e4e4e7;
+}
+
+/* Tabset border when focused/active */
+.docking-layout .flexlayout__tabset--selected {
+  box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.25);
+}
+
+/* Scrollable tab overflow arrow buttons */
+.docking-layout .flexlayout__tabset_header .flexlayout__tabset_header_inner {
+  overflow: hidden;
+}

@@ -13,7 +13,7 @@ import { ErrorBoundary } from "../components/ErrorBoundary";
 import { AppGlobalSidebar } from "../components/layout/AppGlobalSidebar";
 import { AppTopbar } from "../components/layout/AppTopbar";
 import { AppTerminalTabs } from "../components/layout/AppTerminalTabs";
-import { AppTerminalArea } from "../components/layout/AppTerminalArea";
+import { DockingTerminalArea } from "../components/terminal/DockingTerminalArea";
 import { StatusBar } from "../components/layout/StatusBar";
 import { TwoFactorModal } from "../components/modals/TwoFactorModal";
 import { QuickPalette, type PaletteAction } from "../components/modals/QuickPalette";
@@ -294,10 +294,9 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
           onTabReorder={handleTabReorder}
         />
 
-        <AppTerminalArea
+        <DockingTerminalArea
           agents={agents}
           currentProject={currentProject}
-          layoutOrientation={layoutOrientation}
           onRemoveAgent={removeAgent}
           onDetachAgent={detachAgent}
           onReorderAgents={handleReorderAgents}
