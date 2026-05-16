@@ -80,7 +80,7 @@ interface UIState {
 export const useUIStore = create<UIState>((set) => ({
   appMode: "terminal",
   setAppMode: (appMode) => set({ appMode }),
-  isSidebarOpen: true,
+  isSidebarOpen: false,
   setIsSidebarOpen: (isSidebarOpen) => set({ isSidebarOpen }),
 
   sidecarStatus: "Checking...",

@@ -172,8 +172,6 @@ export function useAppController() {
         }
         const savedMode = await getSetting("appMode");
         if (savedMode === "terminal" || savedMode === "orchestrator" || savedMode === "zen") setAppMode(savedMode as any);
-        const savedSidebar = await getSetting("isSidebarOpen");
-        if (savedSidebar !== null) setIsSidebarOpen(savedSidebar === "true");
         const savedSentinel = await getSetting("sentinelEnabled");
         if (savedSentinel !== null) setSentinelEnabled(savedSentinel === "true");
         const savedHitl = await getSetting("hitlEnabled");
@@ -246,10 +244,7 @@ export function useAppController() {
     setSetting("appMode", appMode).catch(console.error);
   }, [appMode, isDbLoaded]);
 
-  useEffect(() => {
-    if (!isDbLoaded) return;
-    setSetting("isSidebarOpen", String(isSidebarOpen)).catch(console.error);
-  }, [isSidebarOpen, isDbLoaded]);
+
 
   useEffect(() => {
     hitlEnabledRef.current = hitlEnabled;
