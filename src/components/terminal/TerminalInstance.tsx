@@ -201,7 +201,6 @@ const TerminalLaneStrip = memo(({
       onClick={onAddLane}
       onPointerDown={(event) => event.stopPropagation()}
       className="h-full w-10 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/5 transition-colors border-r border-app-border shrink-0"
-      title="New Lane"
     >
       <Plus size={16} strokeWidth={2.5} />
     </button>
@@ -697,13 +696,11 @@ export function TerminalInstance({ agentId, agentName, cwd, onRemove, onDetach, 
       {/* Terminal Header & Macros */}
       {!isZenMode && (
         <div
-          className={`h-9 flex items-center border-b overflow-hidden transition-colors duration-300 ${sentinelPaused ? 'bg-red-500/10 border-red-400/50' : isPulsing ? 'bg-brand-accent/10 border-brand-accent/50' : isFocused ? 'bg-brand-accent/5 border-brand-accent/40' : 'bg-app-panel border-app-border'}`}
+          className={`h-8 flex items-center border-b overflow-hidden transition-colors duration-300 ${sentinelPaused ? 'bg-red-500/10 border-red-400/50' : isPulsing ? 'bg-brand-accent/10 border-brand-accent/50' : isFocused ? 'bg-brand-accent/5 border-brand-accent/40' : 'bg-app-panel border-app-border'}`}
           onContextMenu={handleContextMenu}
-          title={dragListeners ? "Drag to reorder • Right-click to split pane" : "Right-click to split pane"}
         >
           <div
             className={`h-full flex items-center gap-2 px-3 shrink-0 select-none ${dragListeners ? 'cursor-grab active:cursor-grabbing' : ''}`}
-            title={dragListeners ? "Drag to reorder" : undefined}
             {...dragAttributes}
             {...dragListeners}
           >
@@ -803,13 +800,13 @@ export function TerminalInstance({ agentId, agentName, cwd, onRemove, onDetach, 
       )}
 
       {/* Terminal Content */}
-      <div className={`flex-1 overflow-hidden p-1.5 relative group ${isPulsing ? 'animate-flash-bg' : ''}`}>
+      <div className={`flex-1 overflow-hidden relative group ${isPulsing ? 'animate-flash-bg' : ''}`}>
         {!isTerminalReady && (
           <div className="absolute inset-0 flex items-center justify-center bg-transparent z-20">
             <div className="animate-pulse text-zinc-500 text-xs tracking-widest uppercase">Loading Engine...</div>
           </div>
         )}
-        <div className="h-full w-full terminal-surface bg-transparent" ref={terminalRef} onClick={handleContainerClick}></div>
+        <div className="absolute inset-1.5 terminal-surface bg-transparent overflow-hidden" ref={terminalRef} onClick={handleContainerClick}></div>
       </div>
 
     </div>

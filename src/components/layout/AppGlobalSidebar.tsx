@@ -501,9 +501,10 @@ export function AppGlobalSidebar({
   return (
     <TooltipProvider delayDuration={300}>
       <aside className="w-80 border-r border-white/5 bg-[#0b0c0e] flex flex-col shadow-2xl z-20 shrink-0 relative overflow-hidden">
-        {/* Removed Logo and Text, maximized workspace space */}
+        {/* Drag region spacer for frameless window */}
+        <div className="h-7 shrink-0" data-tauri-drag-region />
         
-        <ScrollArea className="flex-1 px-3 mt-4">
+        <ScrollArea className="flex-1 px-3 mt-0">
           <div className="space-y-6 pb-6">
             <div>
               <div className="flex items-center justify-between px-2 mb-3">

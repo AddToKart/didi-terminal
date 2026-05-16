@@ -94,6 +94,8 @@ export function useAppController() {
   const setShowSvgOptimizer = useUIStore(s => s.setShowSvgOptimizer);
   const showStorageInspector = useUIStore(s => s.showStorageInspector);
   const setShowStorageInspector = useUIStore(s => s.setShowStorageInspector);
+  const showMockDataGenerator = useUIStore(s => s.showMockDataGenerator);
+  const setShowMockDataGenerator = useUIStore(s => s.setShowMockDataGenerator);
   const showQuickPalette = useUIStore(s => s.showQuickPalette);
   const setShowQuickPalette = useUIStore(s => s.setShowQuickPalette);
   const showSecurityPanel = useUIStore(s => s.showSecurityPanel);
@@ -965,6 +967,8 @@ export function useAppController() {
     setShowSvgOptimizer,
     showStorageInspector,
     setShowStorageInspector,
+    showMockDataGenerator,
+    setShowMockDataGenerator,
     showQuickPalette,
     setShowQuickPalette,
     showSecurityPanel,

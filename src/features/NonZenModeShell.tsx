@@ -39,6 +39,7 @@ const NpmLookup = lazy(() => import("../components/developer-tools/NpmLookup").t
 const HtmlToJsx = lazy(() => import("../components/developer-tools/HtmlToJsx").then(m => ({ default: m.HtmlToJsx })));
 const SvgOptimizer = lazy(() => import("../components/developer-tools/SvgOptimizer").then(m => ({ default: m.SvgOptimizer })));
 const StorageInspector = lazy(() => import("../components/developer-tools/StorageInspector").then(m => ({ default: m.StorageInspector })));
+const MockDataGenerator = lazy(() => import("../components/developer-tools/MockDataGenerator").then(m => ({ default: m.MockDataGenerator })));
 const NetworkGraph = lazy(() => import("../components/graphs/NetworkGraph").then(m => ({ default: m.NetworkGraph })));
 const SettingsModal = lazy(() => import("../components/modals/SettingsModal").then(m => ({ default: m.SettingsModal })));
 
@@ -108,6 +109,8 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
     setShowSvgOptimizer,
     showStorageInspector,
     setShowStorageInspector,
+    showMockDataGenerator,
+    setShowMockDataGenerator,
     showQuickPalette,
     setShowQuickPalette,
     showSecurityPanel,
@@ -176,6 +179,7 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
     { id: "html-to-jsx", label: "HTML to JSX", description: "Convert HTML to React JSX", category: "Panels", categoryOrder: 1, icon: Code2, onSelect: () => setShowHtmlToJsx(true) },
     { id: "svg-optimizer", label: "SVG Optimizer", description: "Clean and minify SVGs", category: "Panels", categoryOrder: 1, icon: FileCode, onSelect: () => setShowSvgOptimizer(true) },
     { id: "storage-inspector", label: "Storage Inspector", description: "Browse localStorage and cookies", category: "Panels", categoryOrder: 1, icon: HardDrive, onSelect: () => setShowStorageInspector(true) },
+    { id: "mock-data-generator", label: "Mock Data Generator", description: "Generate JSON, CSV, or SQL placeholder data", category: "Panels", categoryOrder: 1, icon: Database, onSelect: () => setShowMockDataGenerator(true) },
     { id: "config-editor", label: "Config Editor", description: "Edit JSON config files in tree view", category: "Panels", categoryOrder: 1, icon: FileCode, onSelect: () => setShowConfigEditor(true) },
     { id: "md-viewer", label: "Markdown Viewer", description: "Browse and edit markdown files", category: "Panels", categoryOrder: 1, icon: FileText, onSelect: () => setShowMdViewer(true) },
     { id: "new-tab", label: "New Tab", description: "Create a new terminal tab", category: "Actions", categoryOrder: 2, icon: Plus, onSelect: () => handleTabCreate() },
@@ -407,6 +411,10 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
         <ModalBoundary><StorageInspector
           isOpen={showStorageInspector}
           onClose={() => setShowStorageInspector(false)}
+        /></ModalBoundary>
+        <ModalBoundary><MockDataGenerator
+          isOpen={showMockDataGenerator}
+          onClose={() => setShowMockDataGenerator(false)}
         /></ModalBoundary>
         {showSecurityPanel && (
           <ModalBoundary title="Panel crashed"><SecurityPanel

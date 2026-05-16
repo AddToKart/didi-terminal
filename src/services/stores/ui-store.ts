@@ -63,6 +63,8 @@ interface UIState {
   setShowStorageInspector: (show: boolean | ((prev: boolean) => boolean)) => void;
   showQuickPalette: boolean;
   setShowQuickPalette: (show: boolean | ((prev: boolean) => boolean)) => void;
+  showMockDataGenerator: boolean;
+  setShowMockDataGenerator: (show: boolean | ((prev: boolean) => boolean)) => void;
   
   showSecurityPanel: string | null;
   setShowSecurityPanel: (id: string | null) => void;
@@ -140,6 +142,8 @@ export const useUIStore = create<UIState>((set) => ({
   setShowStorageInspector: (val) => set((state) => ({ showStorageInspector: typeof val === 'function' ? val(state.showStorageInspector) : val })),
   showQuickPalette: false,
   setShowQuickPalette: (val) => set((state) => ({ showQuickPalette: typeof val === 'function' ? val(state.showQuickPalette) : val })),
+  showMockDataGenerator: false,
+  setShowMockDataGenerator: (val) => set((state) => ({ showMockDataGenerator: typeof val === 'function' ? val(state.showMockDataGenerator) : val })),
   
   showSecurityPanel: null,
   setShowSecurityPanel: (showSecurityPanel) => set({ showSecurityPanel }),

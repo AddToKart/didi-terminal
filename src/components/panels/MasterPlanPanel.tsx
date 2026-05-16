@@ -1,7 +1,8 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
-import { CheckCircle2, Circle, ClipboardList, Info, Loader2, Plus, RefreshCw, X, Clock, ListOrdered } from "lucide-react";
+import { CheckCircle2, Circle, ClipboardList, Loader2, Plus, RefreshCw, X, Clock, ListOrdered } from "lucide-react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
 type PlanStatus = "todo" | "in_queue" | "in_progress" | "waiting_completion" | "done";
 
@@ -117,6 +118,165 @@ const columns: Array<{ status: PlanStatus; label: string; icon: typeof Circle }>
   { status: "waiting_completion", label: "Waiting", icon: Clock },
   { status: "done", label: "Done", icon: CheckCircle2 },
 ];
+
+// Extracted column component to support per-column virtualization
+const PlanColumn = ({ 
+  column, 
+  columnTasks, 
+  isDropTarget, 
+  activeTaskLine, 
+  queuedTaskSet, 
+  dragState, 
+  handlePointerDown, 
+  setSelectedTask, 
+  setTaskStatus, 
+  isBusy,
+  getQueueLabel
+}: {
+  column: { status: PlanStatus; label: string; icon: typeof Circle },
+  columnTasks: PlanTask[],
+  isDropTarget: boolean,
+  activeTaskLine: number | null,
+  queuedTaskSet: Set<number>,
+  dragState: DragState | null,
+  handlePointerDown: (e: React.PointerEvent, task: PlanTask) => void,
+  setSelectedTask: (task: PlanTask) => void,
+  setTaskStatus: (task: PlanTask, status: PlanStatus) => void,
+  isBusy: boolean,
+  getQueueLabel: (task: PlanTask) => string | null
+}) => {
+  const Icon = column.icon;
+  const parentRef = useRef<HTMLDivElement>(null);
+
+  const virtualizer = useVirtualizer({
+    count: columnTasks.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 100, // Approximate height of a task card
+    overscan: 5,
+  });
+
+  return (
+    <div
+      className={`flex-1 flex flex-col border rounded-xl transition-all duration-300 min-w-[200px] ${
+        isDropTarget
+          ? "border-brand-accent/50 bg-brand-accent/5 shadow-inner"
+          : "border-zinc-800/50 bg-zinc-900/30"
+      }`}
+    >
+      <div className="px-4 py-3 border-b border-zinc-800/50 flex items-center justify-between bg-app-panel/50">
+        <div className="flex items-center gap-2">
+          <Icon size={14} className={
+              column.status === "in_progress" ? "text-amber-500" :
+              column.status === "waiting_completion" ? "text-blue-500" :
+              column.status === "in_queue" ? "text-purple-500" :
+              column.status === "done" ? "text-emerald-500" :
+              "text-zinc-500"
+          } />
+          <span className="text-xs font-bold uppercase tracking-wider text-zinc-300">{column.label}</span>
+        </div>
+        <span className="text-[10px] font-mono font-bold text-zinc-500 bg-app-panel px-2 py-0.5 rounded-xl border border-zinc-800/50">
+          {columnTasks.length}
+        </span>
+      </div>
+
+      <div ref={parentRef} className="p-3 overflow-y-auto min-h-0 flex-1 custom-scrollbar">
+        {columnTasks.length === 0 ? (
+          <div className={`text-[10px] font-bold uppercase tracking-wider px-1 py-8 text-center rounded-xl transition-all border border-dashed ${
+            isDropTarget
+              ? "text-brand-accent border-brand-accent/40 bg-brand-accent/5"
+              : "text-zinc-600 border-zinc-800/50"
+          }`}>
+            {isDropTarget ? "↓ Drop here" : "Empty"}
+          </div>
+        ) : (
+          <div
+            style={{
+              height: `${virtualizer.getTotalSize()}px`,
+              width: '100%',
+              position: 'relative',
+            }}
+          >
+            {virtualizer.getVirtualItems().map((virtualRow: any) => {
+              const task = columnTasks[virtualRow.index];
+              const queueLabel = getQueueLabel(task);
+              return (
+                <div
+                  key={task.id}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: `${virtualRow.size}px`,
+                    transform: `translateY(${virtualRow.start}px)`,
+                    paddingBottom: '12px', // space-y-3 equivalent
+                  }}
+                >
+                  <div
+                    onPointerDown={e => handlePointerDown(e, task)}
+                    className={`h-full group bg-app-panel hover:bg-zinc-900/40 border px-3 py-3 rounded-xl shadow-sm hover:shadow-md transition-all select-none ${
+                      dragState?.task.id === task.id
+                        ? "opacity-30 cursor-grabbing"
+                        : task.status === "done"
+                        ? "cursor-default border-zinc-800/50"
+                        : "cursor-grab hover:border-zinc-600 border-zinc-800/50"
+                    } ${task.line === activeTaskLine ? "border-emerald-500/50" : queuedTaskSet.has(task.line) ? "border-amber-500/50" : ""}`}
+                  >
+                    <div className="pointer-events-none h-full flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="text-[9px] uppercase tracking-widest font-bold text-zinc-500 truncate">{task.section}</div>
+                          {queueLabel && (
+                            <div className={`text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded-xl border shrink-0 uppercase ${
+                              task.line === activeTaskLine
+                                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                                : "border-amber-500/30 bg-amber-500/10 text-amber-400"
+                            }`}>
+                              {queueLabel}
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-sm font-medium text-zinc-200 leading-snug break-words">{task.text}</div>
+                      </div>
+                      <div className="mt-3 flex items-center justify-between pt-3 border-t border-zinc-800/80 pointer-events-auto">
+                        <button
+                          type="button"
+                          onPointerDown={e => e.stopPropagation()}
+                          onClick={() => setSelectedTask(task)}
+                          className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 hover:text-brand-accent transition-colors flex items-center gap-1.5"
+                        >
+                          Details
+                        </button>
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {columns.filter(c => c.status !== task.status).map(c => {
+                            const CIcon = c.icon;
+                            return (
+                              <button
+                                key={c.status}
+                                type="button"
+                                disabled={isBusy}
+                                onPointerDown={e => e.stopPropagation()}
+                                onClick={() => setTaskStatus(task, c.status)}
+                                className="p-1.5 rounded-xl bg-zinc-900/40 border border-zinc-800/50 text-zinc-500 hover:text-zinc-200 hover:border-zinc-500 disabled:opacity-40 transition-colors shadow-sm"
+                                title={`Move to ${c.label}`}
+                              >
+                                <CIcon size={12} />
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine, queuedTaskLines, onClose }: Props) => {
   const [markdown, setMarkdown] = useState("");
@@ -460,109 +620,24 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
               {/* Kanban columns - Flex evenly without scrollbars */}
               <div className="flex flex-1 gap-4 pb-2 min-h-0">
                 {columns.map(column => {
-                  const Icon = column.icon;
                   const columnTasks = tasks.filter(t => t.status === column.status);
                   const isDropTarget = dragState !== null && dragState.task.status !== column.status;
 
                   return (
-                    <div
-                      key={column.status}
-                      ref={el => { columnRefs.current.set(column.status, el); }}
-                      className={`flex-1 flex flex-col border rounded-xl transition-all duration-300 min-w-[200px] ${
-                        isDropTarget
-                          ? "border-brand-accent/50 bg-brand-accent/5 shadow-inner"
-                          : "border-zinc-800/50 bg-zinc-900/30"
-                      }`}
-                    >
-                      <div className="px-4 py-3 border-b border-zinc-800/50 flex items-center justify-between bg-app-panel/50">
-                        <div className="flex items-center gap-2">
-                          <Icon size={14} className={
-                              column.status === "in_progress" ? "text-amber-500" :
-                              column.status === "waiting_completion" ? "text-blue-500" :
-                              column.status === "in_queue" ? "text-purple-500" :
-                              column.status === "done" ? "text-emerald-500" :
-                              "text-zinc-500"
-                          } />
-                          <span className="text-xs font-bold uppercase tracking-wider text-zinc-300">{column.label}</span>
-                        </div>
-                        <span className="text-[10px] font-mono font-bold text-zinc-500 bg-app-panel px-2 py-0.5 rounded-xl border border-zinc-800/50">
-                          {columnTasks.length}
-                        </span>
-                      </div>
-
-                      <div className="p-3 space-y-3 overflow-y-auto min-h-0 flex-1 custom-scrollbar">
-                        {columnTasks.map(task => {
-                          const queueLabel = getQueueLabel(task);
-                          return (
-                            <div
-                              key={task.id}
-                              onPointerDown={e => handlePointerDown(e, task)}
-                              className={`group bg-app-panel hover:bg-zinc-900/40 border px-3 py-3 rounded-xl shadow-sm hover:shadow-md transition-all select-none ${
-                                dragState?.task.id === task.id
-                                  ? "opacity-30 cursor-grabbing"
-                                  : task.status === "done"
-                                  ? "cursor-default border-zinc-800/50"
-                                  : "cursor-grab hover:border-zinc-600 border-zinc-800/50"
-                              } ${task.line === activeTaskLine ? "border-emerald-500/50" : queuedTaskSet.has(task.line) ? "border-amber-500/50" : ""}`}
-                            >
-                              <div className="pointer-events-none">
-                                <div className="flex items-start justify-between gap-2 mb-2">
-                                  <div className="text-[9px] uppercase tracking-widest font-bold text-zinc-500 truncate">{task.section}</div>
-                                  {queueLabel && (
-                                    <div className={`text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded-xl border shrink-0 uppercase ${
-                                      task.line === activeTaskLine
-                                        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
-                                        : "border-amber-500/30 bg-amber-500/10 text-amber-400"
-                                    }`}>
-                                      {queueLabel}
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="text-sm font-medium text-zinc-200 leading-snug break-words">{task.text}</div>
-                              </div>
-                              <div className="mt-3 flex items-center justify-between pt-3 border-t border-zinc-800/80">
-                                <button
-                                  type="button"
-                                  onPointerDown={e => e.stopPropagation()}
-                                  onClick={() => setSelectedTask(task)}
-                                  className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 hover:text-brand-accent transition-colors flex items-center gap-1.5"
-                                >
-                                  <Info size={12} />
-                                  Details
-                                </button>
-                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  {columns.filter(c => c.status !== task.status).map(c => {
-                                    const CIcon = c.icon;
-                                    return (
-                                      <button
-                                        key={c.status}
-                                        type="button"
-                                        disabled={isBusy}
-                                        onPointerDown={e => e.stopPropagation()}
-                                        onClick={() => setTaskStatus(task, c.status)}
-                                        className="p-1.5 rounded-xl bg-zinc-900/40 border border-zinc-800/50 text-zinc-500 hover:text-zinc-200 hover:border-zinc-500 disabled:opacity-40 transition-colors shadow-sm"
-                                        title={`Move to ${c.label}`}
-                                      >
-                                        <CIcon size={12} />
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-
-                        {columnTasks.length === 0 && (
-                          <div className={`text-[10px] font-bold uppercase tracking-wider px-1 py-8 text-center rounded-xl transition-all border border-dashed ${
-                            isDropTarget
-                              ? "text-brand-accent border-brand-accent/40 bg-brand-accent/5"
-                              : "text-zinc-600 border-zinc-800/50"
-                          }`}>
-                            {isDropTarget ? "↓ Drop here" : "Empty"}
-                          </div>
-                        )}
-                      </div>
+                    <div key={column.status} className="flex-1 flex flex-col min-w-[200px]" ref={el => { columnRefs.current.set(column.status, el); }}>
+                      <PlanColumn
+                        column={column}
+                        columnTasks={columnTasks}
+                        isDropTarget={isDropTarget}
+                        activeTaskLine={activeTaskLine}
+                        queuedTaskSet={queuedTaskSet}
+                        dragState={dragState}
+                        handlePointerDown={handlePointerDown}
+                        setSelectedTask={setSelectedTask}
+                        setTaskStatus={(t, s) => setTaskStatusRef.current?.(t, s)}
+                        isBusy={isBusy}
+                        getQueueLabel={getQueueLabel}
+                      />
                     </div>
                   );
                 })}

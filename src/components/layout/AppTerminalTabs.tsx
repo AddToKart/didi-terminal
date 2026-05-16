@@ -187,7 +187,7 @@ export function AppTerminalTabs({
   };
 
   return (
-    <div className="h-9 flex items-center bg-app-bg border-b border-app-border shrink-0 overflow-x-auto custom-scrollbar">
+    <div className="h-8 flex items-center bg-app-bg border-b border-app-border shrink-0 overflow-x-auto custom-scrollbar">
       <div className="flex items-center h-full">
         <DndContext
           sensors={sensors}
@@ -241,7 +241,6 @@ export function AppTerminalTabs({
       <button
         onClick={onTabCreate}
         className="h-full px-3 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/5 transition-colors border-r border-app-border shrink-0"
-        title="New Tab"
       >
         <Plus size={16} strokeWidth={2.5} />
       </button>

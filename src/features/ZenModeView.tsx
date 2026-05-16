@@ -1,5 +1,7 @@
 import { AppTerminalArea } from "../components/layout/AppTerminalArea";
+import { WindowControls } from "../components/layout/WindowControls";
 import type { ZenModeProps } from "../types/zen-mode.types";
+
 
 export function ZenModeView({ controller }: ZenModeProps) {
   const {
@@ -26,6 +28,9 @@ export function ZenModeView({ controller }: ZenModeProps) {
             >
               Exit Zen Mode (Alt + Q)
             </button>
+            <div className="absolute right-4 top-4 h-9 bg-black/40 backdrop-blur-xl border border-white/5 rounded-xl overflow-hidden shadow-2xl">
+              <WindowControls />
+            </div>
           </div>
         </div>
 

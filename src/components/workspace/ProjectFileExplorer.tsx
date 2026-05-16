@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { 
   Folder, File, ChevronRight, Search, X, 
   Copy, ExternalLink, RefreshCw, FolderOpen,
@@ -7,6 +7,7 @@ import {
   Terminal as TerminalIcon
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
 interface FileEntry {
   name: string;
@@ -93,6 +94,15 @@ export function ProjectFileExplorer({ currentProject, isOpen, onClose }: Project
     e.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const parentRef = useRef<HTMLDivElement>(null);
+  
+  const virtualizer = useVirtualizer({
+    count: filteredEntries.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 52, // Approximate height of each row in px
+    overscan: 10,
+  });
+
   return (
     <div 
       className={`fixed top-0 right-0 h-screen w-[450px] bg-zinc-950/95 backdrop-blur-xl border-l border-zinc-800/50 shadow-2xl z-[50] transition-all duration-500 transform ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
@@ -151,7 +161,7 @@ export function ProjectFileExplorer({ currentProject, isOpen, onClose }: Project
         </div>
 
         {/* File List */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
+        <div ref={parentRef} className="flex-1 overflow-y-auto custom-scrollbar p-2">
           {loading && entries.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-40 gap-3">
               <RefreshCw className="animate-spin text-indigo-500" size={24} />
@@ -163,46 +173,66 @@ export function ProjectFileExplorer({ currentProject, isOpen, onClose }: Project
               <span className="text-xs">No files found</span>
             </div>
           ) : (
-            <div className="space-y-0.5">
-              {filteredEntries.map((entry) => (
-                <div 
-                  key={entry.path}
-                  onClick={() => entry.is_dir && handleFolderClick(entry.path)}
-                  className={`group flex items-center justify-between p-2 rounded-lg cursor-pointer transition-all ${entry.is_dir ? 'hover:bg-amber-500/5' : 'hover:bg-indigo-500/5'}`}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <FileIcon entry={entry} />
-                    <div className="flex flex-col min-w-0">
-                      <span className={`text-[13px] truncate ${entry.is_dir ? 'text-zinc-200 font-medium' : 'text-zinc-400'}`}>
-                        {entry.name}
-                      </span>
-                      {!entry.is_dir && (
-                        <span className="text-[10px] text-zinc-600 font-mono">
-                          {formatSize(entry.size)}
-                        </span>
-                      )}
+            <div 
+              style={{
+                height: `${virtualizer.getTotalSize()}px`,
+                width: '100%',
+                position: 'relative',
+              }}
+            >
+              {virtualizer.getVirtualItems().map((virtualRow: any) => {
+                const entry = filteredEntries[virtualRow.index];
+                return (
+                  <div 
+                    key={entry.path}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      height: `${virtualRow.size}px`,
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                  >
+                    <div
+                      onClick={() => entry.is_dir && handleFolderClick(entry.path)}
+                      className={`group flex items-center justify-between p-2 rounded-lg cursor-pointer transition-all h-full ${entry.is_dir ? 'hover:bg-amber-500/5' : 'hover:bg-indigo-500/5'}`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <FileIcon entry={entry} />
+                        <div className="flex flex-col min-w-0">
+                          <span className={`text-[13px] truncate ${entry.is_dir ? 'text-zinc-200 font-medium' : 'text-zinc-400'}`}>
+                            {entry.name}
+                          </span>
+                          {!entry.is_dir && (
+                            <span className="text-[10px] text-zinc-600 font-mono">
+                              {formatSize(entry.size)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button 
+                          className="p-1.5 hover:bg-white/10 rounded-md text-zinc-500 hover:text-indigo-400"
+                          title="Copy Path"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigator.clipboard.writeText(entry.path);
+                          }}
+                        >
+                          <Copy size={12} />
+                        </button>
+                        {entry.is_dir ? (
+                          <ChevronRight size={14} className="text-zinc-600" />
+                        ) : (
+                          <ExternalLink size={12} className="text-zinc-600" />
+                        )}
+                      </div>
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button 
-                      className="p-1.5 hover:bg-white/10 rounded-md text-zinc-500 hover:text-indigo-400"
-                      title="Copy Path"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigator.clipboard.writeText(entry.path);
-                      }}
-                    >
-                      <Copy size={12} />
-                    </button>
-                    {entry.is_dir ? (
-                      <ChevronRight size={14} className="text-zinc-600" />
-                    ) : (
-                      <ExternalLink size={12} className="text-zinc-600" />
-                    )}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

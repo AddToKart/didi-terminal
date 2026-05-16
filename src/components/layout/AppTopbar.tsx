@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, type FormEvent } from "react";
-import { Brain, ClipboardList, Columns, Globe, Grid2X2, Network, PanelLeft, PanelLeftClose, Plus, Rows, Layers, AlignLeft, Sparkles, ChevronRight, ChevronLeft, GitMerge, LayoutList, FolderSearch, FileKey2, Package, Zap, FolderTree, FileText, FileCode, Palette, Box, HardDrive, Code2 } from "lucide-react";
+import { Brain, ClipboardList, Columns, Globe, Grid2X2, Network, PanelLeft, PanelLeftClose, Plus, Rows, Layers, AlignLeft, Sparkles, ChevronRight, ChevronLeft, GitMerge, LayoutList, FolderSearch, FileKey2, Package, Zap, FolderTree, FileText, FileCode, Palette, Box, HardDrive, Code2, Database } from "lucide-react";
+import { WindowControls } from "./WindowControls";
+
 
 interface AppTopbarProps {
   appMode: "terminal" | "orchestrator";
@@ -31,13 +33,14 @@ interface AppTopbarProps {
   onToggleHtmlToJsx?: () => void;
   onToggleSvgOptimizer?: () => void;
   onToggleStorageInspector?: () => void;
+  onToggleMockDataGenerator?: () => void;
   currentProject: string | null;
-}
+  }
 
-function WebDevPopover({ onToggleIconBrowser, onToggleTailwindLabs, onToggleNpmLookup, onToggleHtmlToJsx, onToggleSvgOptimizer, onToggleStorageInspector }: {
+  function WebDevPopover({ onToggleIconBrowser, onToggleTailwindLabs, onToggleNpmLookup, onToggleHtmlToJsx, onToggleSvgOptimizer, onToggleStorageInspector, onToggleMockDataGenerator }: {
   onToggleIconBrowser?: () => void; onToggleTailwindLabs?: () => void;
-  onToggleNpmLookup?: () => void; onToggleHtmlToJsx?: () => void; onToggleSvgOptimizer?: () => void; onToggleStorageInspector?: () => void;
-}) {
+  onToggleNpmLookup?: () => void; onToggleHtmlToJsx?: () => void; onToggleSvgOptimizer?: () => void; onToggleStorageInspector?: () => void; onToggleMockDataGenerator?: () => void;
+  }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -50,6 +53,15 @@ function WebDevPopover({ onToggleIconBrowser, onToggleTailwindLabs, onToggleNpmL
   }, [open]);
 
   const items = [
+    {
+      icon: Database,
+      label: "Mock Data Generator",
+      desc: "Generate JSON, CSV, or SQL",
+      gradient: "from-green-500/20 to-emerald-500/20",
+      color: "text-green-400",
+      badge: "Tool",
+      action: () => { onToggleMockDataGenerator?.(); setOpen(false); },
+    },
     {
       icon: Palette,
       label: "Icon Browser",
@@ -186,6 +198,7 @@ export function AppTopbar({
   onToggleHtmlToJsx,
   onToggleSvgOptimizer,
   onToggleStorageInspector,
+  onToggleMockDataGenerator,
   currentProject,
 }: AppTopbarProps) {
   const [isExtraLayoutsOpen, setIsExtraLayoutsOpen] = useState(false);
@@ -195,7 +208,10 @@ export function AppTopbar({
   const isExtraActive = ["focus", "presentation", "dynamic", "canvas", "waterfall"].includes(layoutOrientation);
   const showExtras = isExtraLayoutsOpen || isExtraActive;
   return (
-    <div className="h-14 border-b border-app-border flex items-center justify-between px-4 bg-app-bg relative z-50">
+    <div 
+      className="h-7 border-b border-app-border flex items-center justify-between pl-4 pr-0 bg-app-bg relative z-50 select-none"
+    >
+      <div className="absolute inset-0 -z-10" data-tauri-drag-region />
       <form onSubmit={onSpawnAgent} className="flex items-center gap-2">
         <div className="relative flex items-center">
           <button type="submit" className="absolute left-1.5 text-brand-primary transition-colors p-1 z-10 rounded">
@@ -206,7 +222,7 @@ export function AppTopbar({
             value={newAgentName}
             onChange={e => onChangeNewAgentName(e.target.value)}
             placeholder={appMode === "terminal" ? "Spawn new terminal..." : "Spawn new agent..."}
-            className="bg-app-panel border border-app-border focus:border-brand-accent text-white pl-8 pr-3 py-1.5 text-xs font-bold outline-none transition-colors w-64 placeholder:text-zinc-400 rounded-lg shadow-sm"
+            className="bg-app-panel border border-app-border focus:border-brand-accent text-white pl-8 pr-3 py-0 text-[10px] font-bold outline-none transition-colors w-64 placeholder:text-zinc-400 rounded-md shadow-sm h-5"
           />
         </div>
         <button
@@ -328,8 +344,8 @@ export function AppTopbar({
                 onToggleHtmlToJsx={onToggleHtmlToJsx}
                 onToggleSvgOptimizer={onToggleSvgOptimizer}
                 onToggleStorageInspector={onToggleStorageInspector}
+                onToggleMockDataGenerator={onToggleMockDataGenerator}
               />
-
               <button
                 onClick={onToggleGitPanel}
                 className="flex items-center gap-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all text-[11px] font-bold shrink-0"
@@ -434,6 +450,10 @@ export function AppTopbar({
             {isSidebarOpen ? <PanelLeftClose size={16} strokeWidth={2.5} /> : <PanelLeft size={16} strokeWidth={2.5} />}
           </button>
         )}
+        
+        <div className="h-full">
+          <WindowControls />
+        </div>
       </div>
     </div>
   );

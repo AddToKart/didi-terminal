@@ -1,15 +1,9 @@
 use std::fs::File;
 use std::io::{Read, Write};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tauri::{AppHandle, Manager};
 use zip::write::SimpleFileOptions;
 use zip::{ZipArchive, ZipWriter};
-use serde::{Serialize, Deserialize};
-
-#[derive(Serialize, Deserialize)]
-pub struct ProfileData {
-    pub local_storage: String,
-}
 
 #[tauri::command]
 pub async fn export_profile(

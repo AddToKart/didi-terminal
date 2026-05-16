@@ -19,6 +19,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "../../lib/cn";
 import type { AgentInstance } from "../../types/workspace";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
 interface AppTerminalAreaProps {
   agents: AgentInstance[];
@@ -225,6 +226,14 @@ export function AppTerminalArea({
 
   const agentsToRender = agents; // Keep all in DOM for animations
 
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const virtualizer = useVirtualizer({
+    count: agents.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 404, // 400px height + 4px margin
+    overscan: 2,
+  });
+
   return (
     <div className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden">
       {agents.length === 0 ? (
@@ -285,7 +294,48 @@ export function AppTerminalArea({
                     : (focusedAgentId ? { display: 'flex' } : undefined)
                 }
               >
-                {agentsToRender.map((agent, index) => {
+                {layoutOrientation === "waterfall" ? (
+                  <div
+                    style={{
+                      height: `${virtualizer.getTotalSize()}px`,
+                      width: '100%',
+                      position: 'relative',
+                    }}
+                  >
+                    {virtualizer.getVirtualItems().map((virtualRow: any) => {
+                      const agent = agents[virtualRow.index];
+                      return (
+                        <div
+                          key={agent.id}
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            height: `${virtualRow.size - 4}px`,
+                            transform: `translateY(${virtualRow.start}px)`,
+                          }}
+                        >
+                          <SortableTerminalWrapper
+                            agent={agent}
+                            currentProject={currentProject}
+                            onRemoveAgent={stableRemoveAgent}
+                            onDetachAgent={stableDetachAgent}
+                            onSplitAgent={stableSplitAgent}
+                            workspaceName={workspaceName}
+                            workspaceId={workspaceId}
+                            isZenMode={isZenMode}
+                            focusedAgentId={focusedAgentId}
+                            isFocused={agent.id === focusedAgentId}
+                            isGlass={isGlass}
+                            onFocus={() => onFocusAgent?.(agent.id)}
+                            styleOverrides={{ width: '100%', height: '100%' }}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : agentsToRender.map((agent, index) => {
                   let flexBasis: string | undefined = undefined;
                   let height: string | undefined = undefined;
                   let width: string | undefined = undefined;
@@ -332,13 +382,6 @@ export function AppTerminalArea({
                         height = "calc(25% - 2px)";
                       }
                     }
-                  } else if (layoutOrientation === "waterfall") {
-                    styleOverrides = {
-                      width: "100%",
-                      height: "400px",
-                      marginBottom: "4px",
-                      flexShrink: 0,
-                    };
                   } else if (layoutOrientation === "dynamic") {
                     if (agents.length > 2 && index === 0) {
                       styleOverrides = {
