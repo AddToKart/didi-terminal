@@ -192,27 +192,30 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
 
   return (
     <>
-      <AppGlobalSidebar
-        appMode={appMode}
-        onSetAppMode={setAppMode}
-        workspaces={workspaces}
-        activeWorkspaceId={activeWorkspaceId}
-        activeSectionId={activeWorkspace?.activeSectionId || ""}
-        onWorkspaceSelect={handleWorkspaceSelect}
-        onCreateWorkspace={handleCreateWorkspace}
-        onOpenDirectory={handleOpenDirectory}
-        onOpenSettings={() => setShowSettings(true)}
-        onWorkspaceReorder={handleWorkspaceReorder}
-        onWorkspaceRename={handleWorkspaceRename}
-        onWorkspaceDelete={handleWorkspaceDelete}
-        onOpenSecurity={id => setShowSecurityPanel(id)}
-        onSectionCreate={handleSectionCreate}
-        onSectionRename={handleSectionRename}
-        onSectionDelete={handleSectionDelete}
-        onSectionSelect={handleSectionSelect}
-        tasks={tasks}
-        agentReadyStates={agentStatusMap}
-      />
+      {isSidebarOpen && (
+        <AppGlobalSidebar
+          appMode={appMode}
+          onSetAppMode={setAppMode}
+          workspaces={workspaces}
+          activeWorkspaceId={activeWorkspaceId}
+          activeSectionId={activeWorkspace?.activeSectionId || ""}
+          onWorkspaceSelect={handleWorkspaceSelect}
+          onCreateWorkspace={handleCreateWorkspace}
+          onOpenDirectory={handleOpenDirectory}
+          onOpenSettings={() => setShowSettings(true)}
+          onWorkspaceReorder={handleWorkspaceReorder}
+          onWorkspaceRename={handleWorkspaceRename}
+          onWorkspaceDelete={handleWorkspaceDelete}
+          onOpenSecurity={id => setShowSecurityPanel(id)}
+          onSectionCreate={handleSectionCreate}
+          onSectionRename={handleSectionRename}
+          onSectionDelete={handleSectionDelete}
+          onSectionSelect={handleSectionSelect}
+          tasks={tasks}
+          agentReadyStates={agentStatusMap}
+          onCloseSidebar={() => setIsSidebarOpen(false)}
+        />
+      )}
 
       <AppOverlays
         showNetworkGraph={showNetworkGraph}

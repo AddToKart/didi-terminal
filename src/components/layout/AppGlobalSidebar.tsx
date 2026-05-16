@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { FolderOpen, Settings, Bell, Palette, Plus, TerminalSquare, Workflow, MoreVertical, Pencil, Trash2, Globe, Copy, Check, GitBranch, Share2, Focus, Shield, ChevronDown, ChevronRight, Activity } from "lucide-react";
+import { FolderOpen, Settings, Bell, Palette, Plus, TerminalSquare, Workflow, MoreVertical, Pencil, Trash2, Globe, Copy, Check, GitBranch, Share2, Focus, Shield, ChevronDown, ChevronRight, Activity, PanelLeftClose } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   DndContext,
@@ -57,6 +57,7 @@ interface AppGlobalSidebarProps {
   onSectionSelect: (workspaceId: string, sectionId: string) => void;
   tasks?: TaskRecord[];
   agentReadyStates?: Record<string, boolean>;
+  onCloseSidebar?: () => void;
 }
 
 interface SectionItemProps {
@@ -456,6 +457,7 @@ export function AppGlobalSidebar({
   onSectionSelect,
   tasks,
   agentReadyStates,
+  onCloseSidebar,
 }: AppGlobalSidebarProps) {
   const [editingWsId, setEditingWsId] = useState<string | null>(null);
   const [editWsName, setEditWsName] = useState("");
@@ -502,7 +504,17 @@ export function AppGlobalSidebar({
     <TooltipProvider delayDuration={300}>
       <aside className="w-80 border-r border-white/5 bg-[#0b0c0e] flex flex-col shadow-2xl z-20 shrink-0 relative overflow-hidden">
         {/* Top spacer to account for the top bar */}
-        <div className="h-10 shrink-0 border-b border-app-border" data-tauri-drag-region />
+        <div className="h-10 shrink-0 border-b border-app-border flex items-center justify-end px-4" data-tauri-drag-region>
+          {onCloseSidebar && (
+            <button
+              onClick={onCloseSidebar}
+              className="p-1 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition-colors no-drag"
+              title="Collapse Sidebar"
+            >
+              <PanelLeftClose size={14} />
+            </button>
+          )}
+        </div>
         
         <ScrollArea className="flex-1 px-3 mt-0">
           <div className="space-y-6 pb-6">
