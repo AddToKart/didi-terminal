@@ -235,7 +235,7 @@ export function AppTopbar({
         </button>
       </form>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-4 px-2">
         {appMode === "orchestrator" && (
           <>
             <button
@@ -451,7 +451,7 @@ export function AppTopbar({
           </button>
         )}
         
-        <div className="h-full">
+        <div className="h-full ml-6">
           <WindowControls />
         </div>
       </div>
