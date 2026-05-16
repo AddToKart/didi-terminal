@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, type ReactNode } from "react";
+import { lazy, Suspense, useMemo, useState, useCallback, type ReactNode } from "react";
 
 function ModalBoundary({ children, title }: { children: ReactNode; title?: string }) {
   return (
@@ -13,7 +13,8 @@ import { ErrorBoundary } from "../components/ErrorBoundary";
 import { AppGlobalSidebar } from "../components/layout/AppGlobalSidebar";
 import { AppTopbar } from "../components/layout/AppTopbar";
 import { AppTerminalTabs } from "../components/layout/AppTerminalTabs";
-import { DockingTerminalArea } from "../components/terminal/DockingTerminalArea";
+import { AppTerminalArea } from "../components/layout/AppTerminalArea";
+import { MergedTabView } from "../components/layout/MergedTabView";
 import { StatusBar } from "../components/layout/StatusBar";
 import { TwoFactorModal } from "../components/modals/TwoFactorModal";
 import { QuickPalette, type PaletteAction } from "../components/modals/QuickPalette";
@@ -158,6 +159,21 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
   } = controller;
   const topbarMode = appMode === "orchestrator" ? "orchestrator" : "terminal";
 
+  // ── Tab Merge state ───────────────────────────────────────────────────────
+  const [mergedTabId, setMergedTabId] = useState<string | null>(null);
+
+  const handleTabMerge = useCallback((tabId: string) => {
+    setMergedTabId(prev => prev === tabId ? null : tabId);
+  }, []);
+
+  const handleUnmerge = useCallback(() => {
+    setMergedTabId(null);
+  }, []);
+
+  // Clear merge if the merged tab is closed or becomes active
+  const mergedTab = tabs.find(t => t.id === mergedTabId);
+  const effectiveMergedTabId = mergedTab && mergedTabId !== activeTabId ? mergedTabId : null;
+
   const paletteActions = useMemo<PaletteAction[]>(() => [
     { id: "terminal-mode", label: "Terminal Mode", description: "Switch to standard terminal layout", category: "Modes", categoryOrder: 0, icon: TerminalIcon, onSelect: () => setAppMode("terminal") },
     { id: "orchestrator-mode", label: "Orchestrator Mode", description: "Switch to agent orchestration layout", category: "Modes", categoryOrder: 0, icon: Network, onSelect: () => setAppMode("orchestrator") },
@@ -292,20 +308,42 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
           onTabCreate={handleTabCreate}
           onTabRename={handleTabRename}
           onTabReorder={handleTabReorder}
+          onTabMerge={handleTabMerge}
         />
 
-        <DockingTerminalArea
-          agents={agents}
-          currentProject={currentProject}
-          onRemoveAgent={removeAgent}
-          onDetachAgent={detachAgent}
-          onReorderAgents={handleReorderAgents}
-          onSplit={handleSplit}
-          onOpenDirectory={() => handleOpenDirectory(activeWorkspaceId)}
-          workspaceName={workspaces.find(w => w.id === activeWorkspaceId)?.name}
-          workspaceId={activeWorkspaceId}
-          isGlass={isGlass}
-        />
+        {effectiveMergedTabId ? (
+          <MergedTabView
+            leftAgents={agents}
+            leftLayout={layoutOrientation}
+            leftTabName={tabs.find(t => t.id === activeTabId)?.name ?? "Tab"}
+            rightAgents={mergedTab?.agents ?? []}
+            rightLayout={mergedTab?.layoutOrientation ?? "horizontal"}
+            rightTabName={mergedTab?.name ?? "Tab"}
+            currentProject={currentProject}
+            workspaceName={workspaces.find(w => w.id === activeWorkspaceId)?.name}
+            workspaceId={activeWorkspaceId}
+            isGlass={isGlass}
+            onRemoveAgent={removeAgent}
+            onDetachAgent={detachAgent}
+            onReorderAgents={handleReorderAgents}
+            onSplit={handleSplit}
+            onUnmerge={handleUnmerge}
+          />
+        ) : (
+          <AppTerminalArea
+            agents={agents}
+            currentProject={currentProject}
+            layoutOrientation={layoutOrientation}
+            onRemoveAgent={removeAgent}
+            onDetachAgent={detachAgent}
+            onReorderAgents={handleReorderAgents}
+            onSplit={handleSplit}
+            onOpenDirectory={() => handleOpenDirectory(activeWorkspaceId)}
+            workspaceName={workspaces.find(w => w.id === activeWorkspaceId)?.name}
+            workspaceId={activeWorkspaceId}
+            isGlass={isGlass}
+          />
+        )}
 
         {(showCodeReview || showGitPanel || showPersonalKanban || showFileExplorer) && (
           <div
