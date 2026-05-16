@@ -38,7 +38,7 @@ export function WindowControls() {
   const handleClose = () => appWindow.close();
 
   return (
-    <div className="flex items-center h-full no-drag">
+    <div className="flex items-stretch h-full no-drag">
       <button
         onClick={handleMinimize}
         className="h-full w-8 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"

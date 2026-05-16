@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, type FormEvent } from "react";
 import { Brain, ClipboardList, Columns, Globe, Grid2X2, Network, PanelLeft, PanelLeftClose, Plus, Rows, Layers, AlignLeft, Sparkles, ChevronRight, ChevronLeft, GitMerge, LayoutList, FolderSearch, FileKey2, Package, Zap, FolderTree, FileText, FileCode, Palette, Box, HardDrive, Code2, Database } from "lucide-react";
 import { WindowControls } from "./WindowControls";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 
 interface AppTopbarProps {
@@ -200,17 +201,17 @@ export function AppTopbar({
   currentProject,
 }: AppTopbarProps) {
   const [isExtraLayoutsOpen, setIsExtraLayoutsOpen] = useState(false);
-  const [isToolsOpen, setIsToolsOpen] = useState(true);
+  const [isToolsOpen, setIsToolsOpen] = useState(false);
 
   // Auto-expand if current orientation is one of the "extra" ones
   const isExtraActive = ["focus", "presentation", "dynamic", "canvas", "waterfall"].includes(layoutOrientation);
   const showExtras = isExtraLayoutsOpen || isExtraActive;
   return (
     <div 
-      className="h-10 border-b border-app-border flex items-center justify-between pl-2 pr-0 bg-app-bg relative z-50 select-none"
+      className="h-10 border-b border-app-border bg-app-bg relative z-50 select-none flex items-stretch justify-between pl-2 pr-0"
+      data-tauri-drag-region
     >
-      <div className="absolute inset-0 -z-10" data-tauri-drag-region />
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 h-full" data-tauri-drag-region>
         <button
           onClick={onToggleSidebar}
           className="p-1 rounded-md transition-colors text-zinc-400 hover:text-white hover:bg-white/5 z-10"
@@ -218,7 +219,7 @@ export function AppTopbar({
         >
           {isSidebarOpen ? <PanelLeftClose size={16} strokeWidth={2} /> : <PanelLeft size={16} strokeWidth={2} />}
         </button>
-        <form onSubmit={onSpawnAgent} className="flex items-center gap-2">
+        <form onSubmit={onSpawnAgent} className="flex items-center gap-2" data-tauri-drag-region>
         <div className="relative flex items-center">
           <button type="submit" className="absolute left-1.5 text-brand-primary transition-colors p-1 z-10 rounded">
             <Plus size={14} strokeWidth={3} />
@@ -242,9 +243,10 @@ export function AppTopbar({
       </form>
       </div>
 
-      <div className="flex items-center gap-3 px-2">
+      <div className="flex items-stretch h-full gap-3" data-tauri-drag-region>
         {appMode === "orchestrator" && (
-          <>
+          <div className="flex items-center gap-3 px-2" data-tauri-drag-region>
+
             <button
               onClick={onOpenBrainstorm}
               className="p-1 rounded-lg transition-colors text-zinc-300 hover:text-brand-primary bg-app-panel border border-app-border"
@@ -266,8 +268,9 @@ export function AppTopbar({
             >
               <Network size={16} strokeWidth={2.5} />
             </button>
-          </>
+          </div>
         )}
+        <div className="flex items-center gap-3 px-2" data-tauri-drag-region>
         {currentProject && (
           <div className="flex items-center bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-1.5 py-0.5 gap-1 shadow-sm ml-2">
             <div className={`flex items-center gap-1 transition-all duration-700 ease-in-out ${isToolsOpen ? "max-w-[1200px] opacity-100 px-0.5" : "max-w-0 opacity-0 overflow-hidden"}`}>
@@ -437,8 +440,9 @@ export function AppTopbar({
             {showExtras ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
           </button>
         </div>
+        </div>
         
-        <div className="h-full ml-6">
+        <div className="h-full">
           <WindowControls />
         </div>
       </div>
