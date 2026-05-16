@@ -122,7 +122,7 @@ interface AppTopbarProps {
     <div ref={ref} className="relative shrink-0">
       <button
         onClick={() => setOpen(!open)}
-        className={`flex items-center justify-center p-1.5 rounded-lg transition-all border ${
+        className={`flex items-center justify-center p-1 rounded-lg transition-all border ${
           open
             ? 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30 shadow-[0_0_12px_rgba(99,102,241,0.08)]'
             : 'text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border-zinc-800/60 hover:border-zinc-700'
@@ -207,7 +207,7 @@ export function AppTopbar({
   const showExtras = isExtraLayoutsOpen || isExtraActive;
   return (
     <div 
-      className="h-7 border-b border-app-border flex items-center justify-between pl-4 pr-0 bg-app-bg relative z-50 select-none"
+      className="h-8 border-b border-app-border flex items-center justify-between pl-4 pr-0 bg-app-bg relative z-50 select-none"
     >
       <div className="absolute inset-0 -z-10" data-tauri-drag-region />
       <form onSubmit={onSpawnAgent} className="flex items-center gap-2">
@@ -226,7 +226,7 @@ export function AppTopbar({
         <button
           type="button"
           onClick={onSpawnBrowser}
-          className="p-1.5 rounded-lg transition-colors text-zinc-300 hover:text-brand-primary bg-app-panel border border-app-border"
+          className="p-1 rounded-lg transition-colors text-zinc-300 hover:text-brand-primary bg-app-panel border border-app-border"
           title="Open Browser Pane"
         >
           <Globe size={16} strokeWidth={2.5} />
@@ -238,21 +238,21 @@ export function AppTopbar({
           <>
             <button
               onClick={onOpenBrainstorm}
-              className="p-1.5 rounded-lg transition-colors text-zinc-300 hover:text-brand-primary bg-app-panel border border-app-border"
+              className="p-1 rounded-lg transition-colors text-zinc-300 hover:text-brand-primary bg-app-panel border border-app-border"
               title="Brainstorm Mode"
             >
               <Brain size={16} strokeWidth={2.5} />
             </button>
             <button
               onClick={onOpenMasterPlan}
-              className="p-1.5 rounded-lg transition-colors text-zinc-300 hover:text-brand-primary bg-app-panel border border-app-border"
+              className="p-1 rounded-lg transition-colors text-zinc-300 hover:text-brand-primary bg-app-panel border border-app-border"
               title="Master Plan Board"
             >
               <ClipboardList size={16} strokeWidth={2.5} />
             </button>
             <button
               onClick={onOpenNetworkGraph}
-              className="p-1.5 rounded-lg transition-colors text-zinc-300 hover:text-brand-primary bg-app-panel border border-app-border"
+              className="p-1 rounded-lg transition-colors text-zinc-300 hover:text-brand-primary bg-app-panel border border-app-border"
               title="Collaboration Graph"
             >
               <Network size={16} strokeWidth={2.5} />
@@ -260,11 +260,11 @@ export function AppTopbar({
           </>
         )}
         {currentProject && (
-          <div className="flex items-center bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-1.5 py-1 gap-1 shadow-sm ml-2">
-            <div className={`flex items-center gap-1.5 transition-all duration-700 ease-in-out ${isToolsOpen ? "max-w-[1200px] opacity-100 px-0.5" : "max-w-0 opacity-0 overflow-hidden"}`}>
+          <div className="flex items-center bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-1.5 py-0.5 gap-1 shadow-sm ml-2">
+            <div className={`flex items-center gap-1 transition-all duration-700 ease-in-out ${isToolsOpen ? "max-w-[1200px] opacity-100 px-0.5" : "max-w-0 opacity-0 overflow-hidden"}`}>
               <button
                 onClick={onToggleFileExplorer}
-                className="p-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all shrink-0"
+                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all shrink-0"
                 title="Project Explorer"
               >
                 <FolderSearch size={14} />
@@ -272,7 +272,7 @@ export function AppTopbar({
 
               <button
                 onClick={onTogglePersonalKanban}
-                className="p-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all shrink-0"
+                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all shrink-0"
                 title="My Tasks"
               >
                 <LayoutList size={14} />
@@ -280,7 +280,7 @@ export function AppTopbar({
 
               <button
                 onClick={onToggleEnvManager}
-                className="p-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all shrink-0"
+                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all shrink-0"
                 title="Env Manager"
               >
                 <FileKey2 size={14} />
@@ -288,7 +288,7 @@ export function AppTopbar({
 
               <button
                 onClick={onTogglePackageManager}
-                className="p-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all shrink-0"
+                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all shrink-0"
                 title="Package Manager"
               >
                 <Package size={14} />
@@ -296,7 +296,7 @@ export function AppTopbar({
 
               <button
                 onClick={onToggleApiLab}
-                className="p-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all shrink-0"
+                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all shrink-0"
                 title="API Lab"
               >
                 <Zap size={14} />
@@ -304,7 +304,7 @@ export function AppTopbar({
 
               <button
                 onClick={onToggleMonorepoGraph}
-                className="p-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all shrink-0"
+                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all shrink-0"
                 title="Dependency Graph"
               >
                 <FolderTree size={14} />
@@ -312,7 +312,7 @@ export function AppTopbar({
 
               <button
                 onClick={onToggleMdViewer}
-                className="p-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all shrink-0"
+                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all shrink-0"
                 title="Markdown Viewer"
               >
                 <FileText size={14} />
@@ -320,7 +320,7 @@ export function AppTopbar({
 
               <button
                 onClick={onToggleConfigEditor}
-                className="p-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all shrink-0"
+                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all shrink-0"
                 title="Config Editor"
               >
                 <FileCode size={14} />
@@ -338,7 +338,7 @@ export function AppTopbar({
               />
               <button
                 onClick={onToggleGitPanel}
-                className="p-1.5 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all shrink-0"
+                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all shrink-0"
                 title="Source Control"
               >
                 <GitMerge size={14} />
@@ -356,7 +356,7 @@ export function AppTopbar({
             {codeReviewStats && (
               <button
                 onClick={onToggleCodeReview}
-                className="flex items-center group relative overflow-hidden bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-700/50 hover:border-zinc-600 rounded-lg px-2 py-1 transition-all ml-0.5 shadow-lg shrink-0"
+                className="flex items-center group relative overflow-hidden bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-700/50 hover:border-zinc-600 rounded-lg px-2 py-0.5 transition-all ml-0.5 shadow-lg shrink-0"
                 title="Open Code Review"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 to-red-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -373,24 +373,24 @@ export function AppTopbar({
           </div>
         )}
 
-        <div className="flex items-center bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-1.5 py-1 gap-1 shadow-sm ml-2">
+        <div className="flex items-center bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-1.5 py-0.5 gap-1 shadow-sm ml-2">
           <button
             onClick={() => onSetLayoutOrientation("vertical")}
-            className={`p-1.5 rounded-lg transition-all shrink-0 ${layoutOrientation === "vertical" ? "bg-brand-accent/30 text-white shadow-inner" : "text-zinc-500 hover:text-zinc-300"}`}
+            className={`p-1 rounded-lg transition-all shrink-0 ${layoutOrientation === "vertical" ? "bg-brand-accent/30 text-white shadow-inner" : "text-zinc-500 hover:text-zinc-300"}`}
             title="Vertical Split (Side-by-side)"
           >
             <Columns size={14} strokeWidth={2.5} />
           </button>
           <button
             onClick={() => onSetLayoutOrientation("horizontal")}
-            className={`p-1.5 rounded-lg transition-all shrink-0 ${layoutOrientation === "horizontal" ? "bg-brand-accent/30 text-white shadow-inner" : "text-zinc-500 hover:text-zinc-300"}`}
+            className={`p-1 rounded-lg transition-all shrink-0 ${layoutOrientation === "horizontal" ? "bg-brand-accent/30 text-white shadow-inner" : "text-zinc-500 hover:text-zinc-300"}`}
             title="Horizontal Stack"
           >
             <Rows size={14} strokeWidth={2.5} />
           </button>
           <button
             onClick={() => onSetLayoutOrientation("grid")}
-            className={`p-1.5 rounded-lg transition-all shrink-0 ${layoutOrientation === "grid" ? "bg-brand-accent/30 text-white shadow-inner" : "text-zinc-500 hover:text-zinc-300"}`}
+            className={`p-1 rounded-lg transition-all shrink-0 ${layoutOrientation === "grid" ? "bg-brand-accent/30 text-white shadow-inner" : "text-zinc-500 hover:text-zinc-300"}`}
             title="Grid Layout"
           >
             <Grid2X2 size={14} strokeWidth={2.5} />
@@ -399,21 +399,21 @@ export function AppTopbar({
           <div className={`flex items-center gap-1 transition-all duration-700 ease-in-out overflow-hidden ${showExtras ? "max-w-[200px] opacity-100 ml-1 border-l border-zinc-800 pl-1" : "max-w-0 opacity-0"}`}>
             <button
               onClick={() => onSetLayoutOrientation("dynamic")}
-              className={`p-1.5 rounded-lg transition-colors shrink-0 ${layoutOrientation === "dynamic" ? "bg-brand-accent/30 text-white" : "text-zinc-400 hover:text-white"}`}
+              className={`p-1 rounded-lg transition-colors shrink-0 ${layoutOrientation === "dynamic" ? "bg-brand-accent/30 text-white" : "text-zinc-400 hover:text-white"}`}
               title="Dynamic Bento Grid"
             >
               <Sparkles size={14} strokeWidth={2.5} />
             </button>
             <button
               onClick={() => onSetLayoutOrientation("canvas")}
-              className={`p-1.5 rounded-lg transition-colors shrink-0 ${layoutOrientation === "canvas" ? "bg-brand-accent/30 text-white" : "text-zinc-400 hover:text-white"}`}
+              className={`p-1 rounded-lg transition-colors shrink-0 ${layoutOrientation === "canvas" ? "bg-brand-accent/30 text-white" : "text-zinc-400 hover:text-white"}`}
               title="Canvas (Free Float)"
             >
               <Layers size={14} strokeWidth={2.5} />
             </button>
             <button
               onClick={() => onSetLayoutOrientation("waterfall")}
-              className={`p-1.5 rounded-lg transition-colors shrink-0 ${layoutOrientation === "waterfall" ? "bg-brand-accent/30 text-white" : "text-zinc-400 hover:text-white"}`}
+              className={`p-1 rounded-lg transition-colors shrink-0 ${layoutOrientation === "waterfall" ? "bg-brand-accent/30 text-white" : "text-zinc-400 hover:text-white"}`}
               title="Waterfall Stream"
             >
               <AlignLeft size={14} strokeWidth={2.5} />
@@ -433,7 +433,7 @@ export function AppTopbar({
         {appMode === "orchestrator" && (
           <button
             onClick={onToggleSidebar}
-            className="p-1.5 rounded-lg transition-colors text-zinc-300 hover:text-brand-primary bg-app-panel border border-app-border"
+            className="p-1 rounded-lg transition-colors text-zinc-300 hover:text-brand-primary bg-app-panel border border-app-border"
             title="Toggle Sidebar"
           >
             {isSidebarOpen ? <PanelLeftClose size={16} strokeWidth={2.5} /> : <PanelLeft size={16} strokeWidth={2.5} />}
