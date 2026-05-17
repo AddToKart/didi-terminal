@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useState, useCallback, useRef, type ReactNode } from "react";
+import { lazy, Suspense, useMemo, useState, useCallback, type ReactNode } from "react";
 
 function ModalBoundary({ children, title }: { children: ReactNode; title?: string }) {
   return (
@@ -159,32 +159,35 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
   } = controller;
   const topbarMode = appMode === "orchestrator" ? "orchestrator" : "terminal";
 
-  // ── Tab Merge state ───────────────────────────────────────────────────────
+  // ── Tab Merge state (native HTML5 drag) ──────────────────────────────────
   const [mergedTabId, setMergedTabId] = useState<string | null>(null);
-  const [isDraggingTab, setIsDraggingTab] = useState(false);
-  const draggingTabIdRef = useRef<string | null>(null);
+  const [isDraggingForMerge, setIsDraggingForMerge] = useState(false);
 
-  const handleDragTabStart = useCallback((tabId: string) => {
-    draggingTabIdRef.current = tabId;
-    setIsDraggingTab(true);
+  const handleMergeDragStart = useCallback((tabId: string) => {
+    setIsDraggingForMerge(true);
+    // tabId is already in dataTransfer set by the drag handle
+    void tabId;
   }, []);
 
-  const handleDragTabEnd = useCallback(() => {
-    draggingTabIdRef.current = null;
-    setIsDraggingTab(false);
+  const handleMergeDragEnd = useCallback(() => {
+    setIsDraggingForMerge(false);
   }, []);
 
-  const handleTabMerge = useCallback((tabId: string) => {
-    setMergedTabId(prev => prev === tabId ? null : tabId);
-  }, []);
-
-  const handleDropZonePointerUp = useCallback(() => {
-    const tabId = draggingTabIdRef.current;
-    if (tabId && tabId !== activeTabId) {
-      handleTabMerge(tabId);
+  const handleTerminalDragOver = useCallback((e: React.DragEvent) => {
+    if (e.dataTransfer.types.includes("merge-tab-id") || isDraggingForMerge) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
     }
-    handleDragTabEnd();
-  }, [activeTabId, handleTabMerge, handleDragTabEnd]);
+  }, [isDraggingForMerge]);
+
+  const handleTerminalDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    const tabId = e.dataTransfer.getData("merge-tab-id");
+    if (tabId && tabId !== activeTabId) {
+      setMergedTabId(prev => prev === tabId ? null : tabId);
+    }
+    setIsDraggingForMerge(false);
+  }, [activeTabId]);
 
   const handleUnmerge = useCallback(() => {
     setMergedTabId(null);
@@ -317,8 +320,11 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
         onRejectHitl={handleHitlReject}
       />
 
-      <section className="flex-1 flex flex-col min-w-0 relative">
-
+      <section
+        className="flex-1 flex flex-col min-w-0 relative"
+        onDragOver={handleTerminalDragOver}
+        onDrop={handleTerminalDrop}
+      >
 
         <AppTerminalTabs
           tabs={tabs}
@@ -328,20 +334,14 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
           onTabCreate={handleTabCreate}
           onTabRename={handleTabRename}
           onTabReorder={handleTabReorder}
-          onTabMerge={handleTabMerge}
-          onDragTabStart={handleDragTabStart}
-          onDragTabEnd={handleDragTabEnd}
+          onMergeDragStart={handleMergeDragStart}
+          onMergeDragEnd={handleMergeDragEnd}
         />
 
-        {/* ── Drop Zone overlay — appears when dragging a tab ── */}
-        {isDraggingTab && (
-          <div
-            className="absolute inset-0 top-8 z-50 flex items-center justify-center"
-            style={{ pointerEvents: "all" }}
-            onPointerUp={handleDropZonePointerUp}
-            onPointerMove={(e) => e.stopPropagation()}
-          >
-            <div className="w-full h-full border-2 border-dashed border-indigo-500/60 bg-indigo-500/8 flex items-center justify-center">
+        {/* Drop zone visual — shows when dragging a merge handle */}
+        {isDraggingForMerge && (
+          <div className="absolute inset-0 top-8 z-40 pointer-events-none flex items-center justify-center">
+            <div className="w-full h-full border-2 border-dashed border-indigo-500/50 bg-indigo-500/5 flex items-center justify-center">
               <div className="bg-zinc-900/90 border border-indigo-500/40 rounded-xl px-8 py-4 flex flex-col items-center gap-2 shadow-2xl">
                 <div className="text-indigo-400 text-sm font-semibold">Drop to Merge Tab</div>
                 <div className="text-zinc-500 text-xs">Release here to split view side by side</div>

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, KeyboardEvent } from "react";
-import { Plus, X } from "lucide-react";
+import { Plus, X, GripVertical } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -26,9 +26,10 @@ interface AppTerminalTabsProps {
   onTabCreate: () => void;
   onTabRename: (id: string, newName: string) => void;
   onTabReorder: (oldIndex: number, newIndex: number) => void;
-  onTabMerge?: (tabId: string) => void;
-  onDragTabStart?: (tabId: string) => void;
-  onDragTabEnd?: () => void;
+  /** Called when a native drag of an inactive tab starts (for showing drop zone) */
+  onMergeDragStart?: (tabId: string) => void;
+  /** Called when the native merge drag ends (cancelled or completed) */
+  onMergeDragEnd?: () => void;
 }
 
 // ── Sortable Tab Item ─────────────────────────────────────────────────────────
@@ -46,6 +47,8 @@ interface SortableTabItemProps {
   onRenameSubmit: () => void;
   onKeyDown: (e: KeyboardEvent) => void;
   isDragOverlay?: boolean;
+  onMergeDragStart?: (tabId: string) => void;
+  onMergeDragEnd?: () => void;
 }
 
 function SortableTabItem({
@@ -61,6 +64,8 @@ function SortableTabItem({
   onRenameSubmit,
   onKeyDown,
   isDragOverlay = false,
+  onMergeDragStart,
+  onMergeDragEnd,
 }: SortableTabItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: tab.id });
@@ -74,6 +79,22 @@ function SortableTabItem({
 
   const isEditing = tab.id === editingTabId;
 
+  // ── Native drag handle for merge (inactive tabs only) ──────────────────────
+  const handleMergeDragStart = (e: React.DragEvent) => {
+    e.dataTransfer.setData("merge-tab-id", tab.id);
+    e.dataTransfer.effectAllowed = "move";
+    onMergeDragStart?.(tab.id);
+  };
+
+  const handleMergeDragEnd = (e: React.DragEvent) => {
+    // dropEffect === "none" means it was dropped outside a valid drop target
+    // We still call onMergeDragEnd to clear the drop zone UI.
+    // The actual merge is triggered by the drop zone's onDrop.
+    if (e.dataTransfer.dropEffect === "none") {
+      onMergeDragEnd?.();
+    }
+  };
+
   return (
     <div
       ref={setNodeRef}
@@ -82,7 +103,7 @@ function SortableTabItem({
       {...listeners}
       onClick={() => { if (!isEditing) onSelect(); }}
       onDoubleClick={onDoubleClick}
-      className={`group flex items-center gap-2 px-4 h-full border-r border-app-border cursor-pointer select-none min-w-[120px] max-w-[200px] transition-all ${
+      className={`group flex items-center gap-1 px-3 h-full border-r border-app-border cursor-pointer select-none min-w-[120px] max-w-[200px] transition-all ${
         isDragOverlay
           ? "bg-app-panel text-white shadow-2xl border-y border-app-border ring-1 ring-brand-accent/50 z-[100]"
           : isActive
@@ -90,6 +111,20 @@ function SortableTabItem({
           : "bg-transparent text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
       }`}
     >
+      {/* Merge drag handle — only on inactive tabs, only visible on hover */}
+      {!isActive && !isEditing && !isDragOverlay && (
+        <div
+          draggable
+          onDragStart={handleMergeDragStart}
+          onDragEnd={handleMergeDragEnd}
+          onPointerDown={(e) => e.stopPropagation()} // prevent dnd-kit from activating
+          title="Drag into terminal area to merge"
+          className="opacity-0 group-hover:opacity-60 hover:!opacity-100 text-zinc-500 hover:text-indigo-400 cursor-grab active:cursor-grabbing transition-opacity p-0.5 shrink-0"
+        >
+          <GripVertical size={11} strokeWidth={2} />
+        </div>
+      )}
+
       {isEditing ? (
         <input
           ref={inputRef}
@@ -135,9 +170,8 @@ export function AppTerminalTabs({
   onTabCreate,
   onTabRename,
   onTabReorder,
-  onTabMerge,
-  onDragTabStart,
-  onDragTabEnd,
+  onMergeDragStart,
+  onMergeDragEnd,
 }: AppTerminalTabsProps) {
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -178,25 +212,13 @@ export function AppTerminalTabs({
   };
 
   const handleDragStart = (event: DragStartEvent) => {
-    const id = event.active.id as string;
-    setActiveDragId(id);
-    onDragTabStart?.(id);
+    setActiveDragId(event.active.id as string);
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveDragId(null);
-    onDragTabEnd?.();
-
-    // No over target = dropped outside tab bar (into terminal area)
-    if (!over) {
-      if (onTabMerge && active.id !== activeTabId) {
-        onTabMerge(active.id as string);
-      }
-      return;
-    }
-
-    if (active.id === over.id) return;
+    if (!over || active.id === over.id) return;
     const oldIndex = tabs.findIndex((t) => t.id === active.id);
     const newIndex = tabs.findIndex((t) => t.id === over.id);
     if (oldIndex !== -1 && newIndex !== -1) {
@@ -228,6 +250,8 @@ export function AppTerminalTabs({
                 onEditValueChange={setEditValue}
                 onRenameSubmit={handleRenameSubmit}
                 onKeyDown={handleKeyDown}
+                onMergeDragStart={onMergeDragStart}
+                onMergeDragEnd={onMergeDragEnd}
               />
             ))}
           </SortableContext>
