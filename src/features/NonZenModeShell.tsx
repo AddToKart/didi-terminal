@@ -174,11 +174,9 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
   }, []);
 
   const handleTerminalDragOver = useCallback((e: React.DragEvent) => {
-    if (e.dataTransfer.types.includes("merge-tab-id") || isDraggingForMerge) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = "move";
-    }
-  }, [isDraggingForMerge]);
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  }, []);
 
   const handleTerminalDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -322,8 +320,6 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
 
       <section
         className="flex-1 flex flex-col min-w-0 relative"
-        onDragOver={handleTerminalDragOver}
-        onDrop={handleTerminalDrop}
       >
 
         <AppTerminalTabs
@@ -338,11 +334,21 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
           onMergeDragEnd={handleMergeDragEnd}
         />
 
-        {/* Drop zone visual — shows when dragging a merge handle */}
+        {/* Drop zone overlay — covers the whole terminal area when dragging a merge handle */}
         {isDraggingForMerge && (
-          <div className="absolute inset-0 top-8 z-40 pointer-events-none flex items-center justify-center">
-            <div className="w-full h-full border-2 border-dashed border-indigo-500/50 bg-indigo-500/5 flex items-center justify-center">
-              <div className="bg-zinc-900/90 border border-indigo-500/40 rounded-xl px-8 py-4 flex flex-col items-center gap-2 shadow-2xl">
+          <div
+            className="absolute inset-0 top-8 z-50 flex items-center justify-center"
+            onDragOver={handleTerminalDragOver}
+            onDrop={handleTerminalDrop}
+            onDragLeave={(e) => {
+              // Only clear if leaving to something outside the overlay entirely
+              if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                setIsDraggingForMerge(false);
+              }
+            }}
+          >
+            <div className="w-full h-full border-2 border-dashed border-indigo-500/60 bg-indigo-500/8 flex items-center justify-center">
+              <div className="bg-zinc-900/90 border border-indigo-500/40 rounded-xl px-8 py-4 flex flex-col items-center gap-2 shadow-2xl pointer-events-none">
                 <div className="text-indigo-400 text-sm font-semibold">Drop to Merge Tab</div>
                 <div className="text-zinc-500 text-xs">Release here to split view side by side</div>
               </div>
