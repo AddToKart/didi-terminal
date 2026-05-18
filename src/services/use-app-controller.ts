@@ -5,13 +5,13 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { type GitSnapshotRecord } from "../components/panels/SnapshotPanel";
 import { type BrainstormSession } from "../components/modals/BrainstormModal";
 import {
-  findMatchingAgent,
   getPtyKey,
   getUniqueAgents,
   type ActiveMasterPlanTask,
   type MasterPlanTaskDispatch,
   type SentinelAgentState,
 } from "./app-core";
+import { getSplitAgentNameInTab, getUniqueAgentNameInTab } from "@/services/agent-naming";
 import { registerSentinelMonitoring } from "./sentinel-service";
 import { registerHandoffListeners } from "./handoff-service";
 import { createHandoffQueueService } from "./handoff-queue-service";
@@ -716,22 +716,8 @@ export function useAppController() {
 
   const spawnAgent = (e: FormEvent) => {
     e.preventDefault();
-    let name = newAgentName.trim();
-    if (!name) {
-      let counter = 1;
-      name = `Terminal ${counter}`;
-      while (findMatchingAgent(allAgents, name)) {
-        counter++;
-        name = `Terminal ${counter}`;
-      }
-    } else {
-      let originalName = name;
-      let counter = 1;
-      while (findMatchingAgent(allAgents, name)) {
-        counter++;
-        name = `${originalName}-${counter}`;
-      }
-    }
+    const activeTabAgents = activeTab?.agents ?? [];
+    const name = getUniqueAgentNameInTab(activeTabAgents, newAgentName);
 
     const newAgent = { id: crypto.randomUUID(), name };
     setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, agents: [...t.agents, newAgent] } : t));
@@ -740,23 +726,18 @@ export function useAppController() {
   };
 
   const handleOpenProjectInTerminal = useCallback((_path: string, name: string) => {
-    let agentName = name;
-    let counter = 1;
-    while (findMatchingAgent(allAgents, agentName)) {
-      counter++;
-      agentName = `${name}-${counter}`;
-    }
+    const agentName = getUniqueAgentNameInTab(agents, name);
 
     const newAgent = { id: crypto.randomUUID(), name: agentName };
     setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, agents: [...t.agents, newAgent] } : t));
     addLog(`Opening ${name} in terminal...`, "system");
     setShowMonorepoGraph(false);
-  }, [allAgents, activeTabId]);
+  }, [activeTabId, agents]);
 
   const removeAgent = (agentToRemoveId: string) => {
     const agentToRemove = agents.find(a => a.id === agentToRemoveId)?.name || agentToRemoveId;
-    const agentKey = `${activeWorkspaceId}::${getPtyKey(agentToRemove)}`;
-    closeStoredTerminalLanes(agentToRemove);
+    const agentKey = getTerminalLanePtyKey(activeWorkspaceId, agentToRemoveId);
+    closeStoredTerminalLanes(agentToRemoveId);
     invoke("close_pty", { agent: agentKey }).catch(console.error);
     pendingHandoffs.current.delete(agentKey);
     readyAgents.current.delete(agentKey);
@@ -788,13 +769,7 @@ export function useAppController() {
 
   const handleSplit = (agentToSplitId: string) => {
     const agentToSplit = agents.find(a => a.id === agentToSplitId)?.name || "Split Agent";
-    const baseName = agentToSplit.replace(/-\d+$/, "");
-    let counter = 1;
-    let newName = `${baseName}-${counter}`;
-    while (findMatchingAgent(allAgents, newName)) {
-      counter++;
-      newName = `${baseName}-${counter}`;
-    }
+    const newName = getSplitAgentNameInTab(agents, agentToSplit);
 
     setTabs(prev => prev.map(t => {
       if (t.id !== activeTabId) return t;

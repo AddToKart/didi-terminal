@@ -1,22 +1,14 @@
 import { useState, useRef, useEffect, KeyboardEvent } from "react";
-import { Plus, X, GripVertical } from "lucide-react";
+import { Plus, X, Columns2 } from "lucide-react";
 import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragOverlay,
-  type DragStartEvent,
-  type DragEndEvent,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
   useSortable,
+  SortableContext,
   horizontalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { TerminalTab } from "../../types/workspace";
+
+export const TERMINAL_DROP_ID = "terminal-merge-drop";
 
 interface AppTerminalTabsProps {
   tabs: TerminalTab[];
@@ -25,17 +17,13 @@ interface AppTerminalTabsProps {
   onTabClose: (id: string) => void;
   onTabCreate: () => void;
   onTabRename: (id: string, newName: string) => void;
-  onTabReorder: (oldIndex: number, newIndex: number) => void;
-  /** Called when a native drag of an inactive tab starts (for showing drop zone) */
-  onMergeDragStart?: (tabId: string) => void;
-  /** Called when the native merge drag ends (cancelled or completed) */
-  onMergeDragEnd?: () => void;
+  mergedTabPair: readonly [string, string] | null;
+  onUnmerge: () => void;
 }
-
-// ── Sortable Tab Item ─────────────────────────────────────────────────────────
 
 interface SortableTabItemProps {
   tab: TerminalTab;
+  displayName: string;
   isActive: boolean;
   editingTabId: string | null;
   editValue: string;
@@ -47,12 +35,15 @@ interface SortableTabItemProps {
   onRenameSubmit: () => void;
   onKeyDown: (e: KeyboardEvent) => void;
   isDragOverlay?: boolean;
-  onMergeDragStart?: (tabId: string) => void;
-  onMergeDragEnd?: () => void;
+  isMerged?: boolean;
+  canRename?: boolean;
+  canClose?: boolean;
+  onUnmerge?: () => void;
 }
 
 function SortableTabItem({
   tab,
+  displayName,
   isActive,
   editingTabId,
   editValue,
@@ -64,11 +55,13 @@ function SortableTabItem({
   onRenameSubmit,
   onKeyDown,
   isDragOverlay = false,
-  onMergeDragStart,
-  onMergeDragEnd,
+  isMerged = false,
+  canRename = true,
+  canClose = true,
+  onUnmerge,
 }: SortableTabItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: tab.id });
+    useSortable({ id: tab.id, data: { type: "tab" } });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -79,22 +72,6 @@ function SortableTabItem({
 
   const isEditing = tab.id === editingTabId;
 
-  // ── Native drag handle for merge (inactive tabs only) ──────────────────────
-  const handleMergeDragStart = (e: React.DragEvent) => {
-    e.dataTransfer.setData("merge-tab-id", tab.id);
-    e.dataTransfer.effectAllowed = "move";
-    onMergeDragStart?.(tab.id);
-  };
-
-  const handleMergeDragEnd = (e: React.DragEvent) => {
-    // dropEffect === "none" means it was dropped outside a valid drop target
-    // We still call onMergeDragEnd to clear the drop zone UI.
-    // The actual merge is triggered by the drop zone's onDrop.
-    if (e.dataTransfer.dropEffect === "none") {
-      onMergeDragEnd?.();
-    }
-  };
-
   return (
     <div
       ref={setNodeRef}
@@ -103,6 +80,12 @@ function SortableTabItem({
       {...listeners}
       onClick={() => { if (!isEditing) onSelect(); }}
       onDoubleClick={onDoubleClick}
+      onContextMenu={(e) => {
+        if (isMerged && onUnmerge) {
+          e.preventDefault();
+          onUnmerge();
+        }
+      }}
       className={`group flex items-center gap-1 px-3 h-full border-r border-app-border cursor-pointer select-none min-w-[120px] max-w-[200px] transition-all ${
         isDragOverlay
           ? "bg-app-panel text-white shadow-2xl border-y border-app-border ring-1 ring-brand-accent/50 z-[100]"
@@ -111,21 +94,13 @@ function SortableTabItem({
           : "bg-transparent text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
       }`}
     >
-      {/* Merge drag handle — only on inactive tabs, only visible on hover */}
-      {!isActive && !isEditing && !isDragOverlay && (
-        <div
-          draggable
-          onDragStart={handleMergeDragStart}
-          onDragEnd={handleMergeDragEnd}
-          onPointerDown={(e) => e.stopPropagation()} // prevent dnd-kit from activating
-          title="Drag into terminal area to merge"
-          className="opacity-0 group-hover:opacity-60 hover:!opacity-100 text-zinc-500 hover:text-indigo-400 cursor-grab active:cursor-grabbing transition-opacity p-0.5 shrink-0"
-        >
-          <GripVertical size={11} strokeWidth={2} />
+      {isMerged && !isDragOverlay && (
+        <div className="text-indigo-400 shrink-0" title="Merged tab. Right-click to unmerge.">
+          <Columns2 size={10} strokeWidth={2} />
         </div>
       )}
 
-      {isEditing ? (
+      {isEditing && canRename ? (
         <input
           ref={inputRef}
           value={editValue}
@@ -137,10 +112,10 @@ function SortableTabItem({
         />
       ) : (
         <span className={`text-xs truncate flex-1 ${isActive ? "font-bold" : "font-medium"}`}>
-          {tab.name}
+          {displayName}
         </span>
       )}
-      {!isEditing && (
+      {!isEditing && canClose && (
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -160,7 +135,16 @@ function SortableTabItem({
   );
 }
 
-// ── Main Tabs Component ───────────────────────────────────────────────────────
+const getMergedTabName = (leftName: string, rightName: string) => {
+  const leftTabMatch = leftName.match(/^Tab\s+(.+)$/i);
+  const rightTabMatch = rightName.match(/^Tab\s+(.+)$/i);
+
+  if (leftTabMatch && rightTabMatch) {
+    return `Tab ${leftTabMatch[1]}&${rightTabMatch[1]}`;
+  }
+
+  return `${leftName}&${rightName}`;
+};
 
 export function AppTerminalTabs({
   tabs,
@@ -169,20 +153,12 @@ export function AppTerminalTabs({
   onTabClose,
   onTabCreate,
   onTabRename,
-  onTabReorder,
-  onMergeDragStart,
-  onMergeDragEnd,
+  mergedTabPair,
+  onUnmerge,
 }: AppTerminalTabsProps) {
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
-  const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 5 },
-    })
-  );
 
   useEffect(() => {
     if (editingTabId && inputRef.current) {
@@ -211,74 +187,53 @@ export function AppTerminalTabs({
     }
   };
 
-  const handleDragStart = (event: DragStartEvent) => {
-    setActiveDragId(event.active.id as string);
-  };
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    setActiveDragId(null);
-    if (!over || active.id === over.id) return;
-    const oldIndex = tabs.findIndex((t) => t.id === active.id);
-    const newIndex = tabs.findIndex((t) => t.id === over.id);
-    if (oldIndex !== -1 && newIndex !== -1) {
-      onTabReorder(oldIndex, newIndex);
-    }
-  };
+  const [mergedPrimaryId, mergedSecondaryId] = mergedTabPair ?? [];
+  const mergedPrimary = tabs.find(tab => tab.id === mergedPrimaryId);
+  const mergedSecondary = tabs.find(tab => tab.id === mergedSecondaryId);
+  const mergedLabel = mergedPrimary && mergedSecondary
+    ? getMergedTabName(mergedPrimary.name, mergedSecondary.name)
+    : "";
 
   return (
     <div className="h-8 flex items-center bg-app-bg border-b border-app-border shrink-0 overflow-x-auto custom-scrollbar">
       <div className="flex items-center h-full">
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
+        <SortableContext
+          items={tabs.filter(tab => tab.id !== mergedSecondaryId).map((t) => t.id)}
+          strategy={horizontalListSortingStrategy}
         >
-          <SortableContext items={tabs.map((t) => t.id)} strategy={horizontalListSortingStrategy}>
-            {tabs.map((tab) => (
+          {tabs.map((tab) => {
+            if (tab.id === mergedSecondaryId) return null;
+
+            const isMergedDisplay = tab.id === mergedPrimaryId && !!mergedSecondary;
+            const isActive = isMergedDisplay
+              ? activeTabId === mergedPrimaryId || activeTabId === mergedSecondaryId
+              : tab.id === activeTabId;
+
+            return (
               <SortableTabItem
                 key={tab.id}
                 tab={tab}
-                isActive={tab.id === activeTabId}
+                displayName={isMergedDisplay ? mergedLabel : tab.name}
+                isActive={isActive}
                 editingTabId={editingTabId}
                 editValue={editValue}
                 inputRef={inputRef}
                 onSelect={() => onTabSelect(tab.id)}
-                onDoubleClick={() => handleDoubleClick(tab.id, tab.name)}
+                onDoubleClick={() => {
+                  if (!isMergedDisplay) handleDoubleClick(tab.id, tab.name);
+                }}
                 onClose={() => onTabClose(tab.id)}
                 onEditValueChange={setEditValue}
                 onRenameSubmit={handleRenameSubmit}
                 onKeyDown={handleKeyDown}
-                onMergeDragStart={onMergeDragStart}
-                onMergeDragEnd={onMergeDragEnd}
+                isMerged={isMergedDisplay}
+                canRename={!isMergedDisplay}
+                canClose={!isMergedDisplay}
+                onUnmerge={isMergedDisplay ? onUnmerge : undefined}
               />
-            ))}
-          </SortableContext>
-
-          <DragOverlay dropAnimation={null}>
-            {activeDragId ? (() => {
-              const tab = tabs.find(t => t.id === activeDragId);
-              if (!tab) return null;
-              return (
-                <SortableTabItem
-                  tab={tab}
-                  isActive={tab.id === activeTabId}
-                  editingTabId={null}
-                  editValue=""
-                  inputRef={inputRef}
-                  onSelect={() => {}}
-                  onDoubleClick={() => {}}
-                  onClose={() => {}}
-                  onEditValueChange={() => {}}
-                  onRenameSubmit={() => {}}
-                  onKeyDown={() => {}}
-                  isDragOverlay
-                />
-              );
-            })() : null}
-          </DragOverlay>
-        </DndContext>
+            );
+          })}
+        </SortableContext>
       </div>
       <button
         onClick={onTabCreate}

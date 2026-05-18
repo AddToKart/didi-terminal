@@ -1,11 +1,3 @@
-/**
- * MergedTabView
- *
- * Renders two AppTerminalAreas side-by-side with a draggable splitter.
- * Left = current active tab's terminals.
- * Right = merged tab's terminals.
- * Right-click the merged panel header → context menu → Unmerge.
- */
 import { useState, useCallback, useRef, useEffect } from "react";
 import { AppTerminalArea } from "../layout/AppTerminalArea";
 import type { AgentInstance, TerminalLayoutOrientation } from "../../types/workspace";
@@ -15,17 +7,19 @@ interface MergedTabViewProps {
   leftAgents: AgentInstance[];
   leftLayout: TerminalLayoutOrientation;
   leftTabName: string;
+  leftTabId: string;
   rightAgents: AgentInstance[];
   rightLayout: TerminalLayoutOrientation;
   rightTabName: string;
+  rightTabId: string;
   currentProject: string | null;
   workspaceName?: string;
   workspaceId: string;
   isGlass?: boolean;
-  onRemoveAgent: (id: string) => void;
-  onDetachAgent: (id: string) => void;
-  onReorderAgents: (oldIndex: number, newIndex: number) => void;
-  onSplit: (agentId: string) => void;
+  onRemoveAgentForTab: (tabId: string, agentId: string) => void;
+  onDetachAgentForTab: (tabId: string, agentId: string) => void;
+  onReorderAgentsForTab: (tabId: string, oldIndex: number, newIndex: number) => void;
+  onSplitForTab: (tabId: string, agentId: string) => void;
   onUnmerge: () => void;
 }
 
@@ -33,17 +27,19 @@ export function MergedTabView({
   leftAgents,
   leftLayout,
   leftTabName,
+  leftTabId,
   rightAgents,
   rightLayout,
   rightTabName,
+  rightTabId,
   currentProject,
   workspaceName,
   workspaceId,
   isGlass,
-  onRemoveAgent,
-  onDetachAgent,
-  onReorderAgents,
-  onSplit,
+  onRemoveAgentForTab,
+  onDetachAgentForTab,
+  onReorderAgentsForTab,
+  onSplitForTab,
   onUnmerge,
 }: MergedTabViewProps) {
   const [splitPct, setSplitPct] = useState(50);
@@ -51,7 +47,6 @@ export function MergedTabView({
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
 
-  // ── Drag-to-resize splitter ──────────────────────────────────────────────
   const handleSplitterMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     isDragging.current = true;
@@ -73,7 +68,6 @@ export function MergedTabView({
     window.addEventListener("mouseup", onMouseUp);
   }, []);
 
-  // ── Right-click context menu ─────────────────────────────────────────────
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     setContextMenu({ x: e.clientX, y: e.clientY });
@@ -91,27 +85,24 @@ export function MergedTabView({
   return (
     <div
       ref={containerRef}
-      className="flex-1 min-h-0 min-w-0 flex flex-row select-none"
+      className="flex h-full w-full flex-row select-none"
     >
-      {/* ── Left pane ── */}
-      <div
-        className="flex flex-col min-h-0 min-w-0"
-        style={{ width: `${splitPct}%` }}
-      >
-        <div className="h-6 flex items-center px-3 border-b border-r border-app-border bg-app-bg shrink-0">
-          <span className="text-[10px] font-mono font-bold text-zinc-500 uppercase tracking-widest">
+      {/* Left pane */}
+      <div className="flex h-full flex-col" style={{ width: `${splitPct}%` }}>
+        <div className="flex h-6 shrink-0 items-center border-b border-r border-app-border bg-app-bg px-3">
+          <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-zinc-500">
             {leftTabName}
           </span>
         </div>
-        <div className="flex-1 min-h-0 min-w-0">
+        <div className="flex-1 min-h-0">
           <AppTerminalArea
             agents={leftAgents}
             currentProject={currentProject}
             layoutOrientation={leftLayout}
-            onRemoveAgent={onRemoveAgent}
-            onDetachAgent={onDetachAgent}
-            onReorderAgents={onReorderAgents}
-            onSplit={onSplit}
+            onRemoveAgent={(id) => onRemoveAgentForTab(leftTabId, id)}
+            onDetachAgent={(id) => onDetachAgentForTab(leftTabId, id)}
+            onReorderAgents={(oldIndex, newIndex) => onReorderAgentsForTab(leftTabId, oldIndex, newIndex)}
+            onSplit={(id) => onSplitForTab(leftTabId, id)}
             workspaceName={workspaceName}
             workspaceId={workspaceId}
             isGlass={isGlass}
@@ -119,40 +110,38 @@ export function MergedTabView({
         </div>
       </div>
 
-      {/* ── Draggable splitter ── */}
+      {/* Splitter */}
       <div
-        className="w-[2px] shrink-0 bg-app-border hover:bg-indigo-500/60 transition-colors cursor-col-resize active:bg-indigo-500"
+        className="w-[2px] shrink-0 cursor-col-resize bg-app-border transition-colors hover:bg-indigo-500/60 active:bg-indigo-500"
         onMouseDown={handleSplitterMouseDown}
       />
 
-      {/* ── Right pane ── */}
-      <div
-        className="flex flex-col min-h-0 min-w-0 flex-1"
-      >
+      {/* Right pane */}
+      <div className="flex h-full flex-col flex-1">
         <div
-          className="h-6 flex items-center px-3 border-b border-app-border bg-app-bg shrink-0 cursor-context-menu group"
+          className="flex h-6 shrink-0 cursor-context-menu items-center border-b border-app-border bg-app-bg px-3 group"
           onContextMenu={handleContextMenu}
         >
-          <span className="text-[10px] font-mono font-bold text-zinc-500 uppercase tracking-widest flex-1">
+          <span className="flex-1 font-mono text-[10px] font-bold uppercase tracking-widest text-zinc-500">
             {rightTabName}
           </span>
           <button
             onClick={(e) => { e.stopPropagation(); onUnmerge(); }}
             title="Unmerge tab"
-            className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-white/10 text-zinc-500 hover:text-red-400"
+            className="rounded p-0.5 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-white/10 text-zinc-500 hover:text-red-400"
           >
             <X size={11} strokeWidth={2.5} />
           </button>
         </div>
-        <div className="flex-1 min-h-0 min-w-0">
+        <div className="flex-1 min-h-0">
           <AppTerminalArea
             agents={rightAgents}
             currentProject={currentProject}
             layoutOrientation={rightLayout}
-            onRemoveAgent={onRemoveAgent}
-            onDetachAgent={onDetachAgent}
-            onReorderAgents={onReorderAgents}
-            onSplit={onSplit}
+            onRemoveAgent={(id) => onRemoveAgentForTab(rightTabId, id)}
+            onDetachAgent={(id) => onDetachAgentForTab(rightTabId, id)}
+            onReorderAgents={(oldIndex, newIndex) => onReorderAgentsForTab(rightTabId, oldIndex, newIndex)}
+            onSplit={(id) => onSplitForTab(rightTabId, id)}
             workspaceName={workspaceName}
             workspaceId={workspaceId}
             isGlass={isGlass}
@@ -160,7 +149,7 @@ export function MergedTabView({
         </div>
       </div>
 
-      {/* ── Right-click context menu ── */}
+      {/* Context menu */}
       {contextMenu && (
         <>
           <div
@@ -169,15 +158,15 @@ export function MergedTabView({
             onContextMenu={(e) => { e.preventDefault(); closeContextMenu(); }}
           />
           <div
-            className="fixed z-[1000] bg-zinc-900 border border-zinc-700/60 rounded-lg shadow-2xl py-1 min-w-[160px] animate-in fade-in duration-100"
+            className="fixed z-[1000] min-w-[160px] animate-in fade-in rounded-lg border border-zinc-700/60 bg-zinc-900 py-1 shadow-2xl duration-100"
             style={{ left: contextMenu.x, top: contextMenu.y }}
           >
-            <div className="px-3 py-1.5 text-[10px] font-mono text-zinc-500 uppercase tracking-widest border-b border-zinc-800 mb-1">
+            <div className="mb-1 border-b border-zinc-800 px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-zinc-500">
               {rightTabName}
             </div>
             <button
               onClick={() => { onUnmerge(); closeContextMenu(); }}
-              className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-zinc-300 hover:bg-white/8 hover:text-white transition-colors text-left"
+              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-zinc-300 transition-colors hover:bg-white/8 hover:text-white"
             >
               <X size={12} />
               Unmerge Tab

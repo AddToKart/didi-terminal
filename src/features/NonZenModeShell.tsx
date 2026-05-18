@@ -1,4 +1,59 @@
-import { lazy, Suspense, useMemo, useState, useCallback, type ReactNode } from "react";
+import { lazy, Suspense, useMemo, useState, useCallback, useEffect, type ReactNode } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { getSplitAgentNameInTab, getUniqueAgentNameInTab } from "@/services/agent-naming";
+import {
+  ROOT_TERMINAL_LANE_ID,
+  clearTerminalLanes,
+  getTerminalLanePtyKey,
+  loadStoredTerminalLanes,
+} from "@/services/terminal-lanes";
+import { useWorkspaceStore } from "../services/stores/workspace-store";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+  useDroppable,
+  type DragStartEvent,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { Terminal as TerminalIcon, Network, Monitor, Settings, Code2, GitBranch, LayoutList, FolderSearch, FileKey2, Package, Zap, FolderTree, Server, Database, FileText, FileCode, Palette, Plus, Globe, Shield, Brain, ClipboardList, Box, HardDrive, Columns2 } from "lucide-react";
+import { AppOverlays } from "../components/layout/AppOverlays";
+import { ErrorBoundary } from "../components/ErrorBoundary";
+import { AppGlobalSidebar } from "../components/layout/AppGlobalSidebar";
+import { AppTopbar } from "../components/layout/AppTopbar";
+import { AppTerminalTabs, TERMINAL_DROP_ID } from "../components/layout/AppTerminalTabs";
+import { AppTerminalWorkspace } from "../components/layout/AppTerminalWorkspace";
+import { StatusBar } from "../components/layout/StatusBar";
+import { TwoFactorModal } from "../components/modals/TwoFactorModal";
+import { QuickPalette, type PaletteAction } from "../components/modals/QuickPalette";
+import type { NonZenModeShellProps } from "../types/terminal-mode.types";
+
+function TerminalDropZone() {
+  const { isOver, setNodeRef } = useDroppable({ id: TERMINAL_DROP_ID });
+  return (
+    <div
+      ref={setNodeRef}
+      className="absolute inset-0 z-50 pointer-events-none"
+    >
+      {isOver && (
+        <div className="w-full h-full flex items-center justify-center">
+          <div className="w-[96%] h-[96%] border-2 border-dashed border-indigo-500/60 bg-indigo-500/8 rounded-xl flex items-center justify-center">
+            <div className="bg-zinc-900/90 border border-indigo-500/40 rounded-xl px-8 py-4 flex flex-col items-center gap-2 shadow-2xl">
+              <div className="flex items-center gap-2 text-indigo-400 text-sm font-semibold">
+                <Columns2 size={14} />
+                Drop to Merge Tab
+              </div>
+              <div className="text-zinc-500 text-xs">Release here to split view side by side</div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function ModalBoundary({ children, title }: { children: ReactNode; title?: string }) {
   return (
@@ -7,18 +62,6 @@ function ModalBoundary({ children, title }: { children: ReactNode; title?: strin
     </ErrorBoundary>
   );
 }
-import { Terminal as TerminalIcon, Network, Monitor, Settings, Code2, GitBranch, LayoutList, FolderSearch, FileKey2, Package, Zap, FolderTree, Server, Database, FileText, FileCode, Palette, Plus, Globe, Shield, Brain, ClipboardList, Box, HardDrive } from "lucide-react";
-import { AppOverlays } from "../components/layout/AppOverlays";
-import { ErrorBoundary } from "../components/ErrorBoundary";
-import { AppGlobalSidebar } from "../components/layout/AppGlobalSidebar";
-import { AppTopbar } from "../components/layout/AppTopbar";
-import { AppTerminalTabs } from "../components/layout/AppTerminalTabs";
-import { AppTerminalArea } from "../components/layout/AppTerminalArea";
-import { MergedTabView } from "../components/layout/MergedTabView";
-import { StatusBar } from "../components/layout/StatusBar";
-import { TwoFactorModal } from "../components/modals/TwoFactorModal";
-import { QuickPalette, type PaletteAction } from "../components/modals/QuickPalette";
-import type { NonZenModeShellProps } from "../types/terminal-mode.types";
 
 // Lazy-loaded modals & panels
 const CodeReviewPanel = lazy(() => import("../components/source-control/CodeReviewPanel").then(m => ({ default: m.CodeReviewPanel })));
@@ -135,7 +178,6 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
     handleSectionRename,
     handleSectionDelete,
     handleOpenDirectory,
-    handleReorderAgents,
     handleTabCreate,
     handleTabSelect,
     handleTabRename,
@@ -143,11 +185,8 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
     handleTabReorder,
     spawnAgent,
     handleOpenProjectInTerminal,
-    removeAgent,
-    detachAgent,
     handleSpawnBrowser,
     handleSetLayoutOrientation,
-    handleSplit,
     handleKillAgent,
     handleInterruptAgent,
     handleInjectHint,
@@ -157,43 +196,163 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
     handleStartBrainstorm,
     handleDispatchMasterPlanTask,
   } = controller;
+  const setWorkspaces = useWorkspaceStore(s => s.setWorkspaces);
   const topbarMode = appMode === "orchestrator" ? "orchestrator" : "terminal";
 
-  // ── Tab Merge state (native HTML5 drag) ──────────────────────────────────
-  const [mergedTabId, setMergedTabId] = useState<string | null>(null);
-  const [isDraggingForMerge, setIsDraggingForMerge] = useState(false);
+  // Merge state
+  const [mergePair, setMergePair] = useState<[string, string] | null>(null);
+  const [draggedTabId, setDraggedTabId] = useState<string | null>(null);
 
-  const handleMergeDragStart = useCallback((tabId: string) => {
-    setIsDraggingForMerge(true);
-    // tabId is already in dataTransfer set by the drag handle
-    void tabId;
-  }, []);
-
-  const handleMergeDragEnd = useCallback(() => {
-    setIsDraggingForMerge(false);
-  }, []);
-
-  const handleTerminalDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-  }, []);
-
-  const handleTerminalDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    const tabId = e.dataTransfer.getData("merge-tab-id");
-    if (tabId && tabId !== activeTabId) {
-      setMergedTabId(prev => prev === tabId ? null : tabId);
-    }
-    setIsDraggingForMerge(false);
-  }, [activeTabId]);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
 
   const handleUnmerge = useCallback(() => {
-    setMergedTabId(null);
+    setMergePair(null);
   }, []);
 
-  // Clear merge if the merged tab is closed or becomes active
-  const mergedTab = tabs.find(t => t.id === mergedTabId);
-  const effectiveMergedTabId = mergedTab && mergedTabId !== activeTabId ? mergedTabId : null;
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const data = event.active.data.current;
+    if (data?.type === "tab") {
+      setDraggedTabId(event.active.id as string);
+    }
+  }, []);
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    setDraggedTabId(null);
+
+    const activeData = active.data.current;
+    if (activeData?.type !== "tab") return;
+
+    const draggedId = active.id as string;
+
+    if (over?.id === TERMINAL_DROP_ID) {
+      if (draggedId !== activeTabId) {
+        setMergePair([activeTabId, draggedId]);
+      }
+      return;
+    }
+
+    if (over) {
+      const overData = over.data.current;
+      if (overData?.type === "tab") {
+        const oldIndex = tabs.findIndex((t) => t.id === active.id);
+        const newIndex = tabs.findIndex((t) => t.id === over.id);
+        if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+          handleTabReorder(oldIndex, newIndex);
+        }
+      }
+    }
+  }, [activeTabId, tabs, handleTabReorder]);
+
+  useEffect(() => {
+    if (!mergePair) return;
+    const tabIds = new Set(tabs.map(tab => tab.id));
+    if (!tabIds.has(mergePair[0]) || !tabIds.has(mergePair[1])) {
+      setMergePair(null);
+    }
+  }, [mergePair, tabs]);
+
+  const mergedPrimaryTab = mergePair ? tabs.find(t => t.id === mergePair[0]) : null;
+  const mergedSecondaryTab = mergePair ? tabs.find(t => t.id === mergePair[1]) : null;
+  const isMergedTabActive = mergePair ? mergePair.includes(activeTabId) : false;
+  const showMergedView = !!mergedPrimaryTab && !!mergedSecondaryTab && isMergedTabActive;
+
+  const draggedTab = tabs.find(t => t.id === draggedTabId);
+
+  // ── Tab-specific callbacks for merged view ───────────────────────────────
+  const handleRemoveAgentForTab = useCallback((tabId: string, agentId: string) => {
+    const tab = tabs.find(t => t.id === tabId);
+    if (!tab || !tab.agents.some(agent => agent.id === agentId)) return;
+
+    const storedLanes = loadStoredTerminalLanes(agentId, activeWorkspaceId) ?? [];
+    for (const lane of storedLanes) {
+      if (lane.id === ROOT_TERMINAL_LANE_ID) continue;
+      invoke("close_pty", { agent: getTerminalLanePtyKey(activeWorkspaceId, lane.agentName) }).catch(console.error);
+    }
+
+    const agentKey = getTerminalLanePtyKey(activeWorkspaceId, agentId);
+    clearTerminalLanes(agentId, activeWorkspaceId);
+    invoke("close_pty", { agent: agentKey }).catch(console.error);
+    setWorkspaces(prev => prev.map(w => {
+      if (w.id !== activeWorkspaceId) return w;
+      const sections = w.sections.map(s => {
+        if (s.id !== (w.activeSectionId || w.sections[0]?.id)) return s;
+        return { ...s, tabs: s.tabs.map(t => t.id === tabId ? { ...t, agents: t.agents.filter((a: { id: string }) => a.id !== agentId) } : t) };
+      });
+      return { ...w, sections };
+    }));
+  }, [activeWorkspaceId, setWorkspaces, tabs]);
+
+  const handleDetachAgentForTab = useCallback((tabId: string, agentId: string) => {
+    setWorkspaces(prev => prev.map(w => {
+      if (w.id !== activeWorkspaceId) return w;
+      const sections = w.sections.map(s => {
+        if (s.id !== (w.activeSectionId || w.sections[0]?.id)) return s;
+        return { ...s, tabs: s.tabs.map(t => t.id === tabId ? { ...t, agents: t.agents.filter((a: { id: string }) => a.id !== agentId) } : t) };
+      });
+      return { ...w, sections };
+    }));
+  }, [activeWorkspaceId, setWorkspaces]);
+
+  const handleReorderAgentsForTab = useCallback((tabId: string, oldIndex: number, newIndex: number) => {
+    setWorkspaces(prev => prev.map(w => {
+      if (w.id !== activeWorkspaceId) return w;
+      const sections = w.sections.map(s => {
+        if (s.id !== (w.activeSectionId || w.sections[0]?.id)) return s;
+        return { ...s, tabs: s.tabs.map(t => {
+          if (t.id !== tabId) return t;
+          const newAgents = [...t.agents];
+          const [moved] = newAgents.splice(oldIndex, 1);
+          newAgents.splice(newIndex, 0, moved);
+          return { ...t, agents: newAgents };
+        }) };
+      });
+      return { ...w, sections };
+    }));
+  }, [activeWorkspaceId, setWorkspaces]);
+
+  const handleSplitForTab = useCallback((tabId: string, agentToSplitId: string) => {
+    const tab = tabs.find(t => t.id === tabId);
+    if (!tab) return;
+    const agentToSplit = tab.agents.find(a => a.id === agentToSplitId)?.name || "Split Agent";
+    const newName = getSplitAgentNameInTab(tab.agents, agentToSplit);
+    setWorkspaces(prev => prev.map(w => {
+      if (w.id !== activeWorkspaceId) return w;
+      const sections = w.sections.map(s => {
+        if (s.id !== (w.activeSectionId || w.sections[0]?.id)) return s;
+        return { ...s, tabs: s.tabs.map(t => {
+          if (t.id !== tabId) return t;
+          const index = t.agents.findIndex((a: { id: string }) => a.id === agentToSplitId);
+          const newAgent = { id: crypto.randomUUID(), name: newName };
+          if (index === -1) return { ...t, agents: [...t.agents, newAgent] };
+          const newAgents = [...t.agents];
+          newAgents.splice(index + 1, 0, newAgent);
+          return { ...t, agents: newAgents };
+        }) };
+      });
+      return { ...w, sections };
+    }));
+  }, [activeWorkspaceId, setWorkspaces, tabs]);
+
+  const handleAddAgentToTab = useCallback((tabId: string) => {
+    const targetTab = tabs.find(tab => tab.id === tabId);
+    if (!targetTab) return;
+
+    const name = getUniqueAgentNameInTab(targetTab.agents, newAgentName);
+    const newAgent = { id: crypto.randomUUID(), name };
+    setWorkspaces(prev => prev.map(w => {
+      if (w.id !== activeWorkspaceId) return w;
+      const sections = w.sections.map(s => {
+        if (s.id !== (w.activeSectionId || w.sections[0]?.id)) return s;
+        return { ...s, tabs: s.tabs.map(t => t.id === tabId ? { ...t, agents: [...t.agents, newAgent] } : t) };
+      });
+      return { ...w, sections, activeTabId: tabId };
+    }));
+    setNewAgentName("");
+    handleTabSelect(tabId);
+  }, [activeWorkspaceId, handleTabSelect, newAgentName, setNewAgentName, setWorkspaces, tabs]);
 
   const paletteActions = useMemo<PaletteAction[]>(() => [
     { id: "terminal-mode", label: "Terminal Mode", description: "Switch to standard terminal layout", category: "Modes", categoryOrder: 0, icon: TerminalIcon, onSelect: () => setAppMode("terminal") },
@@ -228,313 +387,290 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
   ], [appMode, activeWorkspaceId]);
 
   return (
-    <>
-      <div className="flex flex-col h-full w-full">
-        <AppTopbar
-          appMode={topbarMode}
-          onSpawnAgent={spawnAgent}
-          newAgentName={newAgentName}
-          onChangeNewAgentName={setNewAgentName}
-          onOpenBrainstorm={() => setShowBrainstorm(true)}
-          onOpenMasterPlan={() => setShowMasterPlan(true)}
-          onOpenNetworkGraph={() => setShowNetworkGraph(true)}
-          layoutOrientation={layoutOrientation}
-          onSetLayoutOrientation={handleSetLayoutOrientation}
-          isSidebarOpen={isSidebarOpen}
-          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-          onSpawnBrowser={handleSpawnBrowser}
-          codeReviewStats={codeReviewStats}
-          onToggleCodeReview={() => setShowCodeReview(!showCodeReview)}
-          onToggleGitPanel={() => setShowGitPanel(!showGitPanel)}
-          onTogglePersonalKanban={() => setShowPersonalKanban(!showPersonalKanban)}
-          onToggleFileExplorer={() => setShowFileExplorer(!showFileExplorer)}
-          onToggleEnvManager={() => setShowEnvManager(!showEnvManager)}
-          onTogglePackageManager={() => setShowPackageManager(!showPackageManager)}
-          onToggleApiLab={() => setShowApiLab(!showApiLab)}
-          onToggleMonorepoGraph={() => setShowMonorepoGraph(!showMonorepoGraph)}
-          onToggleMdViewer={() => setShowMdViewer(!showMdViewer)}
-          onToggleConfigEditor={() => setShowConfigEditor(!showConfigEditor)}
-          onToggleIconBrowser={() => setShowIconBrowser(!showIconBrowser)}
-          onToggleTailwindLabs={() => setShowTailwindLabs(!showTailwindLabs)}
-          onToggleNpmLookup={() => setShowNpmLookup(!showNpmLookup)}
-          onToggleHtmlToJsx={() => setShowHtmlToJsx(!showHtmlToJsx)}
-          onToggleSvgOptimizer={() => setShowSvgOptimizer(!showSvgOptimizer)}
-          onToggleStorageInspector={() => setShowStorageInspector(!showStorageInspector)}
-          currentProject={currentProject}
-        />
-        <div className="flex flex-1 min-h-0 relative">
-          {isSidebarOpen && (
-            <AppGlobalSidebar
-              appMode={appMode}
-              onSetAppMode={setAppMode}
-              workspaces={workspaces}
-              activeWorkspaceId={activeWorkspaceId}
-              activeSectionId={activeWorkspace?.activeSectionId || ""}
-              onWorkspaceSelect={handleWorkspaceSelect}
-              onCreateWorkspace={handleCreateWorkspace}
-              onOpenDirectory={handleOpenDirectory}
-              onOpenSettings={() => setShowSettings(true)}
-              onWorkspaceReorder={handleWorkspaceReorder}
-              onWorkspaceRename={handleWorkspaceRename}
-              onWorkspaceDelete={handleWorkspaceDelete}
-              onOpenSecurity={id => setShowSecurityPanel(id)}
-              onSectionCreate={handleSectionCreate}
-              onSectionRename={handleSectionRename}
-              onSectionDelete={handleSectionDelete}
-              onSectionSelect={handleSectionSelect}
-              tasks={tasks}
-              agentReadyStates={agentStatusMap}
-            />
-          )}
-
-      <AppOverlays
-        showNetworkGraph={showNetworkGraph}
-        NetworkGraphComponent={NetworkGraph}
-        agents={agents}
-        tasks={tasks}
-        onCloseNetworkGraph={() => setShowNetworkGraph(false)}
-        onKillAgent={handleKillAgent}
-        onInterruptAgent={handleInterruptAgent}
-        onInjectHint={handleInjectHint}
-        onQuickDispatch={handleQuickDispatch}
-        showMonorepoGraph={showMonorepoGraph}
-        onCloseMonorepoGraph={() => setShowMonorepoGraph(false)}
-        onOpenInTerminal={handleOpenProjectInTerminal}
-        showSettings={showSettings}
-        SettingsModalComponent={SettingsModal}
-        onCloseSettings={() => setShowSettings(false)}
-        showBrainstorm={showBrainstorm}
-        brainstormSessions={brainstormSessions}
-        onStartBrainstorm={handleStartBrainstorm}
-        onCloseBrainstorm={() => setShowBrainstorm(false)}
-        showMasterPlan={showMasterPlan}
-        currentProject={currentProject}
-        onDispatchMasterPlanTask={handleDispatchMasterPlanTask}
-        activeTaskLine={masterPlanQueueState.activeLine}
-        queuedTaskLines={masterPlanQueueState.queuedLines}
-        onCloseMasterPlan={() => setShowMasterPlan(false)}
-        approvalRequest={approvalRequest}
-        onApproveHitl={handleHitlApprove}
-        onRejectHitl={handleHitlReject}
-      />
-
-      <section
-        className="flex-1 flex flex-col min-w-0 relative"
-      >
-
-        <AppTerminalTabs
-          tabs={tabs}
-          activeTabId={activeTabId}
-          onTabSelect={handleTabSelect}
-          onTabClose={handleTabClose}
-          onTabCreate={handleTabCreate}
-          onTabRename={handleTabRename}
-          onTabReorder={handleTabReorder}
-          onMergeDragStart={handleMergeDragStart}
-          onMergeDragEnd={handleMergeDragEnd}
-        />
-
-        {/* Drop zone overlay — covers the whole terminal area when dragging a merge handle */}
-        {isDraggingForMerge && (
-          <div
-            className="absolute inset-0 top-8 z-50 flex items-center justify-center"
-            onDragOver={handleTerminalDragOver}
-            onDrop={handleTerminalDrop}
-            onDragLeave={(e) => {
-              // Only clear if leaving to something outside the overlay entirely
-              if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                setIsDraggingForMerge(false);
-              }
-            }}
-          >
-            <div className="w-full h-full border-2 border-dashed border-indigo-500/60 bg-indigo-500/8 flex items-center justify-center">
-              <div className="bg-zinc-900/90 border border-indigo-500/40 rounded-xl px-8 py-4 flex flex-col items-center gap-2 shadow-2xl pointer-events-none">
-                <div className="text-indigo-400 text-sm font-semibold">Drop to Merge Tab</div>
-                <div className="text-zinc-500 text-xs">Release here to split view side by side</div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {effectiveMergedTabId ? (
-          <MergedTabView
-            leftAgents={agents}
-            leftLayout={layoutOrientation}
-            leftTabName={tabs.find(t => t.id === activeTabId)?.name ?? "Tab"}
-            rightAgents={mergedTab?.agents ?? []}
-            rightLayout={mergedTab?.layoutOrientation ?? "horizontal"}
-            rightTabName={mergedTab?.name ?? "Tab"}
-            currentProject={currentProject}
-            workspaceName={workspaces.find(w => w.id === activeWorkspaceId)?.name}
-            workspaceId={activeWorkspaceId}
-            isGlass={isGlass}
-            onRemoveAgent={removeAgent}
-            onDetachAgent={detachAgent}
-            onReorderAgents={handleReorderAgents}
-            onSplit={handleSplit}
-            onUnmerge={handleUnmerge}
-          />
-        ) : (
-          <AppTerminalArea
-            agents={agents}
-            currentProject={currentProject}
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
+      <>
+        <div className="flex flex-col h-full w-full">
+          <AppTopbar
+            appMode={topbarMode}
+            onSpawnAgent={spawnAgent}
+            newAgentName={newAgentName}
+            onChangeNewAgentName={setNewAgentName}
+            onOpenBrainstorm={() => setShowBrainstorm(true)}
+            onOpenMasterPlan={() => setShowMasterPlan(true)}
+            onOpenNetworkGraph={() => setShowNetworkGraph(true)}
             layoutOrientation={layoutOrientation}
-            onRemoveAgent={removeAgent}
-            onDetachAgent={detachAgent}
-            onReorderAgents={handleReorderAgents}
-            onSplit={handleSplit}
-            onOpenDirectory={() => handleOpenDirectory(activeWorkspaceId)}
-            workspaceName={workspaces.find(w => w.id === activeWorkspaceId)?.name}
-            workspaceId={activeWorkspaceId}
-            isGlass={isGlass}
+            onSetLayoutOrientation={handleSetLayoutOrientation}
+            isSidebarOpen={isSidebarOpen}
+            onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+            onSpawnBrowser={handleSpawnBrowser}
+            codeReviewStats={codeReviewStats}
+            onToggleCodeReview={() => setShowCodeReview(!showCodeReview)}
+            onToggleGitPanel={() => setShowGitPanel(!showGitPanel)}
+            onTogglePersonalKanban={() => setShowPersonalKanban(!showPersonalKanban)}
+            onToggleFileExplorer={() => setShowFileExplorer(!showFileExplorer)}
+            onToggleEnvManager={() => setShowEnvManager(!showEnvManager)}
+            onTogglePackageManager={() => setShowPackageManager(!showPackageManager)}
+            onToggleApiLab={() => setShowApiLab(!showApiLab)}
+            onToggleMonorepoGraph={() => setShowMonorepoGraph(!showMonorepoGraph)}
+            onToggleMdViewer={() => setShowMdViewer(!showMdViewer)}
+            onToggleConfigEditor={() => setShowConfigEditor(!showConfigEditor)}
+            onToggleIconBrowser={() => setShowIconBrowser(!showIconBrowser)}
+            onToggleTailwindLabs={() => setShowTailwindLabs(!showTailwindLabs)}
+            onToggleNpmLookup={() => setShowNpmLookup(!showNpmLookup)}
+            onToggleHtmlToJsx={() => setShowHtmlToJsx(!showHtmlToJsx)}
+            onToggleSvgOptimizer={() => setShowSvgOptimizer(!showSvgOptimizer)}
+            onToggleStorageInspector={() => setShowStorageInspector(!showStorageInspector)}
+            currentProject={currentProject}
           />
-        )}
+          <div className="flex flex-1 min-h-0 relative">
+            {isSidebarOpen && (
+              <AppGlobalSidebar
+                appMode={appMode}
+                onSetAppMode={setAppMode}
+                workspaces={workspaces}
+                activeWorkspaceId={activeWorkspaceId}
+                activeSectionId={activeWorkspace?.activeSectionId || ""}
+                onWorkspaceSelect={handleWorkspaceSelect}
+                onCreateWorkspace={handleCreateWorkspace}
+                onOpenDirectory={handleOpenDirectory}
+                onOpenSettings={() => setShowSettings(true)}
+                onWorkspaceReorder={handleWorkspaceReorder}
+                onWorkspaceRename={handleWorkspaceRename}
+                onWorkspaceDelete={handleWorkspaceDelete}
+                onOpenSecurity={id => setShowSecurityPanel(id)}
+                onSectionCreate={handleSectionCreate}
+                onSectionRename={handleSectionRename}
+                onSectionDelete={handleSectionDelete}
+                onSectionSelect={handleSectionSelect}
+                tasks={tasks}
+                agentReadyStates={agentStatusMap}
+              />
+            )}
 
-        {(showCodeReview || showGitPanel || showPersonalKanban || showFileExplorer) && (
-          <div
-            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[45] animate-in fade-in duration-300"
-            onClick={() => {
-              setShowCodeReview(false);
-              setShowGitPanel(false);
-              setShowPersonalKanban(false);
-              setShowFileExplorer(false);
-            }}
-          />
-        )}
+            <AppOverlays
+              showNetworkGraph={showNetworkGraph}
+              NetworkGraphComponent={NetworkGraph}
+              agents={agents}
+              tasks={tasks}
+              onCloseNetworkGraph={() => setShowNetworkGraph(false)}
+              onKillAgent={handleKillAgent}
+              onInterruptAgent={handleInterruptAgent}
+              onInjectHint={handleInjectHint}
+              onQuickDispatch={handleQuickDispatch}
+              showMonorepoGraph={showMonorepoGraph}
+              onCloseMonorepoGraph={() => setShowMonorepoGraph(false)}
+              onOpenInTerminal={handleOpenProjectInTerminal}
+              showSettings={showSettings}
+              SettingsModalComponent={SettingsModal}
+              onCloseSettings={() => setShowSettings(false)}
+              showBrainstorm={showBrainstorm}
+              brainstormSessions={brainstormSessions}
+              onStartBrainstorm={handleStartBrainstorm}
+              onCloseBrainstorm={() => setShowBrainstorm(false)}
+              showMasterPlan={showMasterPlan}
+              currentProject={currentProject}
+              onDispatchMasterPlanTask={handleDispatchMasterPlanTask}
+              activeTaskLine={masterPlanQueueState.activeLine}
+              queuedTaskLines={masterPlanQueueState.queuedLines}
+              onCloseMasterPlan={() => setShowMasterPlan(false)}
+              approvalRequest={approvalRequest}
+              onApproveHitl={handleHitlApprove}
+              onRejectHitl={handleHitlReject}
+            />
+
+            <section className="flex-1 flex flex-col min-w-0 relative">
+              <AppTerminalTabs
+                tabs={tabs}
+                activeTabId={activeTabId}
+                onTabSelect={handleTabSelect}
+                onTabClose={handleTabClose}
+                onTabCreate={handleTabCreate}
+                onTabRename={handleTabRename}
+                mergedTabPair={mergePair}
+                onUnmerge={handleUnmerge}
+              />
+
+              <div className="flex flex-1 min-h-0 relative">
+                <TerminalDropZone />
+
+                <AppTerminalWorkspace
+                  tabs={tabs}
+                  activeTabId={activeTabId}
+                  mergedTabPair={showMergedView ? mergePair : null}
+                  currentProject={currentProject}
+                  workspaceName={workspaces.find(w => w.id === activeWorkspaceId)?.name}
+                  workspaceId={activeWorkspaceId}
+                  isGlass={isGlass}
+                  onActivateTab={handleTabSelect}
+                  onAddAgentToTab={handleAddAgentToTab}
+                  onRemoveAgentForTab={handleRemoveAgentForTab}
+                  onDetachAgentForTab={handleDetachAgentForTab}
+                  onReorderAgentsForTab={handleReorderAgentsForTab}
+                  onSplitForTab={handleSplitForTab}
+                  onOpenDirectory={() => handleOpenDirectory(activeWorkspaceId)}
+                  onUnmerge={handleUnmerge}
+                />
+              </div>
+
+              {(showCodeReview || showGitPanel || showPersonalKanban || showFileExplorer) && (
+                <div
+                  className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[45] animate-in fade-in duration-300"
+                  onClick={() => {
+                    setShowCodeReview(false);
+                    setShowGitPanel(false);
+                    setShowPersonalKanban(false);
+                    setShowFileExplorer(false);
+                  }}
+                />
+              )}
+
+              <>
+                <ModalBoundary><CodeReviewPanel
+                  currentProject={currentProject}
+                  isOpen={showCodeReview}
+                  onClose={() => setShowCodeReview(false)}
+                  onStatsUpdate={setCodeReviewStats}
+                /></ModalBoundary>
+                <ModalBoundary><GitPanel
+                  currentProject={currentProject}
+                  isOpen={showGitPanel}
+                  onClose={() => setShowGitPanel(false)}
+                  onOpenFullscreen={() => {
+                    setShowGitPanel(false);
+                    setShowGitFullscreen(true);
+                  }}
+                /></ModalBoundary>
+                <ModalBoundary><SourceControlFullscreen
+                  currentProject={currentProject}
+                  isOpen={showGitFullscreen}
+                  onClose={() => setShowGitFullscreen(false)}
+                /></ModalBoundary>
+                <ModalBoundary><PersonalKanban
+                  workspaceId={activeWorkspaceId}
+                  isOpen={showPersonalKanban}
+                  onClose={() => setShowPersonalKanban(false)}
+                /></ModalBoundary>
+                <ModalBoundary><ProjectFileExplorer
+                  currentProject={currentProject}
+                  isOpen={showFileExplorer}
+                  onClose={() => setShowFileExplorer(false)}
+                /></ModalBoundary>
+                <StatusBar
+                  portCount={portCount}
+                  onOpenPortManager={() => setShowPortManager(true)}
+                  onOpenDbViewer={() => setShowDbViewer(true)}
+                />
+              </>
+            </section>
+          </div>
+        </div>
+
+        <DragOverlay dropAnimation={null}>
+          {draggedTab ? (
+            <div className="flex items-center gap-1 px-3 h-8 bg-app-panel text-white shadow-2xl border border-app-border ring-1 ring-brand-accent/50 rounded-md">
+              <span className="text-xs font-bold truncate">{draggedTab.name}</span>
+            </div>
+          ) : null}
+        </DragOverlay>
 
         <>
-          <ModalBoundary><CodeReviewPanel
+          <ModalBoundary><PortManager
+            isOpen={showPortManager}
+            onClose={() => setShowPortManager(false)}
+            onPortsUpdate={setPortCount}
+          /></ModalBoundary>
+          <ModalBoundary><EnvManager
             currentProject={currentProject}
-            isOpen={showCodeReview}
-            onClose={() => setShowCodeReview(false)}
-            onStatsUpdate={setCodeReviewStats}
+            isOpen={showEnvManager}
+            onClose={() => setShowEnvManager(false)}
           /></ModalBoundary>
-          <ModalBoundary><GitPanel
+          <ModalBoundary><PackageManager
             currentProject={currentProject}
-            isOpen={showGitPanel}
-            onClose={() => setShowGitPanel(false)}
-            onOpenFullscreen={() => {
-              setShowGitPanel(false);
-              setShowGitFullscreen(true);
-            }}
+            isOpen={showPackageManager}
+            onClose={() => setShowPackageManager(false)}
           /></ModalBoundary>
-          <ModalBoundary><SourceControlFullscreen
+          <ModalBoundary><ApiLab
+            isOpen={showApiLab}
+            onClose={() => setShowApiLab(false)}
+          /></ModalBoundary>
+          <ModalBoundary><DbViewer
+            isOpen={showDbViewer}
+            onClose={() => setShowDbViewer(false)}
+          /></ModalBoundary>
+          <ModalBoundary><MdViewer
             currentProject={currentProject}
-            isOpen={showGitFullscreen}
-            onClose={() => setShowGitFullscreen(false)}
+            isOpen={showMdViewer}
+            onClose={() => setShowMdViewer(false)}
           /></ModalBoundary>
-          <ModalBoundary><PersonalKanban
-            workspaceId={activeWorkspaceId}
-            isOpen={showPersonalKanban}
-            onClose={() => setShowPersonalKanban(false)}
-          /></ModalBoundary>
-          <ModalBoundary><ProjectFileExplorer
+          <ModalBoundary><ConfigEditor
             currentProject={currentProject}
-            isOpen={showFileExplorer}
-            onClose={() => setShowFileExplorer(false)}
+            isOpen={showConfigEditor}
+            onClose={() => setShowConfigEditor(false)}
           /></ModalBoundary>
-          <StatusBar
-            portCount={portCount}
-            onOpenPortManager={() => setShowPortManager(true)}
-            onOpenDbViewer={() => setShowDbViewer(true)}
-          />
+          <ModalBoundary><IconBrowser
+            isOpen={showIconBrowser}
+            onClose={() => setShowIconBrowser(false)}
+          /></ModalBoundary>
+          <ModalBoundary><TailwindLabs
+            isOpen={showTailwindLabs}
+            onClose={() => setShowTailwindLabs(false)}
+          /></ModalBoundary>
+          <ModalBoundary><NpmLookup
+            isOpen={showNpmLookup}
+            onClose={() => setShowNpmLookup(false)}
+          /></ModalBoundary>
+          <ModalBoundary><HtmlToJsx
+            isOpen={showHtmlToJsx}
+            onClose={() => setShowHtmlToJsx(false)}
+          /></ModalBoundary>
+          <ModalBoundary><SvgOptimizer
+            isOpen={showSvgOptimizer}
+            onClose={() => setShowSvgOptimizer(false)}
+          /></ModalBoundary>
+          <ModalBoundary><StorageInspector
+            isOpen={showStorageInspector}
+            onClose={() => setShowStorageInspector(false)}
+          /></ModalBoundary>
+          <ModalBoundary><MockDataGenerator
+            isOpen={showMockDataGenerator}
+            onClose={() => setShowMockDataGenerator(false)}
+          /></ModalBoundary>
+          {showSecurityPanel && (
+            <ModalBoundary title="Panel crashed"><SecurityPanel
+              workspaceId={showSecurityPanel}
+              workspaceName={workspaces.find(w => w.id === showSecurityPanel)?.name || ""}
+              isOpen={!!showSecurityPanel}
+              onClose={() => setShowSecurityPanel(null)}
+            /></ModalBoundary>
+          )}
+          {pendingWorkspaceId && (
+            <ModalBoundary title="Panel crashed"><TwoFactorModal
+              isOpen={!!pendingWorkspaceId}
+              workspaceId={pendingWorkspaceId}
+              workspaceName={workspaces.find(w => w.id === pendingWorkspaceId)?.name || ""}
+              onVerify={success => {
+                if (success) {
+                  setActiveWorkspaceId(pendingWorkspaceId);
+                  setPendingWorkspaceId(null);
+                }
+              }}
+              onCancel={() => setPendingWorkspaceId(null)}
+            /></ModalBoundary>
+          )}
         </>
-      </section>
-      </div>
-      </div>
-
-      <>
-        <ModalBoundary><PortManager
-          isOpen={showPortManager}
-          onClose={() => setShowPortManager(false)}
-          onPortsUpdate={setPortCount}
-        /></ModalBoundary>
-        <ModalBoundary><EnvManager
-          currentProject={currentProject}
-          isOpen={showEnvManager}
-          onClose={() => setShowEnvManager(false)}
-        /></ModalBoundary>
-        <ModalBoundary><PackageManager
-          currentProject={currentProject}
-          isOpen={showPackageManager}
-          onClose={() => setShowPackageManager(false)}
-        /></ModalBoundary>
-        <ModalBoundary><ApiLab
-          isOpen={showApiLab}
-          onClose={() => setShowApiLab(false)}
-        /></ModalBoundary>
-        <ModalBoundary><DbViewer
-          isOpen={showDbViewer}
-          onClose={() => setShowDbViewer(false)}
-        /></ModalBoundary>
-        <ModalBoundary><MdViewer
-          currentProject={currentProject}
-          isOpen={showMdViewer}
-          onClose={() => setShowMdViewer(false)}
-        /></ModalBoundary>
-        <ModalBoundary><ConfigEditor
-          currentProject={currentProject}
-          isOpen={showConfigEditor}
-          onClose={() => setShowConfigEditor(false)}
-        /></ModalBoundary>
-        <ModalBoundary><IconBrowser
-          isOpen={showIconBrowser}
-          onClose={() => setShowIconBrowser(false)}
-        /></ModalBoundary>
-        <ModalBoundary><TailwindLabs
-          isOpen={showTailwindLabs}
-          onClose={() => setShowTailwindLabs(false)}
-        /></ModalBoundary>
-        <ModalBoundary><NpmLookup
-          isOpen={showNpmLookup}
-          onClose={() => setShowNpmLookup(false)}
-        /></ModalBoundary>
-        <ModalBoundary><HtmlToJsx
-          isOpen={showHtmlToJsx}
-          onClose={() => setShowHtmlToJsx(false)}
-        /></ModalBoundary>
-        <ModalBoundary><SvgOptimizer
-          isOpen={showSvgOptimizer}
-          onClose={() => setShowSvgOptimizer(false)}
-        /></ModalBoundary>
-        <ModalBoundary><StorageInspector
-          isOpen={showStorageInspector}
-          onClose={() => setShowStorageInspector(false)}
-        /></ModalBoundary>
-        <ModalBoundary><MockDataGenerator
-          isOpen={showMockDataGenerator}
-          onClose={() => setShowMockDataGenerator(false)}
-        /></ModalBoundary>
-        {showSecurityPanel && (
-          <ModalBoundary title="Panel crashed"><SecurityPanel
-            workspaceId={showSecurityPanel}
-            workspaceName={workspaces.find(w => w.id === showSecurityPanel)?.name || ""}
-            isOpen={!!showSecurityPanel}
-            onClose={() => setShowSecurityPanel(null)}
-          /></ModalBoundary>
-        )}
-        {pendingWorkspaceId && (
-          <ModalBoundary title="Panel crashed"><TwoFactorModal
-            isOpen={!!pendingWorkspaceId}
-            workspaceId={pendingWorkspaceId}
-            workspaceName={workspaces.find(w => w.id === pendingWorkspaceId)?.name || ""}
-            onVerify={success => {
-              if (success) {
-                setActiveWorkspaceId(pendingWorkspaceId);
-                setPendingWorkspaceId(null);
-              }
-            }}
-            onCancel={() => setPendingWorkspaceId(null)}
-          /></ModalBoundary>
-        )}
-      </>
 
         <QuickPalette
           isOpen={showQuickPalette}
           onClose={() => setShowQuickPalette(false)}
           actions={paletteActions}
         />
-      {rightSidebar}
-    </>
+        {rightSidebar}
+      </>
+    </DndContext>
   );
 }

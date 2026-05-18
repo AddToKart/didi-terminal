@@ -13,29 +13,7 @@ export interface UseXTermOptions extends ITerminalOptions {
   onKey?: (event: KeyboardEvent) => boolean;
 }
 
-interface PooledTerminal {
-  id: number;
-  term: Terminal;
-  fitAddon: FitAddon;
-  webglAddon: WebglAddon | null;
-  searchAddon: SearchAddon;
-  inUse: boolean;
-  isOpened: boolean;
-  onDataDisposable: { dispose: () => void } | null;
-  onBinaryDisposable: { dispose: () => void } | null;
-  onKeyDisposable: { dispose: () => void } | null;
-}
-
-const terminalPool: PooledTerminal[] = [];
-let poolIdCounter = 0;
-
-function getTerminalFromPool(): PooledTerminal {
-  const available = terminalPool.find(p => !p.inUse);
-  if (available) {
-    available.inUse = true;
-    return available;
-  }
-  
+function createTerminal(): Terminal {
   const term = new Terminal({
     fontFamily: '"JetBrains Mono", "Fira Code", monospace',
     cursorBlink: false,
@@ -50,49 +28,7 @@ function getTerminalFromPool(): PooledTerminal {
       selectionBackground: "#00f0ff40",
     },
   });
-
-  const fitAddon = new FitAddon();
-  term.loadAddon(fitAddon);
-
-  const searchAddon = new SearchAddon();
-  term.loadAddon(searchAddon);
-
-  let webglAddon: WebglAddon | null = null;
-
-  const pooled: PooledTerminal = {
-    id: ++poolIdCounter,
-    term,
-    fitAddon,
-    webglAddon,
-    searchAddon,
-    inUse: true,
-    isOpened: false,
-    onDataDisposable: null,
-    onBinaryDisposable: null,
-    onKeyDisposable: null,
-  };
-  terminalPool.push(pooled);
-  return pooled;
-}
-
-function releaseTerminalToPool(pooled: PooledTerminal) {
-  pooled.inUse = false;
-  try {
-    pooled.term.reset(); // Fully reset the terminal instead of just clearing the viewport
-  } catch (e) {
-    console.error("Failed to reset terminal", e);
-  }
-  
-  if (pooled.onDataDisposable) pooled.onDataDisposable.dispose();
-  if (pooled.onBinaryDisposable) pooled.onBinaryDisposable.dispose();
-  if (pooled.onKeyDisposable) pooled.onKeyDisposable.dispose();
-  pooled.onDataDisposable = null;
-  pooled.onBinaryDisposable = null;
-  pooled.onKeyDisposable = null;
-
-  if (pooled.term.element && pooled.term.element.parentElement) {
-    pooled.term.element.parentElement.removeChild(pooled.term.element);
-  }
+  return term;
 }
 
 export function useXTerm(
@@ -117,63 +53,94 @@ export function useXTerm(
     let resizeObserver: ResizeObserver | null = null;
     let resizeFrame: number | null = null;
     let resizeSettleTimer: ReturnType<typeof setTimeout> | null = null;
+    let resizeTimeout: ReturnType<typeof setTimeout> | null = null;
+    let term: Terminal | null = null;
+    let fitAddon: FitAddon | null = null;
+    let webglAddon: WebglAddon | null = null;
+    let searchAddon: SearchAddon | null = null;
 
-    const emitResize = (term: Terminal) => {
-      options.onResize?.(term.cols, term.rows);
+    const emitResize = (t: Terminal) => {
+      options.onResize?.(t.cols, t.rows);
     };
 
-    let pooled: PooledTerminal | null = null;
+    const fitVisibleTerminal = () => {
+      if (!term || !fitAddon || !containerRef.current) return false;
+
+      const rect = containerRef.current.getBoundingClientRect();
+      if (rect.width < 2 || rect.height < 2) return false;
+
+      try {
+        fitAddon.fit();
+      } catch {
+        return false;
+      }
+
+      emitResize(term);
+      return true;
+    };
+
+    const scheduleFit = () => {
+      if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
+
+      resizeFrame = requestAnimationFrame(() => {
+        resizeFrame = requestAnimationFrame(() => {
+          resizeFrame = null;
+          if (!isMounted) return;
+
+          if (fitVisibleTerminal()) {
+            setTermLoaded(true);
+            return;
+          }
+
+          resizeSettleTimer = setTimeout(() => {
+            if (!isMounted) return;
+            if (fitVisibleTerminal()) setTermLoaded(true);
+          }, 80);
+        });
+      });
+    };
 
     async function mountTerminal() {
       if (!isMounted || !containerRef.current) return;
       await document.fonts.ready;
       if (!isMounted || !containerRef.current) return;
 
-      pooled = getTerminalFromPool();
-      
-      pooled.onDataDisposable = pooled.term.onData((data) => onDataRef.current?.(data));
-      pooled.onBinaryDisposable = pooled.term.onBinary((data) => onBinaryRef.current?.(data));
-      pooled.term.attachCustomKeyEventHandler((event) => onKeyRef.current?.(event) ?? true);
+      term = createTerminal();
+      fitAddon = new FitAddon();
+      term.loadAddon(fitAddon);
+      searchAddon = new SearchAddon();
+      term.loadAddon(searchAddon);
 
-      if (!pooled.isOpened) {
-        pooled.term.open(containerRef.current);
-        pooled.isOpened = true;
-        try {
-          pooled.webglAddon = new WebglAddon();
-          pooled.webglAddon.onContextLoss(() => {
-            pooled?.webglAddon?.dispose();
-            if (pooled) pooled.webglAddon = null;
-          });
-          pooled.term.loadAddon(pooled.webglAddon);
-        } catch (e) {
-          console.warn("WebGL addon could not be loaded", e);
-        }
-      } else {
-        if (pooled.term.element) {
-          containerRef.current.appendChild(pooled.term.element);
-        }
+      term.onData((data) => onDataRef.current?.(data));
+      term.onBinary((data) => onBinaryRef.current?.(data));
+      term.attachCustomKeyEventHandler((event) => onKeyRef.current?.(event) ?? true);
+
+      term.open(containerRef.current);
+
+      try {
+        webglAddon = new WebglAddon();
+        webglAddon.onContextLoss(() => {
+          webglAddon?.dispose();
+          webglAddon = null;
+        });
+        term.loadAddon(webglAddon);
+      } catch (e) {
+        console.warn("WebGL addon could not be loaded", e);
       }
 
-      terminalRef.current = pooled.term;
-      searchAddonRef.current = pooled.searchAddon;
+      terminalRef.current = term;
+      searchAddonRef.current = searchAddon;
 
-      requestAnimationFrame(() => {
-        if (!isMounted || !pooled) return;
-        try { pooled.fitAddon.fit(); } catch (e) {}
-        emitResize(pooled.term);
-        setTermLoaded(true);
-      });
+      scheduleFit();
 
       const fitTerminal = () => {
-        if (!pooled) return;
-        try { pooled.fitAddon.fit(); } catch { return; }
+        if (!fitVisibleTerminal()) return;
         if (resizeSettleTimer) clearTimeout(resizeSettleTimer);
-        resizeSettleTimer = setTimeout(() => emitResize(pooled!.term), 120);
+        resizeSettleTimer = setTimeout(() => emitResize(term!), 120);
       };
 
-      let resizeTimeout: ReturnType<typeof setTimeout>;
       resizeObserver = new ResizeObserver(() => {
-        clearTimeout(resizeTimeout);
+        if (resizeTimeout) clearTimeout(resizeTimeout);
         resizeTimeout = setTimeout(fitTerminal, 50);
       });
       resizeObserver.observe(containerRef.current);
@@ -185,13 +152,14 @@ export function useXTerm(
       isMounted = false;
       if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
       if (resizeSettleTimer) clearTimeout(resizeSettleTimer);
+      if (resizeTimeout) clearTimeout(resizeTimeout);
       if (resizeObserver) resizeObserver.disconnect();
       terminalRef.current = null;
       searchAddonRef.current = null;
       setTermLoaded(false);
-      
-      if (pooled) {
-        releaseTerminalToPool(pooled);
+
+      if (term) {
+        try { term.dispose(); } catch (e) { console.error("Failed to dispose terminal", e); }
       }
     };
   }, [options.agentName]);
