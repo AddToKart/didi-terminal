@@ -2,12 +2,12 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from "re
 import { Plus, X } from "lucide-react";
 import { AppTerminalArea } from "@/components/layout/AppTerminalArea";
 import { TerminalPaneLayoutControls } from "@/components/layout/TerminalPaneLayoutControls";
-import type { TerminalLayoutOrientation, TerminalTab } from "@/types/workspace";
+import type { MergedTabPair, TerminalLayoutOrientation, TerminalTab } from "@/types/workspace";
 
 interface AppTerminalWorkspaceProps {
   tabs: TerminalTab[];
   activeTabId: string;
-  mergedTabPair: readonly [string, string] | null;
+  mergedTabPair: MergedTabPair | null;
   currentProject: string | null;
   workspaceName?: string;
   workspaceId: string;
@@ -20,13 +20,13 @@ interface AppTerminalWorkspaceProps {
   onReorderAgentsForTab: (tabId: string, oldIndex: number, newIndex: number) => void;
   onSplitForTab: (tabId: string, agentId: string) => void;
   onOpenDirectory: () => void;
-  onUnmerge: () => void;
+  onUnmerge: (tabId: string) => void;
 }
 
 const getPaneStyle = (
   tabId: string,
   activeTabId: string,
-  mergedTabPair: readonly [string, string] | null,
+  mergedTabPair: MergedTabPair | null,
   splitPct: number
 ): CSSProperties => {
   const hidden: CSSProperties = {
@@ -92,7 +92,7 @@ export function AppTerminalWorkspace({
   onUnmerge,
 }: AppTerminalWorkspaceProps) {
   const [splitPct, setSplitPct] = useState(50);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; tabName: string } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; tabId: string; tabName: string } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
 
@@ -144,7 +144,7 @@ export function AppTerminalWorkspace({
                 className="group flex h-6 shrink-0 cursor-context-menu items-center border-b border-app-border bg-app-bg px-3"
                 onContextMenu={(event) => {
                   event.preventDefault();
-                  setContextMenu({ x: event.clientX, y: event.clientY, tabName: tab.name });
+                  setContextMenu({ x: event.clientX, y: event.clientY, tabId: tab.id, tabName: tab.name });
                 }}
               >
                 <span className="flex-1 font-mono text-[10px] font-bold uppercase tracking-widest text-zinc-500">
@@ -169,7 +169,7 @@ export function AppTerminalWorkspace({
                   type="button"
                   onClick={(event) => {
                     event.stopPropagation();
-                    onUnmerge();
+                    onUnmerge(tab.id);
                   }}
                   title="Unmerge tab"
                   className="ml-1 rounded p-0.5 text-zinc-500 opacity-0 transition-opacity hover:bg-white/10 hover:text-red-400 group-hover:opacity-100"
@@ -223,7 +223,7 @@ export function AppTerminalWorkspace({
             <button
               type="button"
               onClick={() => {
-                onUnmerge();
+                onUnmerge(contextMenu.tabId);
                 setContextMenu(null);
               }}
               className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-zinc-300 transition-colors hover:bg-white/8 hover:text-white"

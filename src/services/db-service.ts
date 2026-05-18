@@ -1,5 +1,5 @@
 import Database from "@tauri-apps/plugin-sql";
-import type { TerminalTab, WorkspaceState, SectionState } from "../types/workspace";
+import type { MergedTabPair, TerminalTab, WorkspaceState, SectionState } from "../types/workspace";
 
 export interface PersonalTask {
   id: string;
@@ -13,28 +13,36 @@ export interface PersonalTask {
 
 let dbInstance: Database | null = null;
 
-const parseMergedTabPair = (value: string | null): [string, string] | null => {
-  if (!value) return null;
+const isMergedTabPair = (value: unknown): value is MergedTabPair => {
+  return (
+    Array.isArray(value) &&
+    value.length === 2 &&
+    typeof value[0] === "string" &&
+    typeof value[1] === "string"
+  );
+};
+
+const parseMergedTabPairs = (value: string | null): MergedTabPair[] => {
+  if (!value) return [];
 
   try {
     const parsed = JSON.parse(value);
-    if (
-      Array.isArray(parsed) &&
-      parsed.length === 2 &&
-      typeof parsed[0] === "string" &&
-      typeof parsed[1] === "string"
-    ) {
-      return [parsed[0], parsed[1]];
+    if (isMergedTabPair(parsed)) {
+      return [parsed];
+    }
+
+    if (Array.isArray(parsed)) {
+      return parsed.filter(isMergedTabPair);
     }
   } catch {
-    return null;
+    return [];
   }
 
-  return null;
+  return [];
 };
 
-const serializeMergedTabPair = (value: [string, string] | null | undefined) => {
-  return value ? JSON.stringify(value) : null;
+const serializeMergedTabPairs = (value: readonly MergedTabPair[] | null | undefined) => {
+  return value?.length ? JSON.stringify(value) : null;
 };
 
 export async function getDb(): Promise<Database> {
@@ -121,7 +129,7 @@ export async function loadWorkspaces(): Promise<WorkspaceState[]> {
           id: section.id,
           name: section.name,
           tabs,
-          mergedTabPair: parseMergedTabPair(section.mergedTabPair),
+          mergedTabPairs: parseMergedTabPairs(section.mergedTabPair),
         });
       }
     }
@@ -172,7 +180,7 @@ export async function saveWorkspaces(workspaces: WorkspaceState[]): Promise<void
           const section = ws.sections[sIndex];
           await db.execute(
             "INSERT INTO sections (id, workspace_id, name, mergedTabPair, order_index) VALUES ($1, $2, $3, $4, $5)",
-            [section.id, ws.id, section.name, serializeMergedTabPair(section.mergedTabPair), sIndex]
+            [section.id, ws.id, section.name, serializeMergedTabPairs(section.mergedTabPairs ?? (section.mergedTabPair ? [section.mergedTabPair] : [])), sIndex]
           );
 
           for (let tIndex = 0; tIndex < section.tabs.length; tIndex++) {
