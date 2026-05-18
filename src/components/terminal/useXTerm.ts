@@ -7,9 +7,35 @@ import "@xterm/xterm/css/xterm.css";
 
 // Hard cap on scrollback lines — prevents unbounded RAM growth from log-storm terminals.
 const SCROLLBACK_LINE_CAP = 10_000;
+const RESIZE_DEBOUNCE_MS = 40;
+const FIT_RETRY_MS = 180;
 
 // Delay before re-attempting WebGL context attachment after GPU context loss (e.g. laptop sleep/wake).
 const WEBGL_RECOVERY_DELAY_MS = 250;
+
+const nativeDarkTheme = {
+  background: "#09090b",
+  foreground: "#e4e4e7",
+  cursor: "#f4f4f5",
+  cursorAccent: "#09090b",
+  selectionBackground: "#3b82f660",
+  black: "#18181b",
+  brightBlack: "#71717a",
+  red: "#ef4444",
+  brightRed: "#f87171",
+  green: "#22c55e",
+  brightGreen: "#4ade80",
+  yellow: "#eab308",
+  brightYellow: "#fde047",
+  blue: "#3b82f6",
+  brightBlue: "#60a5fa",
+  magenta: "#d946ef",
+  brightMagenta: "#e879f9",
+  cyan: "#06b6d4",
+  brightCyan: "#22d3ee",
+  white: "#e4e4e7",
+  brightWhite: "#fafafa",
+};
 
 export interface UseXTermOptions extends ITerminalOptions {
   agentName: string;
@@ -19,22 +45,42 @@ export interface UseXTermOptions extends ITerminalOptions {
   onKey?: (event: KeyboardEvent) => boolean;
 }
 
-function createTerminal(): Terminal {
-  const term = new Terminal({
-    fontFamily: '"JetBrains Mono", "Fira Code", monospace',
-    cursorBlink: false,
-    cursorStyle: 'block',
+function createTerminal(options: UseXTermOptions): Terminal {
+  const terminalOptions: Partial<UseXTermOptions> = { ...options };
+  delete terminalOptions.agentName;
+  delete terminalOptions.onData;
+  delete terminalOptions.onBinary;
+  delete terminalOptions.onResize;
+  delete terminalOptions.onKey;
+
+  return new Terminal({
+    allowProposedApi: true,
+    allowTransparency: false,
+    altClickMovesCursor: true,
+    convertEol: false,
+    cursorBlink: true,
+    cursorInactiveStyle: "outline",
+    cursorStyle: "block",
+    customGlyphs: true,
+    drawBoldTextInBrightColors: true,
+    fastScrollSensitivity: 5,
+    fontFamily: '"Cascadia Code", "JetBrains Mono", "Fira Code", "SFMono-Regular", Consolas, monospace',
     fontSize: 13,
+    fontWeight: "normal",
+    fontWeightBold: "bold",
+    letterSpacing: 0,
+    lineHeight: 1.15,
+    minimumContrastRatio: 4.5,
+    rescaleOverlappingGlyphs: true,
+    rightClickSelectsWord: false,
     scrollback: SCROLLBACK_LINE_CAP,
-    allowTransparency: true,
+    smoothScrollDuration: 0,
+    ...terminalOptions,
     theme: {
-      background: 'rgba(0,0,0,0)',
-      foreground: '#e2e8f0',
-      cursor: '#00f0ff',
-      selectionBackground: "#00f0ff40",
+      ...nativeDarkTheme,
+      ...terminalOptions.theme,
     },
   });
-  return term;
 }
 
 /**
@@ -104,13 +150,15 @@ export function useXTerm(
   const searchAddonRef = useRef<SearchAddon | null>(null);
   const onDataRef = useRef(options.onData);
   const onBinaryRef = useRef(options.onBinary);
+  const onResizeRef = useRef(options.onResize);
   const onKeyRef = useRef(options.onKey);
 
   useEffect(() => {
     onDataRef.current = options.onData;
     onBinaryRef.current = options.onBinary;
+    onResizeRef.current = options.onResize;
     onKeyRef.current = options.onKey;
-  }, [options.onData, options.onBinary, options.onKey]);
+  }, [options.onData, options.onBinary, options.onResize, options.onKey]);
 
   // Ref shared with WebGL helpers so recovery callbacks can check mount status.
   const isMountedRef = useRef(false);
@@ -123,12 +171,13 @@ export function useXTerm(
     let resizeFrame: number | null = null;
     let resizeSettleTimer: ReturnType<typeof setTimeout> | null = null;
     let resizeTimeout: ReturnType<typeof setTimeout> | null = null;
+    let fitRetryTimer: ReturnType<typeof setTimeout> | null = null;
     let term: Terminal | null = null;
     let fitAddon: FitAddon | null = null;
     let searchAddon: SearchAddon | null = null;
 
     const emitResize = (t: Terminal) => {
-      options.onResize?.(t.cols, t.rows);
+      onResizeRef.current?.(t.cols, t.rows);
     };
 
     const fitVisibleTerminal = () => {
@@ -149,6 +198,10 @@ export function useXTerm(
 
     const scheduleFit = () => {
       if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
+      if (fitRetryTimer) {
+        clearTimeout(fitRetryTimer);
+        fitRetryTimer = null;
+      }
 
       resizeFrame = requestAnimationFrame(() => {
         resizeFrame = requestAnimationFrame(() => {
@@ -160,10 +213,11 @@ export function useXTerm(
             return;
           }
 
-          resizeSettleTimer = setTimeout(() => {
+          fitRetryTimer = setTimeout(() => {
             if (!isMounted) return;
             if (fitVisibleTerminal()) setTermLoaded(true);
-          }, 80);
+            else scheduleFit();
+          }, FIT_RETRY_MS);
         });
       });
     };
@@ -175,7 +229,7 @@ export function useXTerm(
       await document.fonts.ready;
       if (!isMounted || !containerRef.current) return;
 
-      term = createTerminal();
+      term = createTerminal(options);
       fitAddon = new FitAddon();
       term.loadAddon(fitAddon);
       searchAddon = new SearchAddon();
@@ -232,14 +286,16 @@ export function useXTerm(
       handleResizeEnd = () => {
         if (!isMounted) return;
         if (resizeTimeout) clearTimeout(resizeTimeout);
-        resizeTimeout = setTimeout(fitTerminal, 50);
+        resizeTimeout = setTimeout(fitTerminal, RESIZE_DEBOUNCE_MS);
       };
       window.addEventListener('terminal-layout-resize-end', handleResizeEnd);
+      window.addEventListener("resize", handleResizeEnd);
+      document.addEventListener("visibilitychange", handleResizeEnd);
 
       resizeObserver = new ResizeObserver(() => {
         if (document.body.classList.contains('is-pane-resizing')) return;
         if (resizeTimeout) clearTimeout(resizeTimeout);
-        resizeTimeout = setTimeout(fitTerminal, 50);
+        resizeTimeout = setTimeout(fitTerminal, RESIZE_DEBOUNCE_MS);
       });
       resizeObserver.observe(containerRef.current);
     }
@@ -251,10 +307,13 @@ export function useXTerm(
       isMountedRef.current = false;
       if (handleResizeEnd) {
         window.removeEventListener('terminal-layout-resize-end', handleResizeEnd);
+        window.removeEventListener("resize", handleResizeEnd);
+        document.removeEventListener("visibilitychange", handleResizeEnd);
       }
       if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
       if (resizeSettleTimer) clearTimeout(resizeSettleTimer);
       if (resizeTimeout) clearTimeout(resizeTimeout);
+      if (fitRetryTimer) clearTimeout(fitRetryTimer);
       if (resizeObserver) resizeObserver.disconnect();
       terminalRef.current = null;
       searchAddonRef.current = null;

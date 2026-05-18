@@ -5,6 +5,7 @@ import { readText } from "@tauri-apps/plugin-clipboard-manager";
 import { Terminal as TerminalIcon, X, Zap, ExternalLink, Plus, GripVertical, Search, ChevronRight } from "lucide-react";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import type { Terminal } from "@xterm/xterm";
+import { createXtermWriteQueue } from "@/lib/xterm-write-queue";
 import { useXTerm } from "./useXTerm";
 import {
   ROOT_TERMINAL_LANE_ID,
@@ -596,10 +597,12 @@ export function TerminalInstance({ agentId, agentName, cwd, onRemove, onDetach, 
     let cancelled = false;
     const outputBuffer = { current: "" };
     const lastReadyEmitAt = { current: 0 };
+    const writeQueue = createXtermWriteQueue(terminal);
     try {
       terminal.reset();
     } catch (error) {
       console.warn("Skipped reset for disposed terminal:", error);
+      writeQueue.dispose();
       return;
     }
     setReadyState(false);
@@ -607,13 +610,7 @@ export function TerminalInstance({ agentId, agentName, cwd, onRemove, onDetach, 
     const unlistenPty = listen<PtyOutputPayload>(`pty-output-agent-${ptyEventKey}`, (event) => {
       if (cancelled) return;
 
-      try {
-        terminal.write(getTerminalWritePayload(event.payload));
-      } catch (error) {
-        cancelled = true;
-        console.warn("Skipped write for disposed terminal:", error);
-        return;
-      }
+      writeQueue.write(getTerminalWritePayload(event.payload));
 
       const text = stripTerminalControls(event.payload.data).replace(/\s+/g, " ");
       outputBuffer.current = `${outputBuffer.current}${text}`.slice(-4000);
@@ -634,18 +631,9 @@ export function TerminalInstance({ agentId, agentName, cwd, onRemove, onDetach, 
         if (cancelled || !terminal) return;
 
         if ((scrollback.bytes?.length ?? 0) > 0 || scrollback.data) {
-          try {
-            suppressTerminalInputRef.current = true;
-            terminal.write(getTerminalWritePayload(scrollback), () => {
-              if (!cancelled) terminal.scrollToBottom();
-            });
-          } catch (error) {
-            cancelled = true;
-            console.warn("Skipped scrollback restore for disposed terminal:", error);
-            return;
-          } finally {
-            suppressTerminalInputRef.current = false;
-          }
+          writeQueue.write(getTerminalWritePayload(scrollback), () => {
+            if (!cancelled) terminal.scrollToBottom();
+          });
 
           // Re-evaluate prompt readiness on scrollback restore
           const text = stripTerminalControls(scrollback.data).replace(/\s+/g, " ");
@@ -664,6 +652,8 @@ export function TerminalInstance({ agentId, agentName, cwd, onRemove, onDetach, 
 
     return () => {
       cancelled = true;
+      writeQueue.dispose();
+      suppressTerminalInputRef.current = false;
       unlistenPty.then(f => f());
     };
   }, [isTerminalReady, terminal, ptyKey, ptyEventKey, cwd, workspaceName, setReadyState, handleTerminalResize]);
@@ -806,7 +796,7 @@ export function TerminalInstance({ agentId, agentName, cwd, onRemove, onDetach, 
             <div className="animate-pulse text-zinc-500 text-xs tracking-widest uppercase">Loading Engine...</div>
           </div>
         )}
-        <div className={`absolute terminal-surface bg-transparent overflow-hidden flex items-center justify-center ${isZenMode ? 'inset-0' : 'inset-1.5'}`} ref={terminalRef} onClick={handleContainerClick}></div>
+        <div className={`absolute terminal-surface overflow-hidden ${isZenMode ? 'inset-0' : 'inset-1.5'}`} ref={terminalRef} onClick={handleContainerClick}></div>
       </div>
 
     </div>

@@ -100,6 +100,16 @@
     -webkit-backdrop-filter: blur(40px) saturate(200%);
   }
 
+  .terminal-surface {
+    background: #09090b;
+    contain: strict;
+  }
+
+  .terminal-surface .xterm {
+    height: 100%;
+    width: 100%;
+  }
+
   .terminal-surface canvas {
     outline: none !important;
   }
@@ -186,9 +196,7 @@
   background: #3f3f46;
 }
 
-.terminal-surface .xterm-screen,
-.terminal-surface .xterm-rows,
-.terminal-surface .xterm-viewport {
+.terminal-surface .xterm-screen {
   transform: translateZ(0);
 }
 
@@ -251,17 +259,6 @@
 /* Fluid Resizing Hardware Acceleration */
 body.is-pane-resizing * {
   user-select: none;
-}
-
-body.is-pane-resizing .xterm-screen {
-  width: 100% !important;
-  height: 100% !important;
-}
-
-body.is-pane-resizing .xterm-screen canvas {
-  width: 100% !important;
-  height: 100% !important;
-  object-fit: fill;
 }
 
 body.is-pane-resizing .bg-app-panel {
