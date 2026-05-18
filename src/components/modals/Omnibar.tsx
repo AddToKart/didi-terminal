@@ -141,8 +141,13 @@ export function Omnibar({ isOpen, onClose, actions }: OmnibarProps) {
       />
 
       <div className="fixed inset-0 flex items-start justify-center z-[201] pt-[12vh] pointer-events-none">
-        <div className="w-full max-w-xl bg-[#0b0b0d]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] overflow-hidden pointer-events-auto animate-in zoom-in-95 slide-in-from-top-2 duration-150">
-          {/* Search */}
+        <div className="relative w-full max-w-xl rounded-xl p-[1px] overflow-hidden pointer-events-auto animate-in zoom-in-95 slide-in-from-top-2 duration-150 shadow-[0_0_80px_-20px_rgba(59,130,246,0.3)]">
+          {/* Spinning Gradient Border */}
+          <div className="absolute inset-[-100%] animate-[spin_3s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,#00000000_50%,#00000000_80%,#3b82f6_100%)] opacity-80" />
+          <div className="absolute inset-[-100%] animate-[spin_3s_linear_infinite] [animation-delay:-1.5s] bg-[conic-gradient(from_270deg_at_50%_50%,#00000000_50%,#00000000_80%,#8b5cf6_100%)] opacity-80" />
+          
+          <div className="relative w-full h-full bg-[#0b0b0d]/98 backdrop-blur-xl rounded-[11px] overflow-hidden flex flex-col">
+            {/* Search */}
           <div className="flex items-center gap-3 px-5 py-4 border-b border-white/5">
             <Search size={16} className="text-zinc-500 shrink-0" />
             <input
@@ -224,6 +229,7 @@ export function Omnibar({ isOpen, onClose, actions }: OmnibarProps) {
               Close
             </span>
           </div>
+        </div>
         </div>
       </div>
     </>
