@@ -119,18 +119,18 @@ const SortableTerminalWrapper = memo(function SortableTerminalWrapper({
   }, [transform, transition, isDragging]);
 
   const style: React.CSSProperties = {
-    position: 'relative' as const,
+    position: (focusedAgentId && !isFocused) ? 'absolute' : 'relative',
     flexBasis: isFocused ? '100%' : (focusedAgentId ? '0%' : flexBasis),
     flexGrow: isFocused ? 1 : (focusedAgentId ? 0 : (flexBasis ? 1 : undefined)),
-    height: isFocused ? '100%' : (focusedAgentId ? '0%' : height),
-    width: isFocused ? '100%' : (focusedAgentId ? '0%' : width),
+    height: isFocused ? '100%' : (focusedAgentId ? '100%' : height),
+    width: isFocused ? '100%' : (focusedAgentId ? '100%' : width),
     opacity: focusedAgentId && !isFocused ? 0 : 1,
     pointerEvents: focusedAgentId && !isFocused ? 'none' : 'auto',
     overflow: 'hidden',
     ...styleOverrides,
     transform: !hasPanel ? CSS.Translate.toString(transform) : undefined,
-    transition: !hasPanel ? transition : undefined,
-    zIndex: !hasPanel && isDragging ? 50 : (styleOverrides?.zIndex ?? 1),
+    transition: !hasPanel ? (transition ? `${transition}, opacity 0.3s ease` : 'opacity 0.3s ease') : undefined,
+    zIndex: !hasPanel && isDragging ? 50 : (focusedAgentId && isFocused ? 10 : (styleOverrides?.zIndex ?? 1)),
   };
 
   return (
@@ -317,21 +317,22 @@ export function AppTerminalArea({
                 className={cn(
                   "flex-1 min-h-0 min-w-0",
                   "rounded-lg overflow-hidden border border-app-border bg-app-border gap-[1px]",
-                  !focusedAgentId && layoutOrientation === "horizontal" && "flex flex-col",
-                  !focusedAgentId && layoutOrientation === "vertical" && "flex flex-row",
-                  !focusedAgentId && layoutOrientation === "focus" && "flex flex-col flex-wrap content-stretch",
-                  !focusedAgentId && layoutOrientation === "presentation" && "flex flex-row flex-wrap content-stretch",
-                  !focusedAgentId && layoutOrientation === "waterfall" && "block overflow-y-auto p-1 scroll-smooth",
-                  !focusedAgentId && layoutOrientation === "dynamic" && "grid grid-cols-4 auto-rows-fr p-1",
-                  !focusedAgentId && layoutOrientation === "grid" && "grid"
+                  !activeFocusedAgentId && layoutOrientation === "horizontal" && "flex flex-col",
+                  !activeFocusedAgentId && layoutOrientation === "vertical" && "flex flex-row",
+                  !activeFocusedAgentId && layoutOrientation === "focus" && "flex flex-col flex-wrap content-stretch",
+                  !activeFocusedAgentId && layoutOrientation === "presentation" && "flex flex-row flex-wrap content-stretch",
+                  !activeFocusedAgentId && layoutOrientation === "waterfall" && "block overflow-y-auto p-1 scroll-smooth",
+                  !activeFocusedAgentId && layoutOrientation === "dynamic" && "grid grid-cols-4 auto-rows-fr p-1",
+                  !activeFocusedAgentId && layoutOrientation === "grid" && "grid",
+                  activeFocusedAgentId && "flex flex-col"
                 )}
                 style={
-                  !focusedAgentId && layoutOrientation === "grid"
+                  !activeFocusedAgentId && layoutOrientation === "grid"
                     ? {
                       gridTemplateColumns: `repeat(${Math.ceil(Math.sqrt(Math.max(1, agents.length)))}, minmax(0, 1fr))`,
                       gridTemplateRows: `repeat(${Math.ceil(agents.length / Math.ceil(Math.sqrt(Math.max(1, agents.length))))}, minmax(0, 1fr))`
                     }
-                    : (focusedAgentId ? { display: 'flex' } : undefined)
+                    : (activeFocusedAgentId ? { display: 'flex' } : undefined)
                 }
               >
                 {layoutOrientation === "waterfall" ? (
@@ -422,63 +423,65 @@ export function AppTerminalArea({
                   let width: string | undefined = undefined;
                   let styleOverrides: React.CSSProperties = {};
 
-                  if (layoutOrientation === "grid") {
-                    styleOverrides = { width: "100%", height: "100%" };
-                    const cols = Math.ceil(Math.sqrt(Math.max(1, agents.length)));
-                    const remainder = agents.length % cols;
-                    if (index === agents.length - 1 && remainder !== 0) {
-                      const columnsToSpan = cols - remainder + 1;
-                      styleOverrides.gridColumn = `span ${columnsToSpan}`;
-                    }
-                  } else if (layoutOrientation === "focus") {
-                    const gapSize = 4;
-                    if (agents.length === 1) {
-                      flexBasis = "100%";
-                      width = "100%";
-                    } else {
-                      if (index === 0) {
+                  if (!activeFocusedAgentId) {
+                    if (layoutOrientation === "grid") {
+                      styleOverrides = { width: "100%", height: "100%" };
+                      const cols = Math.ceil(Math.sqrt(Math.max(1, agents.length)));
+                      const remainder = agents.length % cols;
+                      if (index === agents.length - 1 && remainder !== 0) {
+                        const columnsToSpan = cols - remainder + 1;
+                        styleOverrides.gridColumn = `span ${columnsToSpan}`;
+                      }
+                    } else if (layoutOrientation === "focus") {
+                      const gapSize = 4;
+                      if (agents.length === 1) {
                         flexBasis = "100%";
-                        width = `calc(75% - ${gapSize / 2}px)`;
+                        width = "100%";
                       } else {
-                        const rows = agents.length - 1;
-                        const gapRowsTotal = (rows - 1) * gapSize;
-                        flexBasis = `calc((100% - ${gapRowsTotal}px) / ${rows})`;
-                        width = `calc(25% - ${gapSize / 2}px)`;
+                        if (index === 0) {
+                          flexBasis = "100%";
+                          width = `calc(75% - ${gapSize / 2}px)`;
+                        } else {
+                          const rows = agents.length - 1;
+                          const gapRowsTotal = (rows - 1) * gapSize;
+                          flexBasis = `calc((100% - ${gapRowsTotal}px) / ${rows})`;
+                          width = `calc(25% - ${gapSize / 2}px)`;
+                        }
                       }
-                    }
-                  } else if (layoutOrientation === "presentation") {
-                    const gapSize = 4;
-                    if (agents.length === 1) {
-                      flexBasis = "100%";
-                      height = "100%";
-                    } else {
-                      if (index === 0) {
+                    } else if (layoutOrientation === "presentation") {
+                      const gapSize = 4;
+                      if (agents.length === 1) {
                         flexBasis = "100%";
-                        height = `calc(75% - ${gapSize / 2}px)`;
+                        height = "100%";
                       } else {
-                        const cols = agents.length - 1;
-                        const gapColsTotal = (cols - 1) * gapSize;
-                        flexBasis = `calc((100% - ${gapColsTotal}px) / ${cols})`;
-                        height = `calc(25% - ${gapSize / 2}px)`;
+                        if (index === 0) {
+                          flexBasis = "100%";
+                          height = `calc(75% - ${gapSize / 2}px)`;
+                        } else {
+                          const cols = agents.length - 1;
+                          const gapColsTotal = (cols - 1) * gapSize;
+                          flexBasis = `calc((100% - ${gapColsTotal}px) / ${cols})`;
+                          height = `calc(25% - ${gapSize / 2}px)`;
+                        }
                       }
-                    }
-                  } else if (layoutOrientation === "dynamic") {
-                    if (agents.length > 2 && index === 0) {
-                      styleOverrides = { gridColumn: "span 2", gridRow: "span 2" };
-                    } else {
-                      styleOverrides = { gridColumn: "span 1", gridRow: "span 1" };
-                    }
-                    if (index === agents.length - 1) {
-                      let totalCellsConsumed = 0;
-                      if (agents.length > 2) {
-                        totalCellsConsumed = 4 + (agents.length - 1 - 1);
+                    } else if (layoutOrientation === "dynamic") {
+                      if (agents.length > 2 && index === 0) {
+                        styleOverrides = { gridColumn: "span 2", gridRow: "span 2" };
                       } else {
-                        totalCellsConsumed = agents.length - 1;
+                        styleOverrides = { gridColumn: "span 1", gridRow: "span 1" };
                       }
-                      const remainder = totalCellsConsumed % 4;
-                      if (remainder !== 0) {
-                        const columnsToSpan = 4 - remainder;
-                        styleOverrides.gridColumn = `span ${columnsToSpan + 1}`;
+                      if (index === agents.length - 1) {
+                        let totalCellsConsumed = 0;
+                        if (agents.length > 2) {
+                          totalCellsConsumed = 4 + (agents.length - 1 - 1);
+                        } else {
+                          totalCellsConsumed = agents.length - 1;
+                        }
+                        const remainder = totalCellsConsumed % 4;
+                        if (remainder !== 0) {
+                          const columnsToSpan = 4 - remainder;
+                          styleOverrides.gridColumn = `span ${columnsToSpan + 1}`;
+                        }
                       }
                     }
                   }
