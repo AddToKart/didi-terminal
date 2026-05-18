@@ -5,6 +5,12 @@ import { WebglAddon } from "@xterm/addon-webgl";
 import { SearchAddon } from "@xterm/addon-search";
 import "@xterm/xterm/css/xterm.css";
 
+// Hard cap on scrollback lines — prevents unbounded RAM growth from log-storm terminals.
+const SCROLLBACK_LINE_CAP = 10_000;
+
+// Delay before re-attempting WebGL context attachment after GPU context loss (e.g. laptop sleep/wake).
+const WEBGL_RECOVERY_DELAY_MS = 250;
+
 export interface UseXTermOptions extends ITerminalOptions {
   agentName: string;
   onData?: (data: string) => void;
@@ -19,7 +25,7 @@ function createTerminal(): Terminal {
     cursorBlink: false,
     cursorStyle: 'block',
     fontSize: 13,
-    scrollback: 5000,
+    scrollback: SCROLLBACK_LINE_CAP,
     allowTransparency: true,
     theme: {
       background: 'rgba(0,0,0,0)',
@@ -29,6 +35,64 @@ function createTerminal(): Terminal {
     },
   });
   return term;
+}
+
+/**
+ * Force-releases a WebGL canvas's GPU textures and VRAM before the xterm
+ * instance is disposed. Prevents GPU context exhaustion when many panes
+ * are opened and closed over a long session.
+ */
+function forceReleaseCanvas(canvas: HTMLCanvasElement): void {
+  let gl: WebGL2RenderingContext | WebGLRenderingContext | null = null;
+  try {
+    gl = canvas.getContext("webgl2") as WebGL2RenderingContext | null;
+  } catch { /* ignore */ }
+  if (!gl) {
+    try {
+      gl = canvas.getContext("webgl") as WebGLRenderingContext | null;
+    } catch { /* ignore */ }
+  }
+  if (gl) {
+    try {
+      const ext = gl.getExtension("WEBGL_lose_context");
+      if (ext && !gl.isContextLost()) ext.loseContext();
+    } catch { /* ignore */ }
+  }
+  // Wipe backing raster store to free rasterizer memory immediately.
+  try {
+    canvas.width = 0;
+    canvas.height = 0;
+  } catch { /* ignore */ }
+}
+
+/**
+ * Attempts to attach the WebglAddon to an active terminal. If the GPU context
+ * is lost, it schedules a single retry after WEBGL_RECOVERY_DELAY_MS so that
+ * terminals automatically recover after a laptop sleep/wake cycle instead of
+ * permanently falling back to the slower canvas renderer.
+ */
+function tryAttachWebgl(
+  term: Terminal,
+  isMountedRef: { current: boolean },
+  addonRef: { current: WebglAddon | null }
+): void {
+  if (!term.element) return; // Terminal not yet opened in DOM.
+  try {
+    const webglAddon = new WebglAddon();
+    webglAddon.onContextLoss(() => {
+      addonRef.current = null;
+      try { webglAddon.dispose(); } catch { /* ignore */ }
+      // Retry after the GPU reset window clears.
+      setTimeout(() => {
+        if (isMountedRef.current) tryAttachWebgl(term, isMountedRef, addonRef);
+      }, WEBGL_RECOVERY_DELAY_MS);
+    });
+    term.loadAddon(webglAddon);
+    addonRef.current = webglAddon;
+  } catch (e) {
+    // WebGL unavailable (software rendering fallback) — canvas renderer takes over.
+    console.warn("[useXTerm] WebGL renderer unavailable, using canvas fallback:", e);
+  }
 }
 
 export function useXTerm(
@@ -48,7 +112,12 @@ export function useXTerm(
     onKeyRef.current = options.onKey;
   }, [options.onData, options.onBinary, options.onKey]);
 
+  // Ref shared with WebGL helpers so recovery callbacks can check mount status.
+  const isMountedRef = useRef(false);
+  const webglAddonRef = useRef<WebglAddon | null>(null);
+
   useEffect(() => {
+    isMountedRef.current = true;
     let isMounted = true;
     let resizeObserver: ResizeObserver | null = null;
     let resizeFrame: number | null = null;
@@ -56,7 +125,6 @@ export function useXTerm(
     let resizeTimeout: ReturnType<typeof setTimeout> | null = null;
     let term: Terminal | null = null;
     let fitAddon: FitAddon | null = null;
-    let webglAddon: WebglAddon | null = null;
     let searchAddon: SearchAddon | null = null;
 
     const emitResize = (t: Terminal) => {
@@ -113,20 +181,45 @@ export function useXTerm(
 
       term.onData((data) => onDataRef.current?.(data));
       term.onBinary((data) => onBinaryRef.current?.(data));
-      term.attachCustomKeyEventHandler((event) => onKeyRef.current?.(event) ?? true);
+
+      // Critical key intercepts: route low-level CLI controls directly to PTY,
+      // preventing the Webview or React from swallowing them.
+      term.attachCustomKeyEventHandler((event: KeyboardEvent) => {
+        const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
+        const isMac = /Mac|iPhone|iPad/.test(ua);
+        const mod = isMac ? event.metaKey : event.ctrlKey;
+
+        // Ctrl+Backspace (Cmd+Backspace on mac) → word-delete (\x17 = ETB / Ctrl+W).
+        if (mod && (event.key === "Backspace" || event.code === "Backspace")) {
+          event.preventDefault();
+          if (event.type === "keydown") onDataRef.current?.("\x17");
+          return false;
+        }
+
+        // Shift+Enter → ESC + CR (multi-line shell awareness).
+        if (
+          event.key === "Enter" &&
+          event.shiftKey &&
+          !event.altKey &&
+          !event.ctrlKey &&
+          !event.metaKey
+        ) {
+          event.preventDefault();
+          if (event.type === "keydown") onDataRef.current?.("\x1b\r");
+          return false;
+        }
+
+        // Ctrl+C (interrupt) — always pass through; never let React intercept it.
+        if (event.ctrlKey && event.key === "c") return true;
+
+        // Delegate to the caller's custom key handler, fall through by default.
+        return onKeyRef.current?.(event) ?? true;
+      });
 
       term.open(containerRef.current);
 
-      try {
-        webglAddon = new WebglAddon();
-        webglAddon.onContextLoss(() => {
-          webglAddon?.dispose();
-          webglAddon = null;
-        });
-        term.loadAddon(webglAddon);
-      } catch (e) {
-        console.warn("WebGL addon could not be loaded", e);
-      }
+      // Attach WebGL after open() so the DOM canvas element exists.
+      tryAttachWebgl(term, isMountedRef, webglAddonRef);
 
       terminalRef.current = term;
       searchAddonRef.current = searchAddon;
@@ -150,6 +243,7 @@ export function useXTerm(
 
     return () => {
       isMounted = false;
+      isMountedRef.current = false;
       if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
       if (resizeSettleTimer) clearTimeout(resizeSettleTimer);
       if (resizeTimeout) clearTimeout(resizeTimeout);
@@ -159,7 +253,19 @@ export function useXTerm(
       setTermLoaded(false);
 
       if (term) {
-        try { term.dispose(); } catch (e) { console.error("Failed to dispose terminal", e); }
+        // Force-release all WebGL GPU textures before disposal to prevent
+        // VRAM exhaustion across long sessions with many pane open/close cycles.
+        if (term.element) {
+          term.element
+            .querySelectorAll<HTMLCanvasElement>("canvas")
+            .forEach(forceReleaseCanvas);
+        }
+        // Dispose the WebGL addon first, then the terminal itself.
+        if (webglAddonRef.current) {
+          try { webglAddonRef.current.dispose(); } catch { /* ignore */ }
+          webglAddonRef.current = null;
+        }
+        try { term.dispose(); } catch (e) { console.error("[useXTerm] Failed to dispose terminal:", e); }
       }
     };
   }, [options.agentName]);

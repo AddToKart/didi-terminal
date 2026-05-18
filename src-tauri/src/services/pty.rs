@@ -83,6 +83,13 @@ pub fn cleanup_pty(agent: &str, state: &State<'_, AppState>) {
     state.pty_workspaces.lock().unwrap().remove(&agent_key);
 
     if let Some(mut process) = state.pty_processes.lock().unwrap().remove(&agent_key) {
+        // On Unix: kill the entire process group (PGID) so that nested
+        // sub-processes (compilers, node workers, etc.) are also terminated,
+        // preventing zombie processes from surviving after a lane is closed.
+        #[cfg(unix)]
+        if let Some(pid) = process.pid {
+            crate::services::job::kill_unix_process_group(pid);
+        }
         let _ = process.child.kill();
     }
 }
