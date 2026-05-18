@@ -110,8 +110,6 @@ interface Props {
   onFocus?: () => void;
   onZoom?: () => void;
 }
-  onZoom?: () => void;
-}
 
 interface TerminalLaneStripProps {
   lanes: TerminalLane[];
@@ -808,8 +806,5 @@ export function TerminalInstance({ agentId, agentName, cwd, onRemove, onDetach, 
       </div>
 
     </div>
-  );
-}
-  </div>
   );
 }

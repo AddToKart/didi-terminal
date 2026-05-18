@@ -73,7 +73,7 @@ const shallowEqualStyle = (left?: React.CSSProperties, right?: React.CSSProperti
 const SortableTerminalWrapper = memo(function SortableTerminalWrapper({
   agent, currentProject, onRemoveAgent, onDetachAgent, onSplitAgent,
   flexBasis, height, width, styleOverrides, workspaceName, workspaceId,
-  isFocused, onFocus, focusedAgentId,
+  isFocused, onFocus, onZoom, focusedAgentId,
 }: SortableTerminalWrapperProps) {
   const { attributes, listeners, setNodeRef, isDragging, transform, transition } = useSortable({
     id: agent.id,
@@ -164,6 +164,7 @@ const SortableTerminalWrapper = memo(function SortableTerminalWrapper({
           dragAttributes={attributes}
           dragListeners={listeners}
           onFocus={onFocus}
+          onZoom={onZoom}
         />
       )}
     </div>
