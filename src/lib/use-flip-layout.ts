@@ -4,6 +4,10 @@ import { useRef, useLayoutEffect } from "react";
 const FLIP_EASING = "cubic-bezier(0.16, 1, 0.3, 1)";
 const FLIP_DURATION_MS = 380;
 
+// Entrance animation for newly spawned panes
+const ENTER_DURATION_MS = 320;
+const ENTER_EASING = "cubic-bezier(0.34, 1.56, 0.64, 1)"; // slight overshoot spring
+
 type LayoutType =
   | "horizontal"
   | "vertical"
@@ -24,21 +28,26 @@ interface SnapRect {
 /**
  * useFLIPLayout
  *
- * Correct FLIP timing:
- *  - At the END of every effect we save the current rects as `savedRectsRef`
- *    (these become the "First" snapshot for the *next* layout change).
- *  - At the START of every effect, if the layout changed, `savedRectsRef`
- *    contains the pre-change positions → we read the new "Last" positions from
- *    the already-committed DOM, compute the delta, and animate.
+ * Handles two animation scenarios:
+ *
+ * 1. Layout switch  — all existing panes FLIP-slide into their new positions.
+ * 2. Agent add/remove — new pane plays a scale+fade entrance; existing panes
+ *    that shifted positions get FLIP-animated too.
+ *
+ * Timing contract (no dep-array, runs after every render):
+ *   END of render N   → save current rects into savedRectsRef  ("First" for N+1)
+ *   START of render N+1 → if layout/agents changed: read DOM = "Last"
+ *                        → compute delta from saved "First"
+ *                        → animate
  */
 export function useFLIPLayout(
   containerRef: React.RefObject<HTMLDivElement | null>,
   agentIds: string[],
   layout: LayoutType
 ) {
-  // Rects saved from the *previous* render — the "First" snapshot.
   const savedRectsRef = useRef<Map<string, SnapRect>>(new Map());
   const prevLayoutRef = useRef<LayoutType>(layout);
+  const prevAgentIdsRef = useRef<string[]>(agentIds);
   const animationsRef = useRef<Map<string, Animation>>(new Map());
 
   useLayoutEffect(() => {
@@ -46,32 +55,60 @@ export function useFLIPLayout(
     if (!container) return;
 
     const layoutChanged = prevLayoutRef.current !== layout;
+    const prevIds = prevAgentIdsRef.current;
+    const newIds = new Set(agentIds.filter((id) => !prevIds.includes(id)));
+    const agentsChanged = newIds.size > 0 || prevIds.length !== agentIds.length;
 
-    // ── FLIP: animate panes from their old positions to their new ones ──────
-    if (layoutChanged && savedRectsRef.current.size > 0) {
-      // Cancel any animations still running from a previous transition.
+    if (layoutChanged || agentsChanged) {
+      // Cancel any in-flight animations
       animationsRef.current.forEach((a) => a.cancel());
       animationsRef.current.clear();
 
       agentIds.forEach((id) => {
-        const firstRect = savedRectsRef.current.get(id);
-        if (!firstRect) return;
-
-        // "Last" — where the pane is *right now* after the new layout committed.
         const el = container.querySelector(
           `[data-agent-id="${id}"]`
         ) as HTMLElement | null;
         if (!el) return;
 
         const last = el.getBoundingClientRect();
-        if (last.width === 0 || last.height === 0) return; // pane hidden / unmounted
+        if (last.width === 0 || last.height === 0) return;
+
+        // ── ENTRANCE animation for brand-new panes ─────────────────────────
+        if (newIds.has(id)) {
+          const anim = el.animate(
+            [
+              {
+                opacity: "0",
+                transform: "scale(0.82) translateY(8px)",
+                transformOrigin: "center center",
+              },
+              {
+                opacity: "1",
+                transform: "scale(1) translateY(0)",
+                transformOrigin: "center center",
+              },
+            ],
+            {
+              duration: ENTER_DURATION_MS,
+              easing: ENTER_EASING,
+              fill: "none",
+            }
+          );
+          animationsRef.current.set(id, anim);
+          anim.onfinish = () => animationsRef.current.delete(id);
+          anim.oncancel = () => animationsRef.current.delete(id);
+          return;
+        }
+
+        // ── FLIP animation for panes that shifted ──────────────────────────
+        const firstRect = savedRectsRef.current.get(id);
+        if (!firstRect) return;
 
         const dx = firstRect.left - last.left;
         const dy = firstRect.top - last.top;
         const scaleX = firstRect.width / last.width;
         const scaleY = firstRect.height / last.height;
 
-        // Skip if the pane barely moved (avoids trivial 1px jitter).
         const moved =
           Math.abs(dx) > 1 ||
           Math.abs(dy) > 1 ||
@@ -79,9 +116,6 @@ export function useFLIPLayout(
           Math.abs(scaleY - 1) > 0.005;
         if (!moved) return;
 
-        // Animate: "Invert" → "Play"
-        // Frame 0 puts the element at its old "First" position using a transform.
-        // Frame 1 removes the transform — the browser slides it to "Last".
         const anim = el.animate(
           [
             {
@@ -96,7 +130,6 @@ export function useFLIPLayout(
           {
             duration: FLIP_DURATION_MS,
             easing: FLIP_EASING,
-            // fill:"none" — CSS owns the final layout, not the animation engine.
             fill: "none",
           }
         );
@@ -108,8 +141,9 @@ export function useFLIPLayout(
     }
 
     prevLayoutRef.current = layout;
+    prevAgentIdsRef.current = agentIds;
 
-    // ── Save current rects as "First" for the NEXT transition ───────────────
+    // Save current rects as "First" for the next transition
     const snapshot = new Map<string, SnapRect>();
     agentIds.forEach((id) => {
       const el = container.querySelector(
@@ -126,5 +160,5 @@ export function useFLIPLayout(
       });
     });
     savedRectsRef.current = snapshot;
-  }); // No dep-array — runs after EVERY render so savedRectsRef stays fresh.
+  }); // No dep-array — must run after every render to keep snapshots fresh.
 }
