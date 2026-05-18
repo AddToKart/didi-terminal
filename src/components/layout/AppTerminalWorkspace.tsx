@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { Plus, X } from "lucide-react";
 import { AppTerminalArea } from "@/components/layout/AppTerminalArea";
-import type { TerminalTab } from "@/types/workspace";
+import { TerminalPaneLayoutControls } from "@/components/layout/TerminalPaneLayoutControls";
+import type { TerminalLayoutOrientation, TerminalTab } from "@/types/workspace";
 
 interface AppTerminalWorkspaceProps {
   tabs: TerminalTab[];
@@ -13,6 +14,7 @@ interface AppTerminalWorkspaceProps {
   isGlass?: boolean;
   onActivateTab: (tabId: string) => void;
   onAddAgentToTab: (tabId: string) => void;
+  onSetLayoutForTab: (tabId: string, orientation: TerminalLayoutOrientation) => void;
   onRemoveAgentForTab: (tabId: string, agentId: string) => void;
   onDetachAgentForTab: (tabId: string, agentId: string) => void;
   onReorderAgentsForTab: (tabId: string, oldIndex: number, newIndex: number) => void;
@@ -29,6 +31,7 @@ const getPaneStyle = (
 ): CSSProperties => {
   const hidden: CSSProperties = {
     inset: 0,
+    display: "none",
     pointerEvents: "none",
     visibility: "hidden",
     zIndex: 0,
@@ -36,7 +39,7 @@ const getPaneStyle = (
 
   if (!mergedTabPair) {
     return tabId === activeTabId
-      ? { inset: 0, pointerEvents: "auto", visibility: "visible", zIndex: 1 }
+      ? { inset: 0, display: "flex", pointerEvents: "auto", visibility: "visible", zIndex: 1 }
       : hidden;
   }
 
@@ -46,6 +49,7 @@ const getPaneStyle = (
       top: 0,
       bottom: 0,
       left: 0,
+      display: "flex",
       width: `${splitPct}%`,
       pointerEvents: "auto",
       visibility: "visible",
@@ -59,6 +63,7 @@ const getPaneStyle = (
       right: 0,
       bottom: 0,
       left: `calc(${splitPct}% + 2px)`,
+      display: "flex",
       pointerEvents: "auto",
       visibility: "visible",
       zIndex: 2,
@@ -78,6 +83,7 @@ export function AppTerminalWorkspace({
   isGlass,
   onActivateTab,
   onAddAgentToTab,
+  onSetLayoutForTab,
   onRemoveAgentForTab,
   onDetachAgentForTab,
   onReorderAgentsForTab,
@@ -144,6 +150,10 @@ export function AppTerminalWorkspace({
                 <span className="flex-1 font-mono text-[10px] font-bold uppercase tracking-widest text-zinc-500">
                   {tab.name}
                 </span>
+                <TerminalPaneLayoutControls
+                  layoutOrientation={tab.layoutOrientation}
+                  onSetLayoutOrientation={(orientation) => onSetLayoutForTab(tab.id, orientation)}
+                />
                 <button
                   type="button"
                   onClick={(event) => {

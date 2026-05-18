@@ -259,6 +259,12 @@ pub fn run() {
                 CREATE INDEX IF NOT EXISTS idx_personal_tasks_ws ON personal_tasks(workspace_id);
             ",
             kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 7,
+            description: "add_section_merged_tab_pair",
+            sql: "ALTER TABLE sections ADD COLUMN mergedTabPair TEXT;",
+            kind: MigrationKind::Up,
         }
     ];
 

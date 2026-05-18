@@ -13,6 +13,30 @@ export interface PersonalTask {
 
 let dbInstance: Database | null = null;
 
+const parseMergedTabPair = (value: string | null): [string, string] | null => {
+  if (!value) return null;
+
+  try {
+    const parsed = JSON.parse(value);
+    if (
+      Array.isArray(parsed) &&
+      parsed.length === 2 &&
+      typeof parsed[0] === "string" &&
+      typeof parsed[1] === "string"
+    ) {
+      return [parsed[0], parsed[1]];
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+};
+
+const serializeMergedTabPair = (value: [string, string] | null | undefined) => {
+  return value ? JSON.stringify(value) : null;
+};
+
 export async function getDb(): Promise<Database> {
   if (!dbInstance) {
     dbInstance = await Database.load("sqlite:didi.db");
@@ -38,7 +62,7 @@ export async function loadWorkspaces(): Promise<WorkspaceState[]> {
   const workspaces: WorkspaceState[] = [];
   
   for (const ws of workspacesRaw) {
-    const sectionsRaw = await db.select<{ id: string; name: string; order_index: number }[]>(
+    const sectionsRaw = await db.select<{ id: string; name: string; mergedTabPair: string | null; order_index: number }[]>(
       "SELECT * FROM sections WHERE workspace_id = $1 ORDER BY order_index ASC",
       [ws.id]
     );
@@ -97,6 +121,7 @@ export async function loadWorkspaces(): Promise<WorkspaceState[]> {
           id: section.id,
           name: section.name,
           tabs,
+          mergedTabPair: parseMergedTabPair(section.mergedTabPair),
         });
       }
     }
@@ -146,8 +171,8 @@ export async function saveWorkspaces(workspaces: WorkspaceState[]): Promise<void
         for (let sIndex = 0; sIndex < ws.sections.length; sIndex++) {
           const section = ws.sections[sIndex];
           await db.execute(
-            "INSERT INTO sections (id, workspace_id, name, order_index) VALUES ($1, $2, $3, $4)",
-            [section.id, ws.id, section.name, sIndex]
+            "INSERT INTO sections (id, workspace_id, name, mergedTabPair, order_index) VALUES ($1, $2, $3, $4, $5)",
+            [section.id, ws.id, section.name, serializeMergedTabPair(section.mergedTabPair), sIndex]
           );
 
           for (let tIndex = 0; tIndex < section.tabs.length; tIndex++) {

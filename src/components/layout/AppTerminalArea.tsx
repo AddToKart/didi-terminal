@@ -265,8 +265,8 @@ export function AppTerminalArea({
                 className={cn(
                   "flex-1 min-h-0 min-w-0 transition-all duration-500 ease-in-out",
                   "rounded-lg overflow-hidden border border-app-border bg-app-border gap-[1px]",
-                  !focusedAgentId && layoutOrientation === "horizontal" && "flex flex-row",
-                  !focusedAgentId && layoutOrientation === "vertical" && "flex flex-col",
+                  !focusedAgentId && layoutOrientation === "horizontal" && "flex flex-col",
+                  !focusedAgentId && layoutOrientation === "vertical" && "flex flex-row",
                   !focusedAgentId && layoutOrientation === "focus" && "flex flex-col flex-wrap content-stretch",
                   !focusedAgentId && layoutOrientation === "presentation" && "flex flex-row flex-wrap content-stretch",
                   !focusedAgentId && layoutOrientation === "waterfall" && "block overflow-y-auto p-1 scroll-smooth",

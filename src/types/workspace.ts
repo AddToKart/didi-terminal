@@ -29,6 +29,7 @@ export interface SectionState {
   name: string;
   tabs: TerminalTab[];
   activeTabId?: string;
+  mergedTabPair?: [string, string] | null;
 }
 
 export interface WorkspaceState {
