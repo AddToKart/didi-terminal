@@ -611,7 +611,7 @@ export function ConfigEditor({ currentProject, isOpen, onClose }: ConfigEditorPr
     setLoading(true);
     setError(null);
     try {
-      const result = await invoke<FileEntry[]>("list_directory", { path: dirPath });
+      const result = await invoke<FileEntry[]>("list_directory", { path: dirPath, root: currentProject });
       const sorted = [...result].sort((a, b) => {
         if (a.is_dir && !b.is_dir) return -1;
         if (!a.is_dir && b.is_dir) return 1;
@@ -624,7 +624,7 @@ export function ConfigEditor({ currentProject, isOpen, onClose }: ConfigEditorPr
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentProject]);
 
   const loadFileContent = useCallback(async (filePath: string) => {
     setContentLoading(true);
@@ -643,7 +643,7 @@ export function ConfigEditor({ currentProject, isOpen, onClose }: ConfigEditorPr
     } finally {
       setContentLoading(false);
     }
-  }, []);
+  }, [currentProject]);
 
   const handleSave = async () => {
     if (!selectedFile) return;

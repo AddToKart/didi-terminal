@@ -52,7 +52,7 @@ export function ProjectFileExplorer({ currentProject, isOpen, onClose }: Project
     if (!path) return;
     setLoading(true);
     try {
-      const result = await invoke<FileEntry[]>("list_directory", { path });
+      const result = await invoke<FileEntry[]>("list_directory", { path, root: currentProject });
       setEntries(result);
       setCurrentPath(path);
     } catch (error) {
@@ -60,7 +60,7 @@ export function ProjectFileExplorer({ currentProject, isOpen, onClose }: Project
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentProject]);
 
   useEffect(() => {
     if (isOpen && currentProject) {

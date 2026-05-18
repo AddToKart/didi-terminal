@@ -166,7 +166,7 @@ export function EnvManager({ currentProject, isOpen, onClose }: EnvManagerProps)
         const vars = grouped.get(config.path) ?? [];
         // Preserve empty files — write an empty string rather than skipping
         const content = vars.map((v) => `${v.key}=${v.value}`).join("\n");
-        await invoke("write_file_content", { path: config.path, content });
+        await invoke("write_file_content", { path: config.path, root: currentProject, content });
       }
 
       setHasChanges(false);

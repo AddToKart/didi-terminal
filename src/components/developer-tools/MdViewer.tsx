@@ -130,7 +130,7 @@ export function MdViewer({ currentProject, isOpen, onClose }: MdViewerProps) {
     setLoading(true);
     setError(null);
     try {
-      const result = await invoke<FileEntry[]>("list_directory", { path: dirPath });
+      const result = await invoke<FileEntry[]>("list_directory", { path: dirPath, root: currentProject });
       const sorted = [...result].sort((a, b) => {
         if (a.is_dir && !b.is_dir) return -1;
         if (!a.is_dir && b.is_dir) return 1;
@@ -143,13 +143,13 @@ export function MdViewer({ currentProject, isOpen, onClose }: MdViewerProps) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentProject]);
 
   const loadFileContent = useCallback(async (filePath: string) => {
     setContentLoading(true);
     setError(null);
     try {
-      const result = await invoke<string>("read_file_content", { path: filePath });
+      const result = await invoke<string>("read_file_content", { path: filePath, root: currentProject });
       setContent(result);
       setEditContent(result);
       setIsEditing(false);
@@ -160,7 +160,7 @@ export function MdViewer({ currentProject, isOpen, onClose }: MdViewerProps) {
     } finally {
       setContentLoading(false);
     }
-  }, []);
+  }, [currentProject]);
 
   const handleSave = async () => {
     if (!selectedFile) return;
