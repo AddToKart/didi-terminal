@@ -406,37 +406,69 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
     handleTabSelect(tabId);
   }, [activeWorkspaceId, handleTabSelect, newAgentName, setNewAgentName, setWorkspaces, tabs]);
 
-  const paletteActions = useMemo<PaletteAction[]>(() => [
-    { id: "terminal-mode", label: "Terminal Mode", description: "Switch to standard terminal layout", category: "Modes", categoryOrder: 0, icon: TerminalIcon, onSelect: () => setAppMode("terminal") },
-    { id: "orchestrator-mode", label: "Orchestrator Mode", description: "Switch to agent orchestration layout", category: "Modes", categoryOrder: 0, icon: Network, onSelect: () => setAppMode("orchestrator") },
-    { id: "zen-mode", label: "Zen Mode", description: "Switch to minimal Zen layout", category: "Modes", categoryOrder: 0, icon: Monitor, shortcut: "Alt+Q", onSelect: () => setAppMode("zen") },
-    { id: "settings", label: "Settings", description: "Configure app preferences", category: "Panels", categoryOrder: 1, icon: Settings, onSelect: () => setShowSettings(true) },
-    { id: "code-review", label: "Code Review", description: "Review staged changes", category: "Panels", categoryOrder: 1, icon: Code2, onSelect: () => setShowCodeReview(true) },
-    { id: "git-panel", label: "Git Panel", description: "Stage, commit, push, pull", category: "Panels", categoryOrder: 1, icon: GitBranch, onSelect: () => setShowGitPanel(true) },
-    { id: "kanban", label: "My Tasks", description: "Personal kanban board", category: "Panels", categoryOrder: 1, icon: LayoutList, onSelect: () => setShowPersonalKanban(true) },
-    { id: "file-explorer", label: "Project Explorer", description: "Browse workspace files", category: "Panels", categoryOrder: 1, icon: FolderSearch, onSelect: () => setShowFileExplorer(true) },
-    { id: "env-manager", label: "Environment Variables", description: "Manage .env files", category: "Panels", categoryOrder: 1, icon: FileKey2, onSelect: () => setShowEnvManager(true) },
-    { id: "package-manager", label: "Package Manager", description: "Update npm/cargo/pip packages", category: "Panels", categoryOrder: 1, icon: Package, onSelect: () => setShowPackageManager(true) },
-    { id: "api-lab", label: "API Lab", description: "Test HTTP requests", category: "Panels", categoryOrder: 1, icon: Zap, onSelect: () => setShowApiLab(true) },
-    { id: "dep-graph", label: "Dependency Graph", description: "Visualize monorepo dependencies", category: "Panels", categoryOrder: 1, icon: FolderTree, onSelect: () => setShowMonorepoGraph(true) },
-    { id: "port-manager", label: "Port Manager", description: "View and kill active ports", category: "Panels", categoryOrder: 1, icon: Server, onSelect: () => setShowPortManager(true) },
-    { id: "db-viewer", label: "Database Viewer", description: "Browse SQLite, Postgres, MySQL", category: "Panels", categoryOrder: 1, icon: Database, onSelect: () => setShowDbViewer(true) },
-    { id: "icon-browser", label: "Icon Browser", description: "Browse and copy lucide-react icons", category: "Panels", categoryOrder: 1, icon: Palette, onSelect: () => setShowIconBrowser(true) },
-    { id: "tailwind-labs", label: "Tailwind Labs", description: "Colors, utility classes, spacing reference", category: "Panels", categoryOrder: 1, icon: Palette, onSelect: () => setShowTailwindLabs(true) },
-    { id: "npm-lookup", label: "npm Lookup", description: "Search npm package registry", category: "Panels", categoryOrder: 1, icon: Box, onSelect: () => setShowNpmLookup(true) },
-    { id: "html-to-jsx", label: "HTML to JSX", description: "Convert HTML to React JSX", category: "Panels", categoryOrder: 1, icon: Code2, onSelect: () => setShowHtmlToJsx(true) },
-    { id: "svg-optimizer", label: "SVG Optimizer", description: "Clean and minify SVGs", category: "Panels", categoryOrder: 1, icon: FileCode, onSelect: () => setShowSvgOptimizer(true) },
-    { id: "storage-inspector", label: "Storage Inspector", description: "Browse localStorage and cookies", category: "Panels", categoryOrder: 1, icon: HardDrive, onSelect: () => setShowStorageInspector(true) },
-    { id: "mock-data-generator", label: "Mock Data Generator", description: "Generate JSON, CSV, or SQL placeholder data", category: "Panels", categoryOrder: 1, icon: Database, onSelect: () => setShowMockDataGenerator(true) },
-    { id: "config-editor", label: "Config Editor", description: "Edit JSON config files in tree view", category: "Panels", categoryOrder: 1, icon: FileCode, onSelect: () => setShowConfigEditor(true) },
-    { id: "md-viewer", label: "Markdown Viewer", description: "Browse and edit markdown files", category: "Panels", categoryOrder: 1, icon: FileText, onSelect: () => setShowMdViewer(true) },
-    { id: "new-tab", label: "New Tab", description: "Create a new terminal tab", category: "Actions", categoryOrder: 2, icon: Plus, onSelect: () => handleTabCreate() },
-    { id: "new-browser", label: "New Browser Pane", description: "Open an embedded webview", category: "Actions", categoryOrder: 2, icon: Globe, onSelect: () => handleSpawnBrowser() },
-    { id: "security", label: "Workspace Lock", description: "Set or change workspace PIN", category: "Actions", categoryOrder: 2, icon: Shield, onSelect: () => setShowSecurityPanel(activeWorkspaceId) },
-    { id: "network-graph", label: "Orchestration Graph", description: "Visual agent network", category: "Panels", categoryOrder: 1, icon: Network, onSelect: () => setShowNetworkGraph(true) },
-    { id: "brainstorm", label: "Brainstorm", description: "Multi-agent consensus", category: "Panels", categoryOrder: 1, icon: Brain, onSelect: () => setShowBrainstorm(true) },
-    { id: "master-plan", label: "Master Plan", description: "Task queue and progress", category: "Panels", categoryOrder: 1, icon: ClipboardList, onSelect: () => setShowMasterPlan(true) },
-  ], [appMode, activeWorkspaceId]);
+  const paletteActions = useMemo<PaletteAction[]>(() => {
+    const actions: PaletteAction[] = [
+      { id: "terminal-mode", label: "Terminal Mode", description: "Switch to standard terminal layout", category: "Modes", categoryOrder: 0, icon: TerminalIcon, onSelect: () => setAppMode("terminal") },
+      { id: "orchestrator-mode", label: "Orchestrator Mode", description: "Switch to agent orchestration layout", category: "Modes", categoryOrder: 0, icon: Network, onSelect: () => setAppMode("orchestrator") },
+      { id: "zen-mode", label: "Zen Mode", description: "Switch to minimal Zen layout", category: "Modes", categoryOrder: 0, icon: Monitor, shortcut: "Alt+Q", onSelect: () => setAppMode("zen") },
+      { id: "settings", label: "Settings", description: "Configure app preferences", category: "Panels", categoryOrder: 1, icon: Settings, onSelect: () => setShowSettings(true) },
+      { id: "code-review", label: "Code Review", description: "Review staged changes", category: "Panels", categoryOrder: 1, icon: Code2, onSelect: () => setShowCodeReview(true) },
+      { id: "git-panel", label: "Git Panel", description: "Stage, commit, push, pull", category: "Panels", categoryOrder: 1, icon: GitBranch, onSelect: () => setShowGitPanel(true) },
+      { id: "kanban", label: "My Tasks", description: "Personal kanban board", category: "Panels", categoryOrder: 1, icon: LayoutList, onSelect: () => setShowPersonalKanban(true) },
+      { id: "file-explorer", label: "Project Explorer", description: "Browse workspace files", category: "Panels", categoryOrder: 1, icon: FolderSearch, onSelect: () => setShowFileExplorer(true) },
+      { id: "env-manager", label: "Environment Variables", description: "Manage .env files", category: "Panels", categoryOrder: 1, icon: FileKey2, onSelect: () => setShowEnvManager(true) },
+      { id: "package-manager", label: "Package Manager", description: "Update npm/cargo/pip packages", category: "Panels", categoryOrder: 1, icon: Package, onSelect: () => setShowPackageManager(true) },
+      { id: "api-lab", label: "API Lab", description: "Test HTTP requests", category: "Panels", categoryOrder: 1, icon: Zap, onSelect: () => setShowApiLab(true) },
+      { id: "dep-graph", label: "Dependency Graph", description: "Visualize monorepo dependencies", category: "Panels", categoryOrder: 1, icon: FolderTree, onSelect: () => setShowMonorepoGraph(true) },
+      { id: "port-manager", label: "Port Manager", description: "View and kill active ports", category: "Panels", categoryOrder: 1, icon: Server, onSelect: () => setShowPortManager(true) },
+      { id: "db-viewer", label: "Database Viewer", description: "Browse SQLite, Postgres, MySQL", category: "Panels", categoryOrder: 1, icon: Database, onSelect: () => setShowDbViewer(true) },
+      { id: "icon-browser", label: "Icon Browser", description: "Browse and copy lucide-react icons", category: "Panels", categoryOrder: 1, icon: Palette, onSelect: () => setShowIconBrowser(true) },
+      { id: "tailwind-labs", label: "Tailwind Labs", description: "Colors, utility classes, spacing reference", category: "Panels", categoryOrder: 1, icon: Palette, onSelect: () => setShowTailwindLabs(true) },
+      { id: "npm-lookup", label: "npm Lookup", description: "Search npm package registry", category: "Panels", categoryOrder: 1, icon: Box, onSelect: () => setShowNpmLookup(true) },
+      { id: "html-to-jsx", label: "HTML to JSX", description: "Convert HTML to React JSX", category: "Panels", categoryOrder: 1, icon: Code2, onSelect: () => setShowHtmlToJsx(true) },
+      { id: "svg-optimizer", label: "SVG Optimizer", description: "Clean and minify SVGs", category: "Panels", categoryOrder: 1, icon: FileCode, onSelect: () => setShowSvgOptimizer(true) },
+      { id: "storage-inspector", label: "Storage Inspector", description: "Browse localStorage and cookies", category: "Panels", categoryOrder: 1, icon: HardDrive, onSelect: () => setShowStorageInspector(true) },
+      { id: "mock-data-generator", label: "Mock Data Generator", description: "Generate JSON, CSV, or SQL placeholder data", category: "Panels", categoryOrder: 1, icon: Database, onSelect: () => setShowMockDataGenerator(true) },
+      { id: "config-editor", label: "Config Editor", description: "Edit JSON config files in tree view", category: "Panels", categoryOrder: 1, icon: FileCode, onSelect: () => setShowConfigEditor(true) },
+      { id: "md-viewer", label: "Markdown Viewer", description: "Browse and edit markdown files", category: "Panels", categoryOrder: 1, icon: FileText, onSelect: () => setShowMdViewer(true) },
+      { id: "new-tab", label: "New Tab", description: "Create a new terminal tab", category: "Actions", categoryOrder: 2, icon: Plus, onSelect: () => handleTabCreate() },
+      { id: "new-browser", label: "New Browser Pane", description: "Open an embedded webview", category: "Actions", categoryOrder: 2, icon: Globe, onSelect: () => handleSpawnBrowser() },
+      { id: "security", label: "Workspace Lock", description: "Set or change workspace PIN", category: "Actions", categoryOrder: 2, icon: Shield, onSelect: () => setShowSecurityPanel(activeWorkspaceId) },
+      { id: "network-graph", label: "Orchestration Graph", description: "Visual agent network", category: "Panels", categoryOrder: 1, icon: Network, onSelect: () => setShowNetworkGraph(true) },
+      { id: "brainstorm", label: "Brainstorm", description: "Multi-agent consensus", category: "Panels", categoryOrder: 1, icon: Brain, onSelect: () => setShowBrainstorm(true) },
+      { id: "master-plan", label: "Master Plan", description: "Task queue and progress", category: "Panels", categoryOrder: 1, icon: ClipboardList, onSelect: () => setShowMasterPlan(true) },
+    ];
+
+    workspaces.forEach(ws => {
+      actions.push({
+        id: `ws-${ws.id}`,
+        label: `Workspace: ${ws.name}`,
+        description: `Switch to workspace`,
+        category: "Workspaces",
+        categoryOrder: 3,
+        icon: FolderSearch,
+        onSelect: () => handleWorkspaceSelect(ws.id)
+      });
+      ws.sections.forEach(sec => {
+        sec.tabs.forEach(tab => {
+          actions.push({
+            id: `tab-${tab.id}`,
+            label: `Go to ${tab.name}`,
+            description: `Tab in ${ws.name} > ${sec.name}`,
+            category: "Open Tabs",
+            categoryOrder: 4,
+            icon: TerminalIcon,
+            onSelect: () => {
+              handleWorkspaceSelect(ws.id);
+              handleTabSelect(tab.id);
+            }
+          });
+        });
+      });
+    });
+
+    return actions;
+  }, [appMode, activeWorkspaceId, workspaces, setAppMode, setShowSettings, setShowCodeReview, setShowGitPanel, setShowPersonalKanban, setShowCalendar, setShowFileExplorer, setShowEnvManager, setShowPackageManager, setShowApiLab, setShowMonorepoGraph, setShowPortManager, setShowDbViewer, setShowIconBrowser, setShowTailwindLabs, setShowNpmLookup, setShowHtmlToJsx, setShowSvgOptimizer, setShowStorageInspector, setShowMockDataGenerator, setShowConfigEditor, setShowMdViewer, handleTabCreate, handleSpawnBrowser, setShowSecurityPanel, setShowNetworkGraph, setShowBrainstorm, setShowMasterPlan, handleWorkspaceSelect, handleTabSelect]);
 
   return (
     <DndContext
