@@ -25,6 +25,7 @@ interface PersonalKanbanProps {
   workspaceId: string;
   isOpen: boolean;
   onClose: () => void;
+  filterDate?: Date;
 }
 
 type ColumnType = "todo" | "in_progress" | "done";
@@ -92,7 +93,7 @@ function KanbanColumnBody({ id, children }: { id: string; children: React.ReactN
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
-export function PersonalKanban({ workspaceId, isOpen, onClose }: PersonalKanbanProps) {
+export function PersonalKanban({ workspaceId, isOpen, onClose, filterDate }: PersonalKanbanProps) {
   const [tasks, setTasks] = useState<PersonalTask[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [editingTask, setEditingTask] = useState<PersonalTask | null>(null);
@@ -104,9 +105,20 @@ export function PersonalKanban({ workspaceId, isOpen, onClose }: PersonalKanbanP
 
   useEffect(() => {
     if (isOpen && workspaceId) {
-      loadPersonalTasks(workspaceId).then(setTasks).catch(console.error);
+      loadPersonalTasks(workspaceId).then((allTasks) => {
+        if (filterDate) {
+          setTasks(allTasks.filter(t => {
+            const taskDate = new Date(t.created_at);
+            return taskDate.getDate() === filterDate.getDate() &&
+                   taskDate.getMonth() === filterDate.getMonth() &&
+                   taskDate.getFullYear() === filterDate.getFullYear();
+          }));
+        } else {
+          setTasks(allTasks);
+        }
+      }).catch(console.error);
     }
-  }, [isOpen, workspaceId]);
+  }, [isOpen, workspaceId, filterDate]);
 
   if (!isOpen) return null;
 
@@ -183,6 +195,14 @@ export function PersonalKanban({ workspaceId, isOpen, onClose }: PersonalKanbanP
 
   const handleOpenAddTask = (status: ColumnType) => {
     if (!workspaceId) return;
+
+    let createdAt = Date.now();
+    if (filterDate) {
+      const d = new Date(filterDate);
+      d.setHours(12, 0, 0, 0);
+      createdAt = d.getTime();
+    }
+
     setEditingTask({
       id: uuidv4(),
       workspace_id: workspaceId,
@@ -190,7 +210,7 @@ export function PersonalKanban({ workspaceId, isOpen, onClose }: PersonalKanbanP
       description: "",
       status,
       order_index: tasks.filter(t => t.status === status).length,
-      created_at: Date.now()
+      created_at: createdAt
     });
   };
 

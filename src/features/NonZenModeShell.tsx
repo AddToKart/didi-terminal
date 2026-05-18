@@ -76,6 +76,7 @@ const CodeReviewPanel = lazy(() => import("../components/source-control/CodeRevi
 const GitPanel = lazy(() => import("../components/source-control/GitPanel").then(m => ({ default: m.GitPanel })));
 const SourceControlFullscreen = lazy(() => import("../components/source-control/SourceControlFullscreen").then(m => ({ default: m.SourceControlFullscreen })));
 const PersonalKanban = lazy(() => import("../components/workspace/PersonalKanban").then(m => ({ default: m.PersonalKanban })));
+const CalendarPanel = lazy(() => import("../components/workspace/CalendarPanel").then(m => ({ default: m.CalendarPanel })));
 const ProjectFileExplorer = lazy(() => import("../components/workspace/ProjectFileExplorer").then(m => ({ default: m.ProjectFileExplorer })));
 const SecurityPanel = lazy(() => import("../components/workspace/SecurityPanel").then(m => ({ default: m.SecurityPanel })));
 const PortManager = lazy(() => import("../components/developer-tools/PortManager").then(m => ({ default: m.PortManager })));
@@ -131,6 +132,8 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
     setShowGitFullscreen,
     showPersonalKanban,
     setShowPersonalKanban,
+    showCalendar,
+    setShowCalendar,
     showFileExplorer,
     setShowFileExplorer,
     showPortManager,
@@ -461,6 +464,7 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
             onToggleCodeReview={() => setShowCodeReview(!showCodeReview)}
             onToggleGitPanel={() => setShowGitPanel(!showGitPanel)}
             onTogglePersonalKanban={() => setShowPersonalKanban(!showPersonalKanban)}
+            onToggleCalendar={() => setShowCalendar(!showCalendar)}
             onToggleFileExplorer={() => setShowFileExplorer(!showFileExplorer)}
             onToggleEnvManager={() => setShowEnvManager(!showEnvManager)}
             onTogglePackageManager={() => setShowPackageManager(!showPackageManager)}
@@ -567,13 +571,14 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
                 />
               </div>
 
-              {(showCodeReview || showGitPanel || showPersonalKanban || showFileExplorer) && (
+              {(showCodeReview || showGitPanel || showPersonalKanban || showCalendar || showFileExplorer) && (
                 <div
                   className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[45] animate-in fade-in duration-300"
                   onClick={() => {
                     setShowCodeReview(false);
                     setShowGitPanel(false);
                     setShowPersonalKanban(false);
+                    setShowCalendar(false);
                     setShowFileExplorer(false);
                   }}
                 />
@@ -604,6 +609,11 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
                   workspaceId={activeWorkspaceId}
                   isOpen={showPersonalKanban}
                   onClose={() => setShowPersonalKanban(false)}
+                /></ModalBoundary>
+                <ModalBoundary><CalendarPanel
+                  workspaceId={activeWorkspaceId}
+                  isOpen={showCalendar}
+                  onClose={() => setShowCalendar(false)}
                 /></ModalBoundary>
                 <ModalBoundary><ProjectFileExplorer
                   currentProject={currentProject}

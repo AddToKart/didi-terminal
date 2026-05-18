@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, type FormEvent } from "react";
-import { Brain, ClipboardList, Columns, Globe, Grid2X2, Network, PanelLeft, PanelLeftClose, Plus, Rows, Layers, AlignLeft, Sparkles, ChevronRight, ChevronLeft, GitMerge, LayoutList, FolderSearch, FileKey2, Package, Zap, FolderTree, FileText, FileCode, Palette, Box, HardDrive, Code2, Database } from "lucide-react";
+import { Brain, ClipboardList, Columns, Globe, Grid2X2, Network, PanelLeft, PanelLeftClose, Plus, Rows, Layers, AlignLeft, Sparkles, ChevronRight, ChevronLeft, GitMerge, LayoutList, FolderSearch, FileKey2, Package, Zap, FolderTree, FileText, FileCode, Palette, Box, HardDrive, Code2, Database, Calendar } from "lucide-react";
 import { WindowControls } from "./WindowControls";
 
 
@@ -21,6 +21,7 @@ interface AppTopbarProps {
   onToggleCodeReview?: () => void;
   onToggleGitPanel?: () => void;
   onTogglePersonalKanban?: () => void;
+  onToggleCalendar?: () => void;
   onToggleFileExplorer?: () => void;
   onToggleEnvManager?: () => void;
   onTogglePackageManager?: () => void;
@@ -232,6 +233,7 @@ export function AppTopbar({
   onToggleCodeReview,
   onToggleGitPanel,
   onTogglePersonalKanban,
+  onToggleCalendar,
   onToggleFileExplorer,
   onToggleEnvManager,
   onTogglePackageManager,
@@ -336,6 +338,14 @@ export function AppTopbar({
                 title="My Tasks"
               >
                 <LayoutList size={14} />
+              </button>
+
+              <button
+                onClick={onToggleCalendar}
+                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all duration-200 shrink-0 hover:scale-105 active:scale-95"
+                title="Calendar"
+              >
+                <Calendar size={14} />
               </button>
 
               <button

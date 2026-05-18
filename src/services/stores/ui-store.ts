@@ -30,6 +30,8 @@ interface UIState {
   
   showPersonalKanban: boolean;
   setShowPersonalKanban: (show: boolean | ((prev: boolean) => boolean)) => void;
+  showCalendar: boolean;
+  setShowCalendar: (show: boolean | ((prev: boolean) => boolean)) => void;
   showFileExplorer: boolean;
   setShowFileExplorer: (show: boolean | ((prev: boolean) => boolean)) => void;
   showPortManager: boolean;
@@ -109,6 +111,8 @@ export const useUIStore = create<UIState>((set) => ({
   
   showPersonalKanban: false,
   setShowPersonalKanban: (val) => set((state) => ({ showPersonalKanban: typeof val === 'function' ? val(state.showPersonalKanban) : val })),
+  showCalendar: false,
+  setShowCalendar: (val) => set((state) => ({ showCalendar: typeof val === 'function' ? val(state.showCalendar) : val })),
   showFileExplorer: false,
   setShowFileExplorer: (val) => set((state) => ({ showFileExplorer: typeof val === 'function' ? val(state.showFileExplorer) : val })),
   showPortManager: false,

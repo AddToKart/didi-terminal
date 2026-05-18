@@ -64,6 +64,8 @@ export function useAppController() {
   const setShowGitFullscreen = useUIStore(s => s.setShowGitFullscreen);
   const showPersonalKanban = useUIStore(s => s.showPersonalKanban);
   const setShowPersonalKanban = useUIStore(s => s.setShowPersonalKanban);
+  const showCalendar = useUIStore(s => s.showCalendar);
+  const setShowCalendar = useUIStore(s => s.setShowCalendar);
   const showFileExplorer = useUIStore(s => s.showFileExplorer);
   const setShowFileExplorer = useUIStore(s => s.setShowFileExplorer);
   const showPortManager = useUIStore(s => s.showPortManager);
@@ -900,6 +902,8 @@ export function useAppController() {
     setShowGitFullscreen,
     showPersonalKanban,
     setShowPersonalKanban,
+    showCalendar,
+    setShowCalendar,
     showFileExplorer,
     setShowFileExplorer,
     showPortManager,
