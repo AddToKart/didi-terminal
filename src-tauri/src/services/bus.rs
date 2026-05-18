@@ -13,6 +13,8 @@ pub struct HandoffMessage {
     pub task_id: String,
     #[serde(default)]
     pub parent_task_id: String,
+    #[serde(default)]
+    pub auth_token: String,
 }
 
 fn default_handoff_kind() -> String {
@@ -27,7 +29,7 @@ pub fn start_agent_bus(app_handle: AppHandle) {
         
         let pipe_name = r"\\.\pipe\agentbus";
         loop {
-            let mut server = match ServerOptions::new().first_pipe_instance(true).create(pipe_name) {
+            let server = match ServerOptions::new().first_pipe_instance(true).create(pipe_name) {
                 Ok(s) => s,
                 Err(_) => {
                     match ServerOptions::new().create(pipe_name) {
@@ -43,12 +45,25 @@ pub fn start_agent_bus(app_handle: AppHandle) {
 
             if server.connect().await.is_ok() {
                 let mut buf = Vec::new();
-                if server.read_to_end(&mut buf).await.is_ok() {
+                // Security check: limit payload size to 2MB to prevent OOM
+                if server.take(2 * 1024 * 1024).read_to_end(&mut buf).await.is_ok() {
                     if !buf.is_empty() {
                         let msg = String::from_utf8_lossy(&buf).to_string();
                         match serde_json::from_str::<serde_json::Value>(&msg) {
                             Ok(json) => {
                                 if let Ok(mut message) = serde_json::from_value::<HandoffMessage>(json) {
+                                    // Security check: validate session token
+                                    let is_valid = if let Some(state) = app_handle.try_state::<crate::AppState>() {
+                                        message.auth_token == state.session_token
+                                    } else {
+                                        false
+                                    };
+
+                                    if !is_valid {
+                                        eprintln!("Unauthorized handoff attempt from sender: {}", message.sender);
+                                        continue;
+                                    }
+
                                     // Auto-scope targets to the sender's workspace if not fully qualified
                                     if message.sender.contains("::") && !message.target.contains("::") {
                                         if let Some(ws_id) = message.sender.split("::").next() {

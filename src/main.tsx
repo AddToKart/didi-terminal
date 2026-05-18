@@ -4,6 +4,7 @@ import App from "./App";
 import { Dashboard } from "./dashboard/Dashboard";
 import "./index.css";
 
+
 const isDashboard = window.location.pathname === "/dashboard";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(

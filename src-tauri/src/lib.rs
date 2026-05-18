@@ -23,6 +23,7 @@ struct AppState {
 
     config: Mutex<AppConfig>,
     browser_views: Mutex<HashMap<String, tauri::Webview>>,
+    session_token: String,
 }
 
 #[tauri::command]
@@ -38,10 +39,14 @@ fn get_local_ip() -> String {
 }
 
 #[tauri::command]
-fn initialize_project(cwd: String) -> Result<(), String> {
+fn initialize_project(cwd: String, state: tauri::State<'_, AppState>) -> Result<(), String> {
     let path = std::path::Path::new(&cwd);
     let didi_dir = path.join(".didi");
     std::fs::create_dir_all(&didi_dir).map_err(|e| e.to_string())?;
+    
+    // Write session token for agent authentication
+    std::fs::write(didi_dir.join("auth.token"), &state.session_token).map_err(|e| e.to_string())?;
+
     std::fs::write(didi_dir.join("delegate.ps1"), templates::delegate_ps1()).map_err(|e| e.to_string())?;
     std::fs::write(didi_dir.join("delegate.cmd"), templates::delegate_cmd()).map_err(|e| e.to_string())?;
     std::fs::write(didi_dir.join("context.ps1"),  templates::context_ps1()).map_err(|e| e.to_string())?;
@@ -236,6 +241,24 @@ pub fn run() {
             description: "add_active_section_id",
             sql: "ALTER TABLE workspaces ADD COLUMN activeSectionId TEXT DEFAULT '';",
             kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 5,
+            description: "add_agent_uuid",
+            sql: "ALTER TABLE agents ADD COLUMN agent_uuid TEXT;",
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 6,
+            description: "add_performance_indexes",
+            sql: "
+                CREATE INDEX IF NOT EXISTS idx_workspaces_order ON workspaces(order_index);
+                CREATE INDEX IF NOT EXISTS idx_sections_ws ON sections(workspace_id);
+                CREATE INDEX IF NOT EXISTS idx_tabs_sec ON tabs(section_id);
+                CREATE INDEX IF NOT EXISTS idx_agents_tab ON agents(tab_id);
+                CREATE INDEX IF NOT EXISTS idx_personal_tasks_ws ON personal_tasks(workspace_id);
+            ",
+            kind: MigrationKind::Up,
         }
     ];
 
@@ -305,6 +328,8 @@ pub fn run() {
             services::db_client::db_get_postgres_tables,
             services::db_client::db_query_mysql,
             services::db_client::db_get_mysql_tables,
+            services::profile::export_profile,
+            services::profile::import_profile,
             initialize_project,
             open_browser_view,
             update_browser_bounds,
@@ -314,6 +339,8 @@ pub fn run() {
             get_local_ip,
         ])
         .setup(|app| {
+            services::job::init_job_object();
+            
             let loaded_config = load_config(app.handle());
             
             // Apply initial vibrancy based on config
@@ -333,10 +360,13 @@ pub fn run() {
 
                 config: Mutex::new(loaded_config),
                 browser_views: Mutex::new(HashMap::new()),
+                session_token: uuid::Uuid::new_v4().to_string(),
             });
             use tauri_plugin_shell::ShellExt;
             if let Ok(sidecar_command) = app.handle().shell().sidecar("llama-server") {
-                let _ = sidecar_command.spawn();
+                if let Ok((_rx, child)) = sidecar_command.spawn() {
+                    services::job::assign_process_to_job(child.pid());
+                }
             }
             Ok(())
         })

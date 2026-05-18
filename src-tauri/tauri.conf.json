@@ -15,11 +15,12 @@
         "title": "DidiTerminal",
         "width": 800,
         "height": 600,
-        "transparent": true
+        "transparent": true,
+        "decorations": false
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' ipc: http://ipc.localhost; img-src 'self' data:;"
     }
   },
   "bundle": {

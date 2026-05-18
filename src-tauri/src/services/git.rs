@@ -290,89 +290,93 @@ pub fn get_git_diff_stats(cwd: String) -> Result<GitDiffStats, String> {
 }
 
 #[tauri::command]
-pub fn get_git_status_structured(cwd: String) -> Result<GitStatusResponse, String> {
-    let cwd_path = Path::new(&cwd);
-    ensure_git_repo(cwd_path)?;
+pub async fn get_git_status_structured(cwd: String) -> Result<GitStatusResponse, String> {
+    tokio::task::spawn_blocking(move || {
+        let cwd_path = Path::new(&cwd);
+        ensure_git_repo(cwd_path)?;
 
-    let status_out = run_git_raw(cwd_path, &["status", "--porcelain"], None)?;
-    let numstat_out = run_git(cwd_path, &["diff", "HEAD", "--numstat"], None).unwrap_or_default();
-    
-    let branch = run_git(cwd_path, &["branch", "--show-current"], None).unwrap_or_else(|_| "main".to_string());
-    
-    let mut files = Vec::new();
-    let mut total_additions = 0;
-    let mut total_deletions = 0;
+        let status_out = run_git_raw(cwd_path, &["status", "--porcelain"], None)?;
+        let numstat_out = run_git(cwd_path, &["diff", "HEAD", "--numstat"], None).unwrap_or_default();
+        
+        let branch = run_git(cwd_path, &["branch", "--show-current"], None).unwrap_or_else(|_| "main".to_string());
+        
+        let mut files = Vec::new();
+        let mut total_additions = 0;
+        let mut total_deletions = 0;
 
-    // Parse status
-    let mut file_statuses = std::collections::HashMap::new();
-    for line in status_out.lines() {
-        if line.len() > 3 {
-            let status = line[0..2].trim().to_string();
-            let path = line[3..].trim().to_string();
-            file_statuses.insert(path, status);
-        }
-    }
-
-    // Parse numstat
-    let mut file_stats = std::collections::HashMap::new();
-    for line in numstat_out.lines() {
-        let parts: Vec<&str> = line.split_whitespace().collect();
-        if parts.len() >= 3 {
-            let add = parts[0].parse::<usize>().unwrap_or(0);
-            let del = parts[1].parse::<usize>().unwrap_or(0);
-            let path = parts[2..].join(" ");
-            file_stats.insert(path, (add, del));
-        }
-    }
-
-    // Fetch patches
-    for (path, status) in file_statuses {
-        let (mut additions, deletions) = file_stats.get(&path).cloned().unwrap_or((0, 0));
-
-        // For untracked files or deleted files, diff HEAD might not work or give full context.
-        // We'll try to get the diff for the specific file.
-        // If it's untracked (??), diff won't show it unless we add it to index, or we just read it.
-        let patch = if status == "??" {
-            let full_path = cwd_path.join(&path);
-            if let Ok(content) = std::fs::read_to_string(&full_path) {
-                // Mock a diff patch for untracked files
-                let lines = content.lines().count();
-                additions = lines;
-                let mut mock_patch = format!("--- /dev/null\n+++ b/{}\n@@ -0,0 +1,{} @@\n", path, lines);
-                for line in content.lines() {
-                    mock_patch.push_str("+");
-                    mock_patch.push_str(line);
-                    mock_patch.push('\n');
-                }
-                mock_patch
-            } else {
-                "Binary file or unreadable".to_string()
+        // Parse status
+        let mut file_statuses = std::collections::HashMap::new();
+        for line in status_out.lines() {
+            if line.len() > 3 {
+                let status = line[0..2].trim().to_string();
+                let path = line[3..].trim().to_string();
+                file_statuses.insert(path, status);
             }
-        } else {
-            run_git(cwd_path, &["diff", "HEAD", "--", &path], None).unwrap_or_default()
-        };
+        }
 
-        total_additions += additions;
-        total_deletions += deletions;
+        // Parse numstat
+        let mut file_stats = std::collections::HashMap::new();
+        for line in numstat_out.lines() {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() >= 3 {
+                let add = parts[0].parse::<usize>().unwrap_or(0);
+                let del = parts[1].parse::<usize>().unwrap_or(0);
+                let path = parts[2..].join(" ");
+                file_stats.insert(path, (add, del));
+            }
+        }
 
-        files.push(GitFileDiff {
-            path,
-            status,
-            additions,
-            deletions,
-            patch,
-        });
-    }
+        // Fetch patches
+        for (path, status) in file_statuses {
+            let (mut additions, deletions) = file_stats.get(&path).cloned().unwrap_or((0, 0));
 
-    // Sort files alphabetically
-    files.sort_by(|a, b| a.path.cmp(&b.path));
+            // For untracked files or deleted files, diff HEAD might not work or give full context.
+            // We'll try to get the diff for the specific file.
+            // If it's untracked (??), diff won't show it unless we add it to index, or we just read it.
+            let patch = if status == "??" {
+                let full_path = cwd_path.join(&path);
+                if let Ok(content) = std::fs::read_to_string(&full_path) {
+                    // Mock a diff patch for untracked files
+                    let lines = content.lines().count();
+                    additions = lines;
+                    let mut mock_patch = format!("--- /dev/null\n+++ b/{}\n@@ -0,0 +1,{} @@\n", path, lines);
+                    for line in content.lines() {
+                        mock_patch.push_str("+");
+                        mock_patch.push_str(line);
+                        mock_patch.push('\n');
+                    }
+                    mock_patch
+                } else {
+                    "Binary file or unreadable".to_string()
+                }
+            } else {
+                run_git(cwd_path, &["diff", "HEAD", "--", &path], None).unwrap_or_default()
+            };
 
-    Ok(GitStatusResponse {
-        branch,
-        total_additions,
-        total_deletions,
-        files,
+            total_additions += additions;
+            total_deletions += deletions;
+
+            files.push(GitFileDiff {
+                path,
+                status,
+                additions,
+                deletions,
+                patch,
+            });
+        }
+
+        // Sort files alphabetically
+        files.sort_by(|a, b| a.path.cmp(&b.path));
+
+        Ok(GitStatusResponse {
+            branch,
+            total_additions,
+            total_deletions,
+            files,
+        })
     })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
