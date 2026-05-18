@@ -43,14 +43,56 @@ function WebDevPopover({ onToggleIconBrowser, onToggleTailwindLabs, onToggleNpmL
   onToggleNpmLookup?: () => void; onToggleHtmlToJsx?: () => void; onToggleSvgOptimizer?: () => void; onToggleStorageInspector?: () => void; onToggleMockDataGenerator?: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState<{ top: number; right: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
+  const updateCoords = () => {
+    if (ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      setCoords({
+        top: rect.bottom + 8, // equivalent to mt-2
+        right: window.innerWidth - rect.right,
+      });
+    }
+  };
+
+  const toggleOpen = () => {
+    if (!open) {
+      updateCoords();
+    }
+    setOpen(!open);
+  };
+
   useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    const handleUpdate = () => {
+      if (open) updateCoords();
     };
-    if (open) document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+
+    const handleClick = (e: MouseEvent) => {
+      // Direct containment check as well as checking if the click was inside a fixed portal/child
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        // Also safeguard if the target element belongs to the popover itself (which is fixed)
+        const popoverEl = document.getElementById("web-dev-popover-menu");
+        if (popoverEl && popoverEl.contains(e.target as Node)) {
+          return;
+        }
+        setOpen(false);
+      }
+    };
+
+    if (open) {
+      document.addEventListener("mousedown", handleClick);
+      window.addEventListener("resize", handleUpdate);
+      // Listen to scroll events on horizontal container to update placement dynamically.
+      const topbar = document.querySelector(".overflow-x-auto");
+      if (topbar) topbar.addEventListener("scroll", handleUpdate);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      window.removeEventListener("resize", handleUpdate);
+      const topbar = document.querySelector(".overflow-x-auto");
+      if (topbar) topbar.removeEventListener("scroll", handleUpdate);
+    };
   }, [open]);
 
   const items = [
@@ -122,7 +164,7 @@ function WebDevPopover({ onToggleIconBrowser, onToggleTailwindLabs, onToggleNpmL
   return (
     <div ref={ref} className="relative shrink-0">
       <button
-        onClick={() => setOpen(!open)}
+        onClick={toggleOpen}
         className={`flex items-center justify-center p-1 rounded-lg transition-all border ${open
             ? 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30 shadow-[0_0_12px_rgba(99,102,241,0.08)]'
             : 'text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border-zinc-800/60 hover:border-zinc-700'
@@ -132,8 +174,15 @@ function WebDevPopover({ onToggleIconBrowser, onToggleTailwindLabs, onToggleNpmL
         <Palette size={14} />
       </button>
 
-      {open && (
-        <div className="absolute right-0 top-full mt-2 w-64 bg-[#0b0b0d]/98 backdrop-blur-2xl border border-white/10 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.6)] overflow-hidden z-[500]">
+      {open && coords && (
+        <div 
+          id="web-dev-popover-menu"
+          className="fixed w-64 bg-[#0b0b0d]/98 backdrop-blur-2xl border border-white/10 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.6)] overflow-hidden z-[500]"
+          style={{
+            top: `${coords.top}px`,
+            right: `${coords.right}px`
+          }}
+        >
           <div className="px-4 py-2.5 border-b border-white/5">
             <span className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest">Web Development</span>
           </div>
