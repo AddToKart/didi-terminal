@@ -22,6 +22,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { cn } from "../../lib/cn";
 import type { AgentInstance } from "../../types/workspace";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { useFLIPLayout } from "../../lib/use-flip-layout";
 
 export interface AppTerminalAreaProps {
   agents: AgentInstance[];
@@ -134,6 +135,7 @@ const SortableTerminalWrapper = memo(function SortableTerminalWrapper({
   return (
     <div
       ref={handleRef}
+      data-agent-id={agent.id}
       className={cn(
         "min-h-0 min-w-0 flex-1 flex flex-col bg-app-panel",
         !hasPanel && isDragging && "shadow-2xl opacity-90 scale-[1.02] ring-1 ring-brand-accent/50 rounded-md overflow-hidden z-50"
@@ -252,12 +254,15 @@ export function AppTerminalArea({
   const agentsToRender = agents;
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const virtualizer = useVirtualizer({
     count: agents.length,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => 404,
     overscan: 2,
   });
+
+  useFLIPLayout(containerRef, agents.map(a => a.id), layoutOrientation);
 
   return (
     <div className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden">
@@ -299,8 +304,9 @@ export function AppTerminalArea({
           ) : (
             <SortableContext items={agentsToRender.map(a => a.id)} strategy={rectSortingStrategy}>
               <div
+                ref={containerRef}
                 className={cn(
-                  "flex-1 min-h-0 min-w-0 transition-all duration-500 ease-in-out",
+                  "flex-1 min-h-0 min-w-0",
                   "rounded-lg overflow-hidden border border-app-border bg-app-border gap-[1px]",
                   !focusedAgentId && layoutOrientation === "horizontal" && "flex flex-col",
                   !focusedAgentId && layoutOrientation === "vertical" && "flex flex-row",
@@ -354,6 +360,7 @@ export function AppTerminalArea({
                             isGlass={isGlass}
                             onFocus={() => onFocusAgent?.(agent.id)}
                             styleOverrides={{ width: '100%', height: '100%' }}
+                            data-agent-id={agent.id}
                           />
                         </div>
                       );
@@ -394,6 +401,7 @@ export function AppTerminalArea({
                             isGlass={isGlass}
                             onFocus={() => onFocusAgent?.(agent.id)}
                             styleOverrides={{ width: '100%', height: '100%' }}
+                            data-agent-id={agent.id}
                           />
                         </Panel>
                       </React.Fragment>
@@ -484,6 +492,7 @@ export function AppTerminalArea({
                       isFocused={agent.id === focusedAgentId}
                       isGlass={isGlass}
                       onFocus={() => onFocusAgent?.(agent.id)}
+                      data-agent-id={agent.id}
                     />
                   );
                 })}
