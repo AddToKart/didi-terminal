@@ -10,7 +10,7 @@ import {
   useDraggable,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState, useLayoutEffect } from "react";
 import React from "react";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 import {
@@ -81,6 +81,41 @@ const SortableTerminalWrapper = memo(function SortableTerminalWrapper({
   const handleDetach = useCallback(() => onDetachAgent(agent.id), [agent.id, onDetachAgent]);
   const handleSplit = useCallback(() => onSplitAgent(agent.id), [agent.id, onSplitAgent]);
 
+  const [hasPanel, setHasPanel] = useState(false);
+  const panelElRef = useRef<HTMLElement | null>(null);
+
+  const handleRef = useCallback((node: HTMLDivElement | null) => {
+    if (node) {
+      const panelEl = node.closest('[data-panel]') as HTMLElement | null;
+      panelElRef.current = panelEl;
+      setHasPanel(!!panelEl);
+      if (panelEl) {
+        setNodeRef(panelEl);
+      } else {
+        setNodeRef(node);
+      }
+    } else {
+      panelElRef.current = null;
+      setHasPanel(false);
+      setNodeRef(null);
+    }
+  }, [setNodeRef]);
+
+  useLayoutEffect(() => {
+    const el = panelElRef.current;
+    if (!el) return;
+    
+    el.style.transform = transform ? CSS.Translate.toString(transform) || 'none' : '';
+    el.style.transition = transition || '';
+    el.style.zIndex = isDragging ? '50' : '';
+    
+    if (isDragging) {
+      el.classList.add('shadow-2xl', 'opacity-90', 'scale-[1.02]', 'ring-1', 'ring-brand-accent/50', 'rounded-md', 'overflow-hidden', 'z-50');
+    } else {
+      el.classList.remove('shadow-2xl', 'opacity-90', 'scale-[1.02]', 'ring-1', 'ring-brand-accent/50', 'rounded-md', 'overflow-hidden', 'z-50');
+    }
+  }, [transform, transition, isDragging]);
+
   const style: React.CSSProperties = {
     position: 'relative' as const,
     flexBasis: isFocused ? '100%' : (focusedAgentId ? '0%' : flexBasis),
@@ -91,17 +126,17 @@ const SortableTerminalWrapper = memo(function SortableTerminalWrapper({
     pointerEvents: focusedAgentId && !isFocused ? 'none' : 'auto',
     overflow: 'hidden',
     ...styleOverrides,
-    transform: CSS.Translate.toString(transform),
-    transition,
-    zIndex: isDragging ? 50 : (styleOverrides?.zIndex ?? 1),
+    transform: !hasPanel ? CSS.Translate.toString(transform) : undefined,
+    transition: !hasPanel ? transition : undefined,
+    zIndex: !hasPanel && isDragging ? 50 : (styleOverrides?.zIndex ?? 1),
   };
 
   return (
     <div
-      ref={setNodeRef}
+      ref={handleRef}
       className={cn(
         "min-h-0 min-w-0 flex-1 flex flex-col bg-app-panel",
-        isDragging && "shadow-2xl opacity-90 scale-[1.02] ring-1 ring-brand-accent/50 rounded-md overflow-hidden z-50"
+        !hasPanel && isDragging && "shadow-2xl opacity-90 scale-[1.02] ring-1 ring-brand-accent/50 rounded-md overflow-hidden z-50"
       )}
       style={style}
     >
