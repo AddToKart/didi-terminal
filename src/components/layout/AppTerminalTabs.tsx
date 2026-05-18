@@ -6,7 +6,8 @@ import {
   horizontalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { TerminalTab } from "../../types/workspace";
+import { getMergedSecondaryTabIds, getMergedTabName } from "@/lib/merged-tabs";
+import type { MergedTabPair, TerminalTab } from "@/types/workspace";
 
 export const TERMINAL_DROP_ID = "terminal-merge-drop";
 
@@ -17,8 +18,8 @@ interface AppTerminalTabsProps {
   onTabClose: (id: string) => void;
   onTabCreate: () => void;
   onTabRename: (id: string, newName: string) => void;
-  mergedTabPair: readonly [string, string] | null;
-  onUnmerge: () => void;
+  mergedTabPairs: readonly MergedTabPair[];
+  onUnmerge: (tabId: string) => void;
 }
 
 interface SortableTabItemProps {
@@ -135,17 +136,6 @@ function SortableTabItem({
   );
 }
 
-const getMergedTabName = (leftName: string, rightName: string) => {
-  const leftTabMatch = leftName.match(/^Tab\s+(.+)$/i);
-  const rightTabMatch = rightName.match(/^Tab\s+(.+)$/i);
-
-  if (leftTabMatch && rightTabMatch) {
-    return `Tab ${leftTabMatch[1]}&${rightTabMatch[1]}`;
-  }
-
-  return `${leftName}&${rightName}`;
-};
-
 export function AppTerminalTabs({
   tabs,
   activeTabId,
@@ -153,7 +143,7 @@ export function AppTerminalTabs({
   onTabClose,
   onTabCreate,
   onTabRename,
-  mergedTabPair,
+  mergedTabPairs,
   onUnmerge,
 }: AppTerminalTabsProps) {
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
@@ -187,33 +177,33 @@ export function AppTerminalTabs({
     }
   };
 
-  const [mergedPrimaryId, mergedSecondaryId] = mergedTabPair ?? [];
-  const mergedPrimary = tabs.find(tab => tab.id === mergedPrimaryId);
-  const mergedSecondary = tabs.find(tab => tab.id === mergedSecondaryId);
-  const mergedLabel = mergedPrimary && mergedSecondary
-    ? getMergedTabName(mergedPrimary.name, mergedSecondary.name)
-    : "";
+  const mergedSecondaryIds = getMergedSecondaryTabIds(mergedTabPairs);
 
   return (
     <div className="h-8 flex items-center bg-app-bg border-b border-app-border shrink-0 overflow-x-auto custom-scrollbar">
       <div className="flex items-center h-full">
         <SortableContext
-          items={tabs.filter(tab => tab.id !== mergedSecondaryId).map((t) => t.id)}
+          items={tabs.filter(tab => !mergedSecondaryIds.has(tab.id)).map((t) => t.id)}
           strategy={horizontalListSortingStrategy}
         >
           {tabs.map((tab) => {
-            if (tab.id === mergedSecondaryId) return null;
+            if (mergedSecondaryIds.has(tab.id)) return null;
 
-            const isMergedDisplay = tab.id === mergedPrimaryId && !!mergedSecondary;
+            const mergedPair = mergedTabPairs.find(([primaryId]) => primaryId === tab.id);
+            const mergedSecondary = mergedPair ? tabs.find(item => item.id === mergedPair[1]) : null;
+            const isMergedDisplay = !!mergedPair && !!mergedSecondary;
             const isActive = isMergedDisplay
-              ? activeTabId === mergedPrimaryId || activeTabId === mergedSecondaryId
+              ? mergedPair.includes(activeTabId)
               : tab.id === activeTabId;
+            const displayName = isMergedDisplay
+              ? getMergedTabName(tab.name, mergedSecondary.name)
+              : tab.name;
 
             return (
               <SortableTabItem
                 key={tab.id}
                 tab={tab}
-                displayName={isMergedDisplay ? mergedLabel : tab.name}
+                displayName={displayName}
                 isActive={isActive}
                 editingTabId={editingTabId}
                 editValue={editValue}
@@ -229,7 +219,7 @@ export function AppTerminalTabs({
                 isMerged={isMergedDisplay}
                 canRename={!isMergedDisplay}
                 canClose={!isMergedDisplay}
-                onUnmerge={isMergedDisplay ? onUnmerge : undefined}
+                onUnmerge={isMergedDisplay ? () => onUnmerge(tab.id) : undefined}
               />
             );
           })}

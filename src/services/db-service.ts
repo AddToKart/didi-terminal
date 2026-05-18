@@ -1,5 +1,5 @@
 import Database from "@tauri-apps/plugin-sql";
-import type { TerminalTab, WorkspaceState, SectionState } from "../types/workspace";
+import type { MergedTabPair, TerminalTab, WorkspaceState, SectionState } from "../types/workspace";
 
 export interface PersonalTask {
   id: string;
@@ -12,6 +12,38 @@ export interface PersonalTask {
 }
 
 let dbInstance: Database | null = null;
+
+const isMergedTabPair = (value: unknown): value is MergedTabPair => {
+  return (
+    Array.isArray(value) &&
+    value.length === 2 &&
+    typeof value[0] === "string" &&
+    typeof value[1] === "string"
+  );
+};
+
+const parseMergedTabPairs = (value: string | null): MergedTabPair[] => {
+  if (!value) return [];
+
+  try {
+    const parsed = JSON.parse(value);
+    if (isMergedTabPair(parsed)) {
+      return [parsed];
+    }
+
+    if (Array.isArray(parsed)) {
+      return parsed.filter(isMergedTabPair);
+    }
+  } catch {
+    return [];
+  }
+
+  return [];
+};
+
+const serializeMergedTabPairs = (value: readonly MergedTabPair[] | null | undefined) => {
+  return value?.length ? JSON.stringify(value) : null;
+};
 
 export async function getDb(): Promise<Database> {
   if (!dbInstance) {
@@ -38,7 +70,7 @@ export async function loadWorkspaces(): Promise<WorkspaceState[]> {
   const workspaces: WorkspaceState[] = [];
   
   for (const ws of workspacesRaw) {
-    const sectionsRaw = await db.select<{ id: string; name: string; order_index: number }[]>(
+    const sectionsRaw = await db.select<{ id: string; name: string; mergedTabPair: string | null; order_index: number }[]>(
       "SELECT * FROM sections WHERE workspace_id = $1 ORDER BY order_index ASC",
       [ws.id]
     );
@@ -97,6 +129,7 @@ export async function loadWorkspaces(): Promise<WorkspaceState[]> {
           id: section.id,
           name: section.name,
           tabs,
+          mergedTabPairs: parseMergedTabPairs(section.mergedTabPair),
         });
       }
     }
@@ -146,8 +179,8 @@ export async function saveWorkspaces(workspaces: WorkspaceState[]): Promise<void
         for (let sIndex = 0; sIndex < ws.sections.length; sIndex++) {
           const section = ws.sections[sIndex];
           await db.execute(
-            "INSERT INTO sections (id, workspace_id, name, order_index) VALUES ($1, $2, $3, $4)",
-            [section.id, ws.id, section.name, sIndex]
+            "INSERT INTO sections (id, workspace_id, name, mergedTabPair, order_index) VALUES ($1, $2, $3, $4, $5)",
+            [section.id, ws.id, section.name, serializeMergedTabPairs(section.mergedTabPairs ?? (section.mergedTabPair ? [section.mergedTabPair] : [])), sIndex]
           );
 
           for (let tIndex = 0; tIndex < section.tabs.length; tIndex++) {

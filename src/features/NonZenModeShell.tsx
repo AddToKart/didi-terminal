@@ -1,6 +1,7 @@
 import { lazy, Suspense, useMemo, useState, useCallback, useEffect, type ReactNode } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getSplitAgentNameInTab, getUniqueAgentNameInTab } from "@/services/agent-naming";
+import { saveWorkspaces } from "@/services/db-service";
 import {
   ROOT_TERMINAL_LANE_ID,
   clearTerminalLanes,
@@ -30,6 +31,13 @@ import { StatusBar } from "../components/layout/StatusBar";
 import { TwoFactorModal } from "../components/modals/TwoFactorModal";
 import { QuickPalette, type PaletteAction } from "../components/modals/QuickPalette";
 import type { NonZenModeShellProps } from "../types/terminal-mode.types";
+import {
+  getMergedTabPairForTab,
+  mergeTabPair,
+  pruneMergedTabPairs,
+  unmergeTabPair,
+} from "@/lib/merged-tabs";
+import type { MergedTabPair, TerminalLayoutOrientation } from "@/types/workspace";
 
 function TerminalDropZone() {
   const { isOver, setNodeRef } = useDroppable({ id: TERMINAL_DROP_ID });
@@ -198,18 +206,42 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
   } = controller;
   const setWorkspaces = useWorkspaceStore(s => s.setWorkspaces);
   const topbarMode = appMode === "orchestrator" ? "orchestrator" : "terminal";
+  const activeSection = activeWorkspace?.sections.find(s => s.id === activeWorkspace.activeSectionId) || activeWorkspace?.sections[0];
+  const mergePairs = activeSection?.mergedTabPairs ?? (activeSection?.mergedTabPair ? [activeSection.mergedTabPair] : []);
+  const activeMergePair = getMergedTabPairForTab(activeTabId, mergePairs);
 
   // Merge state
-  const [mergePair, setMergePair] = useState<[string, string] | null>(null);
   const [draggedTabId, setDraggedTabId] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
 
-  const handleUnmerge = useCallback(() => {
-    setMergePair(null);
-  }, []);
+  const setMergePairs = useCallback((resolveNextPairs: (currentPairs: MergedTabPair[]) => MergedTabPair[]) => {
+    setWorkspaces(prev => {
+      const next = prev.map(workspace => {
+        if (workspace.id !== activeWorkspaceId) return workspace;
+        const targetSectionId = workspace.activeSectionId || workspace.sections[0]?.id;
+        const sections = workspace.sections.map(section => {
+          if (section.id !== targetSectionId) return section;
+
+          const currentPairs = section.mergedTabPairs ?? (section.mergedTabPair ? [section.mergedTabPair] : []);
+          return {
+            ...section,
+            mergedTabPairs: resolveNextPairs(currentPairs),
+            mergedTabPair: null,
+          };
+        });
+        return { ...workspace, sections };
+      });
+      saveWorkspaces(next).catch(error => console.error("[didi] Failed to save merged tab state:", error));
+      return next;
+    });
+  }, [activeWorkspaceId, setWorkspaces]);
+
+  const handleUnmerge = useCallback((tabId: string) => {
+    setMergePairs(currentPairs => unmergeTabPair(currentPairs, tabId));
+  }, [setMergePairs]);
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const data = event.active.data.current;
@@ -229,7 +261,7 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
 
     if (over?.id === TERMINAL_DROP_ID) {
       if (draggedId !== activeTabId) {
-        setMergePair([activeTabId, draggedId]);
+        setMergePairs(currentPairs => mergeTabPair(currentPairs, activeTabId, draggedId));
       }
       return;
     }
@@ -244,20 +276,22 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
         }
       }
     }
-  }, [activeTabId, tabs, handleTabReorder]);
+  }, [activeTabId, tabs, handleTabReorder, setMergePairs]);
 
   useEffect(() => {
-    if (!mergePair) return;
-    const tabIds = new Set(tabs.map(tab => tab.id));
-    if (!tabIds.has(mergePair[0]) || !tabIds.has(mergePair[1])) {
-      setMergePair(null);
-    }
-  }, [mergePair, tabs]);
+    if (mergePairs.length === 0) return;
+    const nextPairs = pruneMergedTabPairs(mergePairs, tabs);
+    const hasChanged = nextPairs.length !== mergePairs.length ||
+      nextPairs.some((pair, index) => pair[0] !== mergePairs[index]?.[0] || pair[1] !== mergePairs[index]?.[1]);
 
-  const mergedPrimaryTab = mergePair ? tabs.find(t => t.id === mergePair[0]) : null;
-  const mergedSecondaryTab = mergePair ? tabs.find(t => t.id === mergePair[1]) : null;
-  const isMergedTabActive = mergePair ? mergePair.includes(activeTabId) : false;
-  const showMergedView = !!mergedPrimaryTab && !!mergedSecondaryTab && isMergedTabActive;
+    if (hasChanged) {
+      setMergePairs(() => nextPairs);
+    }
+  }, [mergePairs, setMergePairs, tabs]);
+
+  const mergedPrimaryTab = activeMergePair ? tabs.find(t => t.id === activeMergePair[0]) : null;
+  const mergedSecondaryTab = activeMergePair ? tabs.find(t => t.id === activeMergePair[1]) : null;
+  const showMergedView = !!mergedPrimaryTab && !!mergedSecondaryTab;
 
   const draggedTab = tabs.find(t => t.id === draggedTabId);
 
@@ -310,6 +344,21 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
         }) };
       });
       return { ...w, sections };
+    }));
+  }, [activeWorkspaceId, setWorkspaces]);
+
+  const handleSetLayoutForTab = useCallback((tabId: string, orientation: TerminalLayoutOrientation) => {
+    setWorkspaces(prev => prev.map(w => {
+      if (w.id !== activeWorkspaceId) return w;
+      const sections = w.sections.map(s => {
+        if (s.id !== (w.activeSectionId || w.sections[0]?.id)) return s;
+        return {
+          ...s,
+          activeTabId: tabId,
+          tabs: s.tabs.map(t => t.id === tabId ? { ...t, layoutOrientation: orientation } : t),
+        };
+      });
+      return { ...w, sections, activeTabId: tabId };
     }));
   }, [activeWorkspaceId, setWorkspaces]);
 
@@ -491,7 +540,7 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
                 onTabClose={handleTabClose}
                 onTabCreate={handleTabCreate}
                 onTabRename={handleTabRename}
-                mergedTabPair={mergePair}
+                mergedTabPairs={mergePairs}
                 onUnmerge={handleUnmerge}
               />
 
@@ -501,13 +550,14 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
                 <AppTerminalWorkspace
                   tabs={tabs}
                   activeTabId={activeTabId}
-                  mergedTabPair={showMergedView ? mergePair : null}
+                  mergedTabPair={showMergedView ? activeMergePair : null}
                   currentProject={currentProject}
                   workspaceName={workspaces.find(w => w.id === activeWorkspaceId)?.name}
                   workspaceId={activeWorkspaceId}
                   isGlass={isGlass}
                   onActivateTab={handleTabSelect}
                   onAddAgentToTab={handleAddAgentToTab}
+                  onSetLayoutForTab={handleSetLayoutForTab}
                   onRemoveAgentForTab={handleRemoveAgentForTab}
                   onDetachAgentForTab={handleDetachAgentForTab}
                   onReorderAgentsForTab={handleReorderAgentsForTab}

@@ -7,7 +7,7 @@ use axum::{
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tauri::{AppHandle, Listener};
-use tower_http::cors::CorsLayer;
+use tower_http::cors::{Any, CorsLayer};
 use serde_json::json;
 
 pub struct DashboardState {
@@ -15,19 +15,14 @@ pub struct DashboardState {
 }
 
 pub fn start_dashboard_server(app_handle: AppHandle) {
-    // Channel for broadcasting events to all connected web clients
     let (tx, _rx) = broadcast::channel(1024);
     let state = Arc::new(DashboardState { tx: tx.clone() });
 
-    // 1. Listen for ALL relevant Tauri events and forward them to the broadcast channel
-    // We use listen_any to catch events from all windows/sources
-    
     let tx_clone = tx.clone();
     app_handle.listen_any("pty-output", move |event| {
         if tx_clone.receiver_count() == 0 {
             return;
         }
-
         if let Ok(payload) = serde_json::from_str::<serde_json::Value>(event.payload()) {
             let msg = json!({
                 "type": "pty-output",
@@ -42,7 +37,6 @@ pub fn start_dashboard_server(app_handle: AppHandle) {
         if tx_clone.receiver_count() == 0 {
             return;
         }
-
         if let Ok(payload) = serde_json::from_str::<serde_json::Value>(event.payload()) {
             let msg = json!({
                 "type": "agent-handoff",
@@ -57,7 +51,6 @@ pub fn start_dashboard_server(app_handle: AppHandle) {
         if tx_clone.receiver_count() == 0 {
             return;
         }
-
         if let Ok(payload) = serde_json::from_str::<serde_json::Value>(event.payload()) {
             let msg = json!({
                 "type": "agent-prompt-ready",
@@ -72,7 +65,6 @@ pub fn start_dashboard_server(app_handle: AppHandle) {
         if tx_clone.receiver_count() == 0 {
             return;
         }
-
         if let Ok(payload) = serde_json::from_str::<serde_json::Value>(event.payload()) {
             let msg = json!({
                 "type": "sentinel-intervention",
@@ -82,14 +74,23 @@ pub fn start_dashboard_server(app_handle: AppHandle) {
         }
     });
 
-    // 2. Start the Axum server on port 1421
     tauri::async_runtime::spawn(async move {
+        // Restrict CORS to localhost origins only.
+        // The dashboard is a local dev tool — no external origin should ever connect.
+        let cors = CorsLayer::new()
+            .allow_origin([
+                "http://localhost:1421".parse().unwrap(),
+                "http://127.0.0.1:1421".parse().unwrap(),
+            ])
+            .allow_methods(Any)
+            .allow_headers(Any);
+
         let app = Router::new()
             .route("/ws", get(ws_handler))
-            .layer(CorsLayer::permissive())
+            .layer(cors)
             .with_state(state);
 
-        // Bind to localhost for reliability
+        // Bind to localhost only (not 0.0.0.0) to prevent external network access.
         let addr = "127.0.0.1:1421";
         let listener = match tokio::net::TcpListener::bind(addr).await {
             Ok(l) => l,
@@ -98,7 +99,7 @@ pub fn start_dashboard_server(app_handle: AppHandle) {
                 return;
             }
         };
-        
+
         println!("🚀 Didi Remote Dashboard Server active on http://{}", addr);
         if let Err(e) = axum::serve(listener, app).await {
             eprintln!("Dashboard server error: {}", e);
@@ -115,16 +116,14 @@ async fn ws_handler(
 
 async fn handle_socket(mut socket: WebSocket, state: Arc<DashboardState>) {
     let mut rx = state.tx.subscribe();
-    
-    // Initial handshake
+
     let _ = socket.send(Message::Text(json!({
         "type": "system",
         "payload": "connected to Didi Bridge"
     }).to_string().into())).await;
-    
+
     while let Ok(msg) = rx.recv().await {
         if socket.send(Message::Text(msg.into())).await.is_err() {
-            // Client disconnected
             break;
         }
     }

@@ -24,11 +24,15 @@ export interface TerminalTab {
   layoutOrientation: TerminalLayoutOrientation;
 }
 
+export type MergedTabPair = [string, string];
+
 export interface SectionState {
   id: string;
   name: string;
   tabs: TerminalTab[];
   activeTabId?: string;
+  mergedTabPairs?: MergedTabPair[];
+  mergedTabPair?: MergedTabPair | null;
 }
 
 export interface WorkspaceState {
