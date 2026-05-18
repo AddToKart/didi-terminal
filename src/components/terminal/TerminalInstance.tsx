@@ -208,7 +208,7 @@ const TerminalLaneStrip = memo(({
   </div>
 ));
 
-export function TerminalInstance({ agentId, agentName, cwd, onRemove, onDetach, onSplit, dragAttributes, dragListeners, workspaceName, workspaceId, isZenMode, onFocus }: Props) {
+export function TerminalInstance({ agentId, agentName, cwd, onRemove, onDetach, onSplit, dragAttributes, dragListeners, workspaceName, workspaceId, isZenMode, onFocus, onZoom }: Props) {
   const terminalRef = useRef<HTMLDivElement>(null);
 
   const [isPulsing, setIsPulsing] = useState(false);
@@ -510,6 +510,12 @@ export function TerminalInstance({ agentId, agentName, cwd, onRemove, onDetach, 
     }
 
     if (e.type === "keydown") {
+      if (e.altKey && e.code === "KeyZ") {
+        e.preventDefault();
+        onZoom?.();
+        return false;
+      }
+
       if (e.ctrlKey && e.shiftKey && e.key === "f") {
         e.preventDefault();
         setShowTerminalFind(prev => !prev);

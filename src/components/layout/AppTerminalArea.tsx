@@ -56,6 +56,7 @@ interface SortableTerminalWrapperProps {
   workspaceId: string;
   isFocused?: boolean;
   onFocus?: () => void;
+  onZoom?: () => void;
   focusedAgentId?: string | null;
   isGlass?: boolean;
 }
@@ -202,6 +203,13 @@ export function AppTerminalArea({
   onFocusAgent,
   isGlass,
 }: AppTerminalAreaProps) {
+  const [internalFocusedAgentId, setInternalFocusedAgentId] = useState<string | null>(null);
+  const activeFocusedAgentId = focusedAgentId !== undefined ? focusedAgentId : internalFocusedAgentId;
+
+  const handleZoomToggle = useCallback((agentId: string) => {
+    setInternalFocusedAgentId(prev => prev === agentId ? null : agentId);
+  }, []);
+
   const onRemoveAgentRef = useRef(onRemoveAgent);
   const onDetachAgentRef = useRef(onDetachAgent);
   const onSplitRef = useRef(onSplit);
@@ -488,10 +496,11 @@ export function AppTerminalArea({
                       styleOverrides={styleOverrides}
                       workspaceName={workspaceName}
                       workspaceId={workspaceId}
-                      focusedAgentId={focusedAgentId}
-                      isFocused={agent.id === focusedAgentId}
+                      focusedAgentId={activeFocusedAgentId}
+                      isFocused={agent.id === activeFocusedAgentId}
                       isGlass={isGlass}
                       onFocus={() => onFocusAgent?.(agent.id)}
+                      onZoom={() => handleZoomToggle(agent.id)}
                       data-agent-id={agent.id}
                     />
                   );
@@ -569,3 +578,4 @@ const FreeFloatTerminalWrapper = memo(function FreeFloatTerminalWrapper({ agent,
     </div>
   );
 });
+;

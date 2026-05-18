@@ -145,37 +145,44 @@
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
+  background-color: transparent;
 }
 
 ::-webkit-scrollbar-track {
-  background: #09090b;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #27272a;
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* XTerm Scrollbar specificity */
 .xterm-viewport::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
+  background-color: transparent;
 }
 
 .xterm-viewport::-webkit-scrollbar-track {
-  background: #18181b;
+  background: transparent;
 }
 
 .xterm-viewport::-webkit-scrollbar-thumb {
-  background: #27272a;
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
 }
 
 .xterm-viewport::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
+  background: rgba(255, 255, 255, 0.3);
 }
 
 /* Zen Mode: scrollbar blends with black terminal background */
