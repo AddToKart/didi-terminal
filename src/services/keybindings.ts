@@ -10,7 +10,7 @@ export interface Keybinding {
 const STORAGE_KEY = "didi_settings";
 
 const DEFAULT_BINDINGS: Keybinding[] = [
-  { id: "quick-palette", label: "Quick Palette", description: "Open command palette", category: "Global", defaultKeys: "Ctrl+P", keys: "Ctrl+P" },
+  { id: "quick-palette", label: "Omnibar", description: "Open command palette and workspace search", category: "Global", defaultKeys: "Ctrl+P / Ctrl+K", keys: "Ctrl+P / Ctrl+K" },
   { id: "zen-toggle", label: "Toggle Zen Mode", description: "Switch to/from Zen layout", category: "Zen Mode", defaultKeys: "Alt+Q", keys: "Alt+Q" },
   { id: "zen-focus", label: "Focus Terminal", description: "Toggle focus on active terminal", category: "Zen Mode", defaultKeys: "Alt+F", keys: "Alt+F" },
   { id: "zen-new", label: "New Zen Terminal", description: "Spawn a new Zen terminal", category: "Zen Mode", defaultKeys: "Alt+N", keys: "Alt+N" },

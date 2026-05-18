@@ -98,8 +98,8 @@ export function useAppController() {
   const setShowStorageInspector = useUIStore(s => s.setShowStorageInspector);
   const showMockDataGenerator = useUIStore(s => s.showMockDataGenerator);
   const setShowMockDataGenerator = useUIStore(s => s.setShowMockDataGenerator);
-  const showQuickPalette = useUIStore(s => s.showQuickPalette);
-  const setShowQuickPalette = useUIStore(s => s.setShowQuickPalette);
+  const showOmnibar = useUIStore(s => s.showOmnibar);
+  const setShowOmnibar = useUIStore(s => s.setShowOmnibar);
   const showSecurityPanel = useUIStore(s => s.showSecurityPanel);
   const setShowSecurityPanel = useUIStore(s => s.setShowSecurityPanel);
   const pendingWorkspaceId = useUIStore(s => s.pendingWorkspaceId);
@@ -853,7 +853,7 @@ export function useAppController() {
       if (matchesKeys(e, "quick-palette")) {
         e.preventDefault();
         e.stopPropagation();
-        setShowQuickPalette(prev => !prev);
+        setShowOmnibar(prev => !prev);
       }
     };
     window.addEventListener("keydown", handleKeyDown, true);
@@ -944,8 +944,8 @@ export function useAppController() {
     setShowStorageInspector,
     showMockDataGenerator,
     setShowMockDataGenerator,
-    showQuickPalette,
-    setShowQuickPalette,
+    showOmnibar,
+    setShowOmnibar,
     showSecurityPanel,
     setShowSecurityPanel,
     pendingWorkspaceId,

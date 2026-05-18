@@ -63,8 +63,8 @@ interface UIState {
   setShowSvgOptimizer: (show: boolean | ((prev: boolean) => boolean)) => void;
   showStorageInspector: boolean;
   setShowStorageInspector: (show: boolean | ((prev: boolean) => boolean)) => void;
-  showQuickPalette: boolean;
-  setShowQuickPalette: (show: boolean | ((prev: boolean) => boolean)) => void;
+  showOmnibar: boolean;
+  setShowOmnibar: (show: boolean | ((prev: boolean) => boolean)) => void;
   showMockDataGenerator: boolean;
   setShowMockDataGenerator: (show: boolean | ((prev: boolean) => boolean)) => void;
   
@@ -144,8 +144,8 @@ export const useUIStore = create<UIState>((set) => ({
   setShowSvgOptimizer: (val) => set((state) => ({ showSvgOptimizer: typeof val === 'function' ? val(state.showSvgOptimizer) : val })),
   showStorageInspector: false,
   setShowStorageInspector: (val) => set((state) => ({ showStorageInspector: typeof val === 'function' ? val(state.showStorageInspector) : val })),
-  showQuickPalette: false,
-  setShowQuickPalette: (val) => set((state) => ({ showQuickPalette: typeof val === 'function' ? val(state.showQuickPalette) : val })),
+  showOmnibar: false,
+  setShowOmnibar: (val) => set((state) => ({ showOmnibar: typeof val === 'function' ? val(state.showOmnibar) : val })),
   showMockDataGenerator: false,
   setShowMockDataGenerator: (val) => set((state) => ({ showMockDataGenerator: typeof val === 'function' ? val(state.showMockDataGenerator) : val })),
   

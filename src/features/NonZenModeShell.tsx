@@ -29,7 +29,7 @@ import { AppTerminalTabs, TERMINAL_DROP_ID } from "../components/layout/AppTermi
 import { AppTerminalWorkspace } from "../components/layout/AppTerminalWorkspace";
 import { StatusBar } from "../components/layout/StatusBar";
 import { TwoFactorModal } from "../components/modals/TwoFactorModal";
-import { QuickPalette, type PaletteAction } from "../components/modals/QuickPalette";
+import { Omnibar, type PaletteAction } from "../components/modals/Omnibar";
 import type { NonZenModeShellProps } from "../types/terminal-mode.types";
 import {
   getMergedTabPairForTab,
@@ -166,8 +166,8 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
     setShowStorageInspector,
     showMockDataGenerator,
     setShowMockDataGenerator,
-    showQuickPalette,
-    setShowQuickPalette,
+    showOmnibar,
+    setShowOmnibar,
     showSecurityPanel,
     setShowSecurityPanel,
     pendingWorkspaceId,
@@ -724,9 +724,9 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
           )}
         </>
 
-        <QuickPalette
-          isOpen={showQuickPalette}
-          onClose={() => setShowQuickPalette(false)}
+        <Omnibar
+          isOpen={showOmnibar}
+          onClose={() => setShowOmnibar(false)}
           actions={paletteActions}
         />
         {rightSidebar}

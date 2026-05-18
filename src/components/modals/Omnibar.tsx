@@ -12,7 +12,7 @@ export interface PaletteAction {
   onSelect: () => void;
 }
 
-interface QuickPaletteProps {
+interface OmnibarProps {
   isOpen: boolean;
   onClose: () => void;
   actions: PaletteAction[];
@@ -34,7 +34,7 @@ function fuzzyScore(query: string, text: string): number {
   return qi === q.length ? score : -1;
 }
 
-export function QuickPalette({ isOpen, onClose, actions }: QuickPaletteProps) {
+export function Omnibar({ isOpen, onClose, actions }: OmnibarProps) {
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
