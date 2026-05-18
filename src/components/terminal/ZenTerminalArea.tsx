@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import { TerminalInstance } from "../terminal/TerminalInstance";
 import {
   DndContext,
@@ -13,7 +13,6 @@ import {
   useSortable,
   rectSortingStrategy,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import { cn } from "../../lib/cn";
 import type { AgentInstance } from "../../types/workspace";
 import type { ZenLayoutOrientation } from "../../types/workspace";
@@ -28,6 +27,8 @@ interface ZenTerminalAreaProps {
   onSplit: () => void;
   spotlightAgentId: string | null;
   onSpotlightAgent: (agentId: string) => void;
+  focusedAgentId: string | null;
+  workspaceId: string;
   isGlass?: boolean;
 }
 
@@ -36,25 +37,36 @@ interface ZenTerminalAreaProps {
 interface ZenPaneProps {
   agent: AgentInstance;
   isSpotlit: boolean;
+  isFocused: boolean;
+  hasFocusedPane: boolean;
+  workspaceId: string;
   onFocus: () => void;
   onRemove: () => void;
 }
 
-const ZenPane = memo(function ZenPane({ agent, isSpotlit, onFocus, onRemove }: ZenPaneProps) {
-  const { attributes, listeners, setNodeRef, isDragging, transform, transition } = useSortable({
+const ZenPane = memo(function ZenPane({
+  agent,
+  isSpotlit,
+  isFocused,
+  hasFocusedPane,
+  workspaceId,
+  onFocus,
+  onRemove,
+}: ZenPaneProps) {
+  const { attributes, listeners, setNodeRef, isDragging } = useSortable({
     id: agent.id,
     data: { agentName: agent.name },
   });
 
   const style: React.CSSProperties = {
-    transform: CSS.Translate.toString(transform),
-    transition,
+    display: hasFocusedPane && !isFocused ? "none" : undefined,
     zIndex: isDragging ? 50 : 1,
   };
 
   return (
     <div
       ref={setNodeRef}
+      data-agent-id={agent.id}
       style={{
         ...style,
         // inset box-shadow draws INSIDE the element — zero space consumed, no clipping.
@@ -65,15 +77,17 @@ const ZenPane = memo(function ZenPane({ agent, isSpotlit, onFocus, onRemove }: Z
           : "inset 0 0 0 1px rgba(255,255,255,0.15)",
       }}
       className={cn(
-        "min-h-0 min-w-0 flex-1 flex flex-col relative bg-black",
-        isDragging && "z-50 opacity-90"
+        "zen-pane min-h-0 min-w-0 flex flex-col relative overflow-hidden bg-black",
+        hasFocusedPane ? "h-full w-full flex-1" : "flex-1",
+        isDragging && "z-50 opacity-90 ring-1 ring-brand-accent/60"
       )}
+      onMouseDown={onFocus}
     >
       <TerminalInstance
         agentId={agent.id}
         agentName={agent.name}
         cwd={null}
-        workspaceId="zen"
+        workspaceId={workspaceId}
         onRemove={onRemove}
         dragAttributes={attributes}
         dragListeners={listeners}
@@ -86,6 +100,9 @@ const ZenPane = memo(function ZenPane({ agent, isSpotlit, onFocus, onRemove }: Z
   prev.agent.id === next.agent.id &&
   prev.agent.name === next.agent.name &&
   prev.isSpotlit === next.isSpotlit &&
+  prev.isFocused === next.isFocused &&
+  prev.hasFocusedPane === next.hasFocusedPane &&
+  prev.workspaceId === next.workspaceId &&
   prev.onFocus === next.onFocus &&
   prev.onRemove === next.onRemove
 );
@@ -111,9 +128,12 @@ export function ZenTerminalArea({
   onSplit,
   spotlightAgentId,
   onSpotlightAgent,
+  focusedAgentId,
+  workspaceId,
 }: ZenTerminalAreaProps) {
   const onRemoveRef = useRef(onRemoveAgent);
   const onReorderRef = useRef(onReorderAgents);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     onRemoveRef.current = onRemoveAgent;
@@ -138,6 +158,18 @@ export function ZenTerminalArea({
 
   const isGrid = layoutOrientation === "grid";
   const isHorizontal = layoutOrientation === "horizontal";
+  const hasFocusedPane = Boolean(focusedAgentId);
+  const visibleAgents = useMemo(
+    () => agents.filter(agent => !hasFocusedPane || agent.id === focusedAgentId),
+    [agents, focusedAgentId, hasFocusedPane]
+  );
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      window.dispatchEvent(new Event("terminal-layout-resize-end"));
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [focusedAgentId, layoutOrientation, agents.length]);
 
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -148,19 +180,24 @@ export function ZenTerminalArea({
           This is identical to how AppTerminalArea draws its separators — fully reliable.
         */}
         <div
+          ref={containerRef}
           className={cn(
-            "flex-1 min-h-0 min-w-0",
-            isGrid && "grid",
-            !isGrid && isHorizontal && "flex flex-row",
-            !isGrid && !isHorizontal && "flex flex-col",
+            "zen-terminal-grid flex-1 min-h-0 min-w-0 overflow-hidden bg-black",
+            hasFocusedPane && "flex",
+            !hasFocusedPane && isGrid && "grid",
+            !hasFocusedPane && !isGrid && isHorizontal && "flex flex-row",
+            !hasFocusedPane && !isGrid && !isHorizontal && "flex flex-col",
           )}
-          style={isGrid ? getGridStyle(agents.length) : undefined}
+          style={!hasFocusedPane && isGrid ? getGridStyle(visibleAgents.length) : undefined}
         >
           {agents.map(agent => (
             <ZenPane
               key={agent.id}
               agent={agent}
               isSpotlit={agent.id === spotlightAgentId}
+              isFocused={agent.id === focusedAgentId}
+              hasFocusedPane={hasFocusedPane}
+              workspaceId={workspaceId}
               onFocus={() => onSpotlightAgent(agent.id)}
               onRemove={() => stableRemove(agent.id)}
             />

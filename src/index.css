@@ -196,6 +196,31 @@
   background: #3f3f46;
 }
 
+.zen-terminal-grid {
+  contain: strict;
+  isolation: isolate;
+}
+
+.zen-pane {
+  contain: strict;
+  isolation: isolate;
+  background: #000000;
+}
+
+.zen-terminal {
+  contain: strict;
+  background: #000000 !important;
+}
+
+.zen-terminal .terminal-surface {
+  inset: 0;
+  background: #000000 !important;
+}
+
+.zen-terminal .xterm {
+  padding: 6px;
+}
+
 .terminal-surface .xterm-screen {
   transform: translateZ(0);
 }

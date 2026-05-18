@@ -836,6 +836,7 @@ export function useAppController() {
   useZenHotkeys({
     appMode,
     setAppMode,
+    activeWorkspaceId,
     zenAgents,
     setZenAgents,
     setZenLayout,

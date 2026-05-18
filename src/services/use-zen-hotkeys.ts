@@ -1,11 +1,14 @@
 import { useEffect } from "react";
 import { emit } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
 import type { AppMode } from "../types/workspace";
 import { matchesKeys } from "./keybindings";
+import { getTerminalLanePtyKey } from "./terminal-lanes";
 
 interface UseZenHotkeysParams {
   appMode: AppMode;
   setAppMode: (mode: any) => void;
+  activeWorkspaceId: string;
   zenAgents: string[];
   setZenAgents: (agents: any) => void;
   setZenLayout: (layout: any) => void;
@@ -18,6 +21,7 @@ interface UseZenHotkeysParams {
 export const useZenHotkeys = ({
   appMode,
   setAppMode,
+  activeWorkspaceId,
   zenAgents,
   setZenAgents,
   setZenLayout,
@@ -27,6 +31,8 @@ export const useZenHotkeys = ({
   setFocusedZenAgent,
 }: UseZenHotkeysParams) => {
   useEffect(() => {
+    const zenWorkspaceId = `zen::${activeWorkspaceId}`;
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (matchesKeys(e, "zen-toggle")) {
         e.preventDefault();
@@ -79,6 +85,7 @@ export const useZenHotkeys = ({
           setFocusedZenAgent(null);
           if (zenAgents.length > 1) {
             const target = lastActiveZenAgent || zenAgents[zenAgents.length - 1];
+            invoke("close_pty", { agent: getTerminalLanePtyKey(zenWorkspaceId, target) }).catch(console.error);
             setZenAgents((prev: any) => {
               const next = prev.filter((a: any) => a !== target);
               setLastActiveZenAgent(next[next.length - 1]);
@@ -106,5 +113,5 @@ export const useZenHotkeys = ({
 
     window.addEventListener("keydown", handleKeyDown, true);
     return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, [appMode, zenAgents.length]);
+  }, [activeWorkspaceId, appMode, focusedZenAgent, lastActiveZenAgent, zenAgents]);
 };
