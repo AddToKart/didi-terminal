@@ -168,6 +168,8 @@ export function useXTerm(
       });
     };
 
+    let handleResizeEnd: (() => void) | null = null;
+
     async function mountTerminal() {
       if (!isMounted || !containerRef.current) return;
       await document.fonts.ready;
@@ -182,21 +184,17 @@ export function useXTerm(
       term.onData((data) => onDataRef.current?.(data));
       term.onBinary((data) => onBinaryRef.current?.(data));
 
-      // Critical key intercepts: route low-level CLI controls directly to PTY,
-      // preventing the Webview or React from swallowing them.
       term.attachCustomKeyEventHandler((event: KeyboardEvent) => {
         const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
         const isMac = /Mac|iPhone|iPad/.test(ua);
         const mod = isMac ? event.metaKey : event.ctrlKey;
 
-        // Ctrl+Backspace (Cmd+Backspace on mac) → word-delete (\x17 = ETB / Ctrl+W).
         if (mod && (event.key === "Backspace" || event.code === "Backspace")) {
           event.preventDefault();
           if (event.type === "keydown") onDataRef.current?.("\x17");
           return false;
         }
 
-        // Shift+Enter → ESC + CR (multi-line shell awareness).
         if (
           event.key === "Enter" &&
           event.shiftKey &&
@@ -209,16 +207,13 @@ export function useXTerm(
           return false;
         }
 
-        // Ctrl+C (interrupt) — always pass through; never let React intercept it.
         if (event.ctrlKey && event.key === "c") return true;
 
-        // Delegate to the caller's custom key handler, fall through by default.
         return onKeyRef.current?.(event) ?? true;
       });
 
       term.open(containerRef.current);
 
-      // Attach WebGL after open() so the DOM canvas element exists.
       tryAttachWebgl(term, isMountedRef, webglAddonRef);
 
       terminalRef.current = term;
@@ -227,12 +222,22 @@ export function useXTerm(
       scheduleFit();
 
       const fitTerminal = () => {
+        if (!isMounted) return;
+        if (document.body.classList.contains('is-pane-resizing')) return;
         if (!fitVisibleTerminal()) return;
         if (resizeSettleTimer) clearTimeout(resizeSettleTimer);
         resizeSettleTimer = setTimeout(() => emitResize(term!), 120);
       };
 
+      handleResizeEnd = () => {
+        if (!isMounted) return;
+        if (resizeTimeout) clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(fitTerminal, 50);
+      };
+      window.addEventListener('terminal-layout-resize-end', handleResizeEnd);
+
       resizeObserver = new ResizeObserver(() => {
+        if (document.body.classList.contains('is-pane-resizing')) return;
         if (resizeTimeout) clearTimeout(resizeTimeout);
         resizeTimeout = setTimeout(fitTerminal, 50);
       });
@@ -244,6 +249,9 @@ export function useXTerm(
     return () => {
       isMounted = false;
       isMountedRef.current = false;
+      if (handleResizeEnd) {
+        window.removeEventListener('terminal-layout-resize-end', handleResizeEnd);
+      }
       if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
       if (resizeSettleTimer) clearTimeout(resizeSettleTimer);
       if (resizeTimeout) clearTimeout(resizeTimeout);

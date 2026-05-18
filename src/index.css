@@ -247,3 +247,23 @@
 .animate-flash-bg {
   animation: flashBg 1s ease-out;
 }
+
+/* Fluid Resizing Hardware Acceleration */
+body.is-pane-resizing * {
+  user-select: none;
+}
+
+body.is-pane-resizing .xterm-screen {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+body.is-pane-resizing .xterm-screen canvas {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: fill;
+}
+
+body.is-pane-resizing .bg-app-panel {
+  pointer-events: none !important;
+}

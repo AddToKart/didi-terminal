@@ -11,6 +11,8 @@ import {
   type DragEndEvent,
 } from "@dnd-kit/core";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
+import React from "react";
+import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 import {
   SortableContext,
   useSortable,
@@ -322,6 +324,46 @@ export function AppTerminalArea({
                       );
                     })}
                   </div>
+                ) : (!focusedAgentId && (layoutOrientation === "horizontal" || layoutOrientation === "vertical")) ? (
+                  <PanelGroup 
+                    orientation={layoutOrientation === "horizontal" ? "vertical" : "horizontal"} 
+                    className="flex-1 w-full h-full"
+                    onLayoutChange={() => {
+                      if (!document.body.classList.contains('is-pane-resizing')) {
+                        document.body.classList.add('is-pane-resizing');
+                      }
+                    }}
+                    onLayoutChanged={() => {
+                      document.body.classList.remove('is-pane-resizing');
+                      window.dispatchEvent(new Event('terminal-layout-resize-end'));
+                    }}
+                  >
+                    {agentsToRender.map((agent, index) => (
+                      <React.Fragment key={agent.id}>
+                        {index > 0 && (
+                          <PanelResizeHandle className={cn("relative flex items-center justify-center bg-app-border transition-colors hover:bg-brand-accent/50 group", layoutOrientation === "horizontal" ? "h-[2px] cursor-row-resize" : "w-[2px] cursor-col-resize")}>
+                            <div className={cn("absolute z-10 bg-brand-accent/30 rounded-full transition-opacity opacity-0 group-hover:opacity-100", layoutOrientation === "horizontal" ? "w-12 h-1" : "w-1 h-12")} />
+                          </PanelResizeHandle>
+                        )}
+                        <Panel minSize={10} className="flex">
+                          <SortableTerminalWrapper
+                            agent={agent}
+                            currentProject={currentProject}
+                            onRemoveAgent={stableRemoveAgent}
+                            onDetachAgent={stableDetachAgent}
+                            onSplitAgent={stableSplitAgent}
+                            workspaceName={workspaceName}
+                            workspaceId={workspaceId}
+                            focusedAgentId={focusedAgentId}
+                            isFocused={agent.id === focusedAgentId}
+                            isGlass={isGlass}
+                            onFocus={() => onFocusAgent?.(agent.id)}
+                            styleOverrides={{ width: '100%', height: '100%' }}
+                          />
+                        </Panel>
+                      </React.Fragment>
+                    ))}
+                  </PanelGroup>
                 ) : agentsToRender.map((agent, index) => {
                   let flexBasis: string | undefined = undefined;
                   let height: string | undefined = undefined;
