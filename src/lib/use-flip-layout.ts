@@ -8,15 +8,7 @@ const FLIP_DURATION_MS = 380;
 const ENTER_DURATION_MS = 320;
 const ENTER_EASING = "cubic-bezier(0.34, 1.56, 0.64, 1)"; // slight overshoot spring
 
-type LayoutType =
-  | "horizontal"
-  | "vertical"
-  | "grid"
-  | "focus"
-  | "presentation"
-  | "canvas"
-  | "waterfall"
-  | "dynamic";
+type LayoutType = string;
 
 interface SnapRect {
   top: number;
@@ -71,7 +63,6 @@ export function useFLIPLayout(
         if (!el) return;
 
         const last = el.getBoundingClientRect();
-        if (last.width === 0 || last.height === 0) return;
 
         // ── ENTRANCE animation for brand-new panes ─────────────────────────
         if (newIds.has(id)) {

@@ -271,7 +271,7 @@ export function AppTerminalArea({
     overscan: 2,
   });
 
-  useFLIPLayout(containerRef, agents.map(a => a.id), layoutOrientation);
+  useFLIPLayout(containerRef, agents.map(a => a.id), layoutOrientation + (activeFocusedAgentId ? `-focus-${activeFocusedAgentId}` : ""));
 
   return (
     <div className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden">
