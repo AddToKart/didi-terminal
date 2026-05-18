@@ -95,7 +95,6 @@ const getNextLaneIndex = (lanes: TerminalLane[]) => {
   while (usedIndexes.has(index)) index += 1;
   return index;
 };
-
 interface Props {
   agentId: string;
   agentName: string;
@@ -109,6 +108,9 @@ interface Props {
   workspaceId?: string;
   isZenMode?: boolean;
   onFocus?: () => void;
+  onZoom?: () => void;
+}
+  onZoom?: () => void;
 }
 
 interface TerminalLaneStripProps {
@@ -806,5 +808,8 @@ export function TerminalInstance({ agentId, agentName, cwd, onRemove, onDetach, 
       </div>
 
     </div>
+  );
+}
+  </div>
   );
 }
