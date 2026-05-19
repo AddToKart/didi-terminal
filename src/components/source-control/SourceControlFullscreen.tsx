@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import {
   GitBranch, X, RefreshCw, Plus, Minus, RotateCcw, Upload, Download,
   Check, Loader2, GitMerge, AlertCircle, FileText,
-  GitPullRequest, GitCommit, LayoutDashboard, Search, Clock, ShieldAlert,
+  GitPullRequest, GitCommit, LayoutDashboard, Search, ShieldAlert,
   Trash2, ExternalLink, MessageCircle, GitFork, ArrowRight, Globe
 } from "lucide-react";
 import { FileIcon } from "./FileIcon";
@@ -44,6 +44,11 @@ interface GitBranchInfo {
   isCurrent: boolean;
   lastCommit: string;
   date: string;
+}
+
+interface GitCommitFile {
+  path: string;
+  status: string;
 }
 
 interface SourceControlFullscreenProps {
@@ -116,6 +121,13 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
   const [loading, setLoading] = useState(false);
   const [actionMsg, setActionMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+
+  // Graph Viewer State
+  const [selectedCommit, setSelectedCommit] = useState<string | null>(null);
+  const [commitFiles, setCommitFiles] = useState<GitCommitFile[]>([]);
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [fileDiff, setFileDiff] = useState<string | null>(null);
+  const [loadingDiff, setLoadingDiff] = useState(false);
 
   // GitHub State
   const [githubIssues, setGithubIssues] = useState<GitHubIssue[]>([]);
@@ -214,6 +226,40 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
   });
   const deleteBranch = (branch: string) => run("delete:" + branch, () => invoke("git_panel_delete_branch", { cwd: currentProject!, branch }));
   const mergeBranch = (branch: string) => run("merge:" + branch, () => invoke("git_panel_merge_branch", { cwd: currentProject!, branch }));
+
+  const handleCommitClick = async (hash: string) => {
+    if (selectedCommit === hash) {
+      setSelectedCommit(null);
+      setCommitFiles([]);
+      setSelectedFile(null);
+      setFileDiff(null);
+      return;
+    }
+    setSelectedCommit(hash);
+    setCommitFiles([]);
+    setSelectedFile(null);
+    setFileDiff(null);
+    try {
+      const files = await invoke<GitCommitFile[]>("git_panel_get_commit_details", { cwd: currentProject, commitHash: hash });
+      setCommitFiles(files);
+    } catch (e) {
+      flash(String(e), false);
+    }
+  };
+
+  const handleFileClick = async (hash: string, path: string) => {
+    setSelectedFile(path);
+    setLoadingDiff(true);
+    setFileDiff(null);
+    try {
+      const diff = await invoke<string>("git_panel_get_commit_file_diff", { cwd: currentProject, commitHash: hash, filePath: path });
+      setFileDiff(diff);
+    } catch (e) {
+      flash(String(e), false);
+    } finally {
+      setLoadingDiff(false);
+    }
+  };
 
   const TABS = [
     { id: "overview", label: "Working Tree", icon: LayoutDashboard },
@@ -446,58 +492,208 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
                 </div>
               )}
 
-              {/* --- GRAPH TAB --- */}
+              {/* --- GRAPH TAB (VS CODE STYLE) --- */}
               {activeTab === "graph" && (
-                <div className="flex-1 flex flex-col overflow-hidden">
-                  <div className="px-6 py-4 border-b border-white/5 bg-white/[0.02] flex items-center justify-between">
-                    <h3 className="text-sm font-bold text-zinc-200">Commit Timeline</h3>
-                    <div className="relative">
-                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
-                      <input
-                        type="text"
-                        placeholder="Search commits..."
-                        value={searchTerm}
-                        onChange={e => setSearchTerm(e.target.value)}
-                        className="bg-black/40 border border-white/10 rounded-lg pl-9 pr-4 py-1.5 text-xs text-white focus:border-brand-accent/50 outline-none w-64"
-                      />
+                <div className="flex-1 flex overflow-hidden">
+                  
+                  {/* Sidebar: Commits & Files */}
+                  <div className="w-[350px] border-r border-white/5 flex flex-col min-w-0 bg-[#0d0d0f] shrink-0">
+                    <div className="px-4 py-3 border-b border-white/5 bg-white/[0.02] shrink-0 flex items-center justify-between">
+                      <h3 className="text-[11px] font-bold uppercase tracking-widest text-zinc-400">Source Control: Graph</h3>
+                    </div>
+                    
+                    <div className="p-2 border-b border-white/5 shrink-0 bg-black/20">
+                      <div className="relative">
+                        <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+                        <input
+                          type="text"
+                          placeholder="Search commits..."
+                          value={searchTerm}
+                          onChange={e => setSearchTerm(e.target.value)}
+                          className="bg-zinc-900/50 border border-white/10 rounded-md pl-8 pr-3 py-1.5 text-xs text-zinc-200 focus:border-brand-accent/50 outline-none w-full transition-colors"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="flex-1 overflow-y-auto custom-scrollbar">
+                      {log.filter(l => l.message.toLowerCase().includes(searchTerm.toLowerCase())).map((entry) => {
+                        const isExpanded = selectedCommit === entry.hash;
+                        
+                        return (
+                          <div key={entry.hash} className="flex flex-col">
+                            {/* Commit Row */}
+                            <div 
+                              className={`flex flex-col px-3 py-2 cursor-pointer transition-colors ${isExpanded ? 'bg-brand-accent/10 border-l-2 border-brand-accent' : 'border-l-2 border-transparent hover:bg-white/5'}`}
+                              onClick={() => handleCommitClick(entry.hash)}
+                            >
+                              <div className="flex items-center justify-between gap-2 mb-1">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <GitCommit size={14} className={isExpanded ? 'text-brand-accent' : 'text-zinc-500'} />
+                                  <span className={`text-xs truncate ${isExpanded ? 'text-brand-accent font-bold' : 'text-zinc-300'}`}>
+                                    {entry.message}
+                                  </span>
+                                </div>
+                                <span className="text-[9px] font-mono text-zinc-500 shrink-0">{entry.shortHash}</span>
+                              </div>
+                              <div className="flex items-center justify-between text-[10px] text-zinc-500 pl-5">
+                                <span className="truncate max-w-[120px]">{entry.author}</span>
+                                <span>{entry.date}</span>
+                              </div>
+                              {entry.refs && (
+                                <div className="pl-5 mt-1">
+                                  <RefBadge refs={entry.refs} />
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Expanded Files List */}
+                            {isExpanded && (
+                              <div className="bg-black/40 border-y border-white/5 py-1">
+                                {commitFiles.length === 0 ? (
+                                  <div className="py-3 flex justify-center">
+                                    <Loader2 size={14} className="animate-spin text-zinc-500" />
+                                  </div>
+                                ) : (
+                                  commitFiles.map(file => {
+                                    const isSelectedFile = selectedFile === file.path;
+                                    return (
+                                      <div
+                                        key={file.path}
+                                        onClick={() => handleFileClick(entry.hash, file.path)}
+                                        className={`flex items-center justify-between px-3 py-1.5 pl-8 cursor-pointer transition-colors ${isSelectedFile ? 'bg-brand-accent/20 text-brand-accent' : 'hover:bg-white/5 text-zinc-400'}`}
+                                      >
+                                        <div className="flex items-center gap-2 min-w-0">
+                                          <FileIcon filename={file.path.split("/").pop()!} size={14} />
+                                          <span className={`text-[11px] truncate ${isSelectedFile ? 'font-medium' : ''}`}>
+                                            {file.path.split("/").pop()}
+                                          </span>
+                                        </div>
+                                        <div className="shrink-0 flex items-center gap-2">
+                                          <span className="text-[9px] text-zinc-600 truncate max-w-[100px] hidden xl:block">{file.path}</span>
+                                          <StatusIcon status={file.status} />
+                                        </div>
+                                      </div>
+                                    );
+                                  })
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
-                  <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-8">
-                    <div className="relative max-w-4xl mx-auto">
-                      {/* Vertical line connecting commits */}
-                      <div className="absolute left-[27px] top-4 bottom-4 w-px bg-white/10" />
-                      
-                      {log.filter(l => l.message.toLowerCase().includes(searchTerm.toLowerCase())).map((entry, idx) => (
-                        <div key={entry.hash} className="relative flex items-start gap-6 mb-6 group">
-                          {/* Node */}
-                          <div className="relative z-10 w-14 flex justify-center shrink-0 mt-1">
-                            <div className={`w-3 h-3 rounded-full border-2 border-zinc-950 ${idx === 0 ? 'bg-brand-accent ring-4 ring-brand-accent/20' : 'bg-zinc-500 group-hover:bg-zinc-300'} transition-all`} />
-                          </div>
-                          {/* Card */}
-                          <div className="flex-1 bg-white/[0.02] hover:bg-white/[0.04] border border-white/5 hover:border-white/10 rounded-2xl p-4 transition-all">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-                              <p className="text-sm font-bold text-zinc-100">{entry.message}</p>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <RefBadge refs={entry.refs} />
-                                <span className="text-xs font-mono text-zinc-500 bg-black/40 px-2 py-0.5 rounded border border-white/5">{entry.shortHash}</span>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-3 text-xs text-zinc-500">
-                              <span className="flex items-center gap-1.5 text-zinc-400">
-                                <div className="w-4 h-4 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-[8px] text-white font-bold">
-                                  {entry.author.charAt(0).toUpperCase()}
-                                </div>
-                                {entry.author}
-                              </span>
-                              <span>•</span>
-                              <span className="flex items-center gap-1">
-                                <Clock size={12} /> {entry.date}
-                              </span>
-                            </div>
-                          </div>
+
+                  {/* Main: Diff Viewer */}
+                  <div className="flex-1 flex flex-col min-w-0 bg-[#08080a] relative">
+                    {!selectedFile ? (
+                      <div className="h-full flex flex-col items-center justify-center text-zinc-600 gap-4 p-6 text-center">
+                        <div className="size-16 rounded-full border border-dashed border-zinc-700 flex items-center justify-center bg-zinc-900/50">
+                          <GitCommit size={28} className="text-zinc-500" />
                         </div>
-                      ))}
-                    </div>
+                        <div>
+                          <p className="text-sm font-bold text-zinc-400 mb-1">Select a file to view changes</p>
+                          <p className="text-xs">Click on a commit in the sidebar, then select a file to see its diff.</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="px-5 py-3 border-b border-white/5 bg-[#0e0e11] shrink-0 flex items-center gap-3">
+                          <FileIcon filename={selectedFile.split("/").pop()!} size={16} />
+                          <h3 className="text-xs font-bold text-zinc-200">
+                            {selectedFile.split("/").pop()}
+                          </h3>
+                          <span className="text-[10px] font-mono text-zinc-500 ml-2">{selectedFile}</span>
+                        </div>
+                        
+                        <div className="flex-1 overflow-auto custom-scrollbar p-4">
+                          {loadingDiff ? (
+                            <div className="h-full flex flex-col items-center justify-center text-zinc-500 gap-3">
+                              <Loader2 size={24} className="animate-spin text-brand-accent" />
+                              <span className="text-xs font-medium tracking-wide">Loading diff...</span>
+                            </div>
+                          ) : fileDiff ? (
+                            <div className="text-[11px] font-mono leading-relaxed bg-[#0d0d0f] border border-white/5 rounded-xl overflow-hidden shadow-2xl">
+                              <table className="w-full border-collapse">
+                                <tbody className="align-top">
+                                  {(() => {
+                                    let oldLine = 0;
+                                    let newLine = 0;
+
+                                    return fileDiff.split('\n').map((line, i) => {
+                                      if (line.startsWith('diff --git') || line.startsWith('index ') || line.startsWith('new file ') || line.startsWith('deleted file ')) {
+                                        return (
+                                          <tr key={`header-${i}`} className="bg-black/80 border-b border-white/5">
+                                            <td colSpan={4} className="px-4 py-2 text-zinc-500 text-[10px] select-none font-bold">
+                                              {line}
+                                            </td>
+                                          </tr>
+                                        );
+                                      }
+                                      
+                                      if (line.startsWith('---') || line.startsWith('+++')) return null;
+                                      
+                                      if (line.startsWith('@@')) {
+                                        const match = line.match(/@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+                                        if (match) {
+                                          oldLine = parseInt(match[1], 10);
+                                          newLine = parseInt(match[2], 10);
+                                        }
+                                        return (
+                                          <tr key={`h-${i}`} className="bg-blue-900/10 border-y border-blue-500/20">
+                                            <td colSpan={4} className="px-4 py-1.5 text-blue-400/70 text-[10px] select-none text-center bg-blue-500/5">
+                                              ••• {line.replace(/@@/g, '').trim()} •••
+                                            </td>
+                                          </tr>
+                                        );
+                                      }
+
+                                      const isAdded = line.startsWith('+');
+                                      const isRemoved = line.startsWith('-');
+                                      const content = line.substring(1);
+                                      const prefix = isAdded ? '+' : isRemoved ? '-' : ' ';
+
+                                      let rowClass = "text-zinc-300 hover:bg-white/[0.02]";
+                                      let prefixClass = "text-zinc-600 px-2 py-0.5 select-none w-6 text-center border-r border-transparent";
+                                      let contentClass = "px-4 py-0.5 whitespace-pre break-all";
+
+                                      let currentOldLine: number | string = ' ';
+                                      let currentNewLine: number | string = ' ';
+
+                                      if (isAdded) {
+                                        rowClass = "bg-emerald-500/[0.12] text-emerald-200 hover:bg-emerald-500/[0.15]";
+                                        prefixClass = "text-emerald-500/60 px-2 py-0.5 select-none w-6 text-center border-r border-emerald-500/20";
+                                        currentNewLine = newLine++;
+                                      } else if (isRemoved) {
+                                        rowClass = "bg-red-500/[0.12] text-red-200 hover:bg-red-500/[0.15] line-through decoration-red-500/30";
+                                        prefixClass = "text-red-500/60 px-2 py-0.5 select-none w-6 text-center border-r border-red-500/20";
+                                        currentOldLine = oldLine++;
+                                      } else {
+                                        currentOldLine = oldLine++;
+                                        currentNewLine = newLine++;
+                                      }
+
+                                      return (
+                                        <tr key={i} className={rowClass}>
+                                          <td className="text-zinc-600/50 text-[10px] px-2 py-0.5 text-right w-10 select-none border-r border-white/5 bg-[#0a0a0c]">{currentOldLine}</td>
+                                          <td className="text-zinc-600/50 text-[10px] px-2 py-0.5 text-right w-10 select-none border-r border-white/5 bg-[#0a0a0c]">{currentNewLine}</td>
+                                          <td className={prefixClass}>{prefix}</td>
+                                          <td className={contentClass}>{content || ' '}</td>
+                                        </tr>
+                                      );
+                                    });
+                                  })()}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : (
+                             <div className="h-full flex flex-col items-center justify-center text-zinc-600 gap-2 p-6 text-center">
+                              <span className="text-xs">No diff available (binary file or empty diff)</span>
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               )}
