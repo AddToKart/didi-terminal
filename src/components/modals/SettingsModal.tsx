@@ -110,14 +110,14 @@ export function SettingsModal({ onClose }: Props) {
   const handleSaveConfig = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!config) return;
-    await invoke("set_config", { newConfig: config });
+    const finalConfig = { ...config, glassmorphism: false };
+    await invoke("set_config", { newConfig: finalConfig });
     document.documentElement.style.setProperty("--tw-colors-brand-accent", config.theme_cyan);
     document.documentElement.style.setProperty("--tw-colors-brand-warn", config.theme_amber);
     if (config.theme_mode === "dark") document.documentElement.classList.add("dark");
     else document.documentElement.classList.remove("dark");
-    if (config.glassmorphism) document.documentElement.classList.add("glass");
-    else document.documentElement.classList.remove("glass");
-    invoke("update_vibrancy", { enable: config.glassmorphism, theme: config.theme_mode }).catch(console.error);
+    document.documentElement.classList.remove("glass");
+    invoke("update_vibrancy", { enable: false, theme: config.theme_mode }).catch(console.error);
     const { emit } = await import("@tauri-apps/api/event");
     emit("config-updated");
     saveKeybindings(keybindings);
@@ -139,13 +139,13 @@ export function SettingsModal({ onClose }: Props) {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-[200]" onClick={onClose} />
+      <div className="fixed inset-0 bg-black/70 z-[200]" onClick={onClose} />
 
       <div className="fixed inset-0 flex items-center justify-center z-[201] p-3 pointer-events-none">
-        <div className="w-full max-w-5xl h-[90vh] flex flex-col bg-[#0b0b0d]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] overflow-hidden pointer-events-auto animate-in zoom-in-95 slide-in-from-bottom-4 duration-200">
+        <div className="w-full max-w-5xl h-[90vh] flex flex-col bg-zinc-950 border border-zinc-800 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] overflow-hidden pointer-events-auto animate-in zoom-in-95 slide-in-from-bottom-4 duration-200">
 
           {/* Header */}
-          <div className="px-6 pt-5 pb-4 border-b border-white/5 bg-zinc-900/40 shrink-0">
+          <div className="px-6 pt-5 pb-4 border-b border-zinc-900 bg-zinc-900/10 shrink-0">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-gradient-to-br from-blue-500/20 to-indigo-500/20 rounded-xl text-blue-400 border border-blue-500/20 shadow-sm">
@@ -156,13 +156,13 @@ export function SettingsModal({ onClose }: Props) {
                   <p className="text-[10px] text-zinc-500 font-medium uppercase tracking-wider mt-0.5">Configure your workspace</p>
                 </div>
               </div>
-              <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95">
+              <button onClick={onClose} className="p-2 bg-zinc-900 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95">
                 <X size={16} />
               </button>
             </div>
 
             {/* Tabs */}
-            <div className="flex items-center gap-1 bg-black/30 rounded-lg p-0.5 border border-white/5 w-fit">
+            <div className="flex items-center gap-1 bg-zinc-900 rounded-lg p-0.5 border border-zinc-800 w-fit">
               {tabs.map(({ id, label, icon: Icon }) => (
                 <button key={id} onClick={() => setActiveTab(id as typeof activeTab)}
                   className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-[11px] font-bold transition-all ${activeTab === id ? 'bg-blue-500/20 text-blue-400 shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}>
@@ -179,45 +179,35 @@ export function SettingsModal({ onClose }: Props) {
             {activeTab === "appearance" && (
               <>
                 <div className="space-y-4">
-                  <h3 className="text-[9px] font-bold uppercase tracking-[0.2em] text-blue-400/80 border-b border-white/5 pb-2">Visual Style</h3>
+                  <h3 className="text-[9px] font-bold uppercase tracking-[0.2em] text-blue-400/80 border-b border-zinc-900 pb-2">Visual Style</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-[11px] font-semibold text-zinc-400">Theme Preference</label>
                       <select value={config.theme_mode} onChange={e => setConfig({ ...config, theme_mode: e.target.value })}
-                        className="w-full bg-black/40 border border-white/10 text-zinc-200 px-3 py-2 rounded-lg text-xs outline-none focus:border-blue-500/40 transition-all cursor-pointer">
+                        className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 px-3 py-2 rounded-lg text-xs outline-none focus:border-blue-500/40 transition-all cursor-pointer">
                         <option value="dark">Dark Mode</option>
                         <option value="light">Light Mode</option>
                       </select>
-                    </div>
-                    <div className="flex flex-col justify-end">
-                      <label className="group flex items-center justify-between p-3 rounded-lg border border-white/10 bg-black/40 hover:bg-black/60 transition-all cursor-pointer">
-                        <div className="flex flex-col">
-                          <span className="text-xs font-semibold text-zinc-200">Liquid Glass</span>
-                          <span className="text-[9px] text-zinc-600">Apple-style glassmorphism</span>
-                        </div>
-                        <input type="checkbox" checked={config.glassmorphism} onChange={e => setConfig({ ...config, glassmorphism: e.target.checked })}
-                          className="accent-blue-500 w-4 h-4 rounded cursor-pointer" />
-                      </label>
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-4 pt-2">
-                  <h3 className="text-[9px] font-bold uppercase tracking-[0.2em] text-blue-400/80 border-b border-white/5 pb-2">Branding & Theming</h3>
+                  <h3 className="text-[9px] font-bold uppercase tracking-[0.2em] text-blue-400/80 border-b border-zinc-900 pb-2">Branding & Theming</h3>
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="p-3.5 rounded-xl border border-white/10 bg-black/30 space-y-3">
+                    <div className="p-3.5 rounded-xl border border-zinc-800 bg-zinc-900 space-y-3">
                       <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Primary Accent</label>
                       <div className="flex items-center gap-3">
                         <input type="color" value={config.theme_cyan} onChange={e => setConfig({ ...config, theme_cyan: e.target.value })}
-                          className="h-9 w-14 bg-transparent cursor-pointer rounded-lg overflow-hidden border border-white/10" />
+                          className="h-9 w-14 bg-transparent cursor-pointer rounded-lg overflow-hidden border border-zinc-800" />
                         <span className="text-[11px] text-zinc-300 font-mono font-bold">{config.theme_cyan}</span>
                       </div>
                     </div>
-                    <div className="p-3.5 rounded-xl border border-white/10 bg-black/30 space-y-3">
+                    <div className="p-3.5 rounded-xl border border-zinc-800 bg-zinc-900 space-y-3">
                       <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Alert / Warn</label>
                       <div className="flex items-center gap-3">
                         <input type="color" value={config.theme_amber} onChange={e => setConfig({ ...config, theme_amber: e.target.value })}
-                          className="h-9 w-14 bg-transparent cursor-pointer rounded-lg overflow-hidden border border-white/10" />
+                          className="h-9 w-14 bg-transparent cursor-pointer rounded-lg overflow-hidden border border-zinc-800" />
                         <span className="text-[11px] text-zinc-300 font-mono font-bold">{config.theme_amber}</span>
                       </div>
                     </div>
@@ -229,7 +219,7 @@ export function SettingsModal({ onClose }: Props) {
             {/* === INFRASTRUCTURE TAB === */}
             {activeTab === "infra" && (
               <div className="space-y-4">
-                <h3 className="text-[9px] font-bold uppercase tracking-[0.2em] text-blue-400/80 border-b border-white/5 pb-2">Environment Portability</h3>
+                <h3 className="text-[9px] font-bold uppercase tracking-[0.2em] text-blue-400/80 border-b border-zinc-900 pb-2">Environment Portability</h3>
                 <div className="flex items-center gap-3 pb-2">
                   <button
                     onClick={async () => {
@@ -275,7 +265,7 @@ export function SettingsModal({ onClose }: Props) {
                   </button>
                 </div>
 
-                <h3 className="text-[9px] font-bold uppercase tracking-[0.2em] text-blue-400/80 border-b border-white/5 pb-2">Shell & Runtime</h3>
+                <h3 className="text-[9px] font-bold uppercase tracking-[0.2em] text-blue-400/80 border-b border-zinc-900 pb-2">Shell & Runtime</h3>
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <label className="text-[11px] font-semibold text-zinc-400 flex items-center gap-2">
@@ -283,11 +273,11 @@ export function SettingsModal({ onClose }: Props) {
                     </label>
                     <input type="text" value={config.shell} onChange={e => setConfig({ ...config, shell: e.target.value })}
                       placeholder="e.g. pwsh.exe, bash"
-                      className="w-full bg-black/40 border border-white/10 text-zinc-200 px-3 py-2 rounded-lg text-xs outline-none focus:border-blue-500/40 transition-all font-mono" />
+                      className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 px-3 py-2 rounded-lg text-xs outline-none focus:border-blue-500/40 transition-all font-mono" />
                   </div>
                 </div>
 
-                <h3 className="text-[9px] font-bold uppercase tracking-[0.2em] text-blue-400/80 border-b border-white/5 pb-2 pt-2">Source Control & Integrations</h3>
+                <h3 className="text-[9px] font-bold uppercase tracking-[0.2em] text-blue-400/80 border-b border-zinc-900 pb-2 pt-2">Source Control & Integrations</h3>
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <label className="text-[11px] font-semibold text-zinc-400 flex items-center gap-2">
@@ -295,12 +285,12 @@ export function SettingsModal({ onClose }: Props) {
                     </label>
                     <input type="password" value={config.github_pat} onChange={e => setConfig({ ...config, github_pat: e.target.value })}
                       placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-                      className="w-full bg-black/40 border border-white/10 text-zinc-200 px-3 py-2 rounded-lg text-xs outline-none focus:border-blue-500/40 transition-all font-mono" />
+                      className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 px-3 py-2 rounded-lg text-xs outline-none focus:border-blue-500/40 transition-all font-mono" />
                     <p className="text-[9px] text-zinc-500">Required for full-screen Git issues, PRs, and comments integration.</p>
                   </div>
                 </div>
 
-                <h3 className="text-[9px] font-bold uppercase tracking-[0.2em] text-blue-400/80 border-b border-white/5 pb-2 pt-2">LLM Connection</h3>
+                <h3 className="text-[9px] font-bold uppercase tracking-[0.2em] text-blue-400/80 border-b border-zinc-900 pb-2 pt-2">LLM Connection</h3>
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <label className="text-[11px] font-semibold text-zinc-400 flex items-center gap-2">
@@ -308,7 +298,7 @@ export function SettingsModal({ onClose }: Props) {
                     </label>
                     <input type="url" value={config.llm_endpoint} onChange={e => setConfig({ ...config, llm_endpoint: e.target.value })}
                       placeholder="http://localhost:8080/v1"
-                      className="w-full bg-black/40 border border-white/10 text-zinc-200 px-3 py-2 rounded-lg text-xs outline-none focus:border-blue-500/40 transition-all" />
+                      className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 px-3 py-2 rounded-lg text-xs outline-none focus:border-blue-500/40 transition-all" />
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -316,7 +306,7 @@ export function SettingsModal({ onClose }: Props) {
                         <Cpu size={13} className="text-zinc-600" /> Model Name
                       </label>
                       <input type="text" value={config.llm_model} onChange={e => setConfig({ ...config, llm_model: e.target.value })}
-                        className="w-full bg-black/40 border border-white/10 text-zinc-200 px-3 py-2 rounded-lg text-xs outline-none focus:border-blue-500/40 transition-all" />
+                        className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 px-3 py-2 rounded-lg text-xs outline-none focus:border-blue-500/40 transition-all" />
                     </div>
                     <div className="space-y-2">
                       <label className="text-[11px] font-semibold text-zinc-400 flex items-center gap-2">
@@ -324,7 +314,7 @@ export function SettingsModal({ onClose }: Props) {
                       </label>
                       <input type="password" value={config.llm_api_key} onChange={e => setConfig({ ...config, llm_api_key: e.target.value })}
                         placeholder="Optional for local sidecar"
-                        className="w-full bg-black/40 border border-white/10 text-zinc-200 px-3 py-2 rounded-lg text-xs outline-none focus:border-blue-500/40 transition-all" />
+                        className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 px-3 py-2 rounded-lg text-xs outline-none focus:border-blue-500/40 transition-all" />
                     </div>
                   </div>
 
@@ -335,11 +325,11 @@ export function SettingsModal({ onClose }: Props) {
                       const status = await invoke<string>("get_sidecar_status");
                       setLlmStatus(status);
                     }}
-                      className="px-4 py-2 border border-white/10 hover:border-blue-500/40 text-zinc-400 hover:text-white rounded-lg text-[10px] font-bold uppercase transition-all">
+                      className="px-4 py-2 border border-zinc-800 hover:border-blue-500 text-zinc-400 hover:text-white bg-zinc-900 hover:bg-zinc-800 rounded-lg text-[10px] font-bold uppercase transition-all">
                       Verify Connection
                     </button>
                     {llmStatus && (
-                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/40 border border-white/10 text-[9px] font-bold text-zinc-500">
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-900 border border-zinc-800 text-[9px] font-bold text-zinc-500">
                         <div className={`w-1.5 h-1.5 rounded-full ${llmStatus === "Connected" ? "bg-emerald-500" : "bg-red-500"}`} />
                         {llmStatus}
                       </div>
@@ -353,10 +343,10 @@ export function SettingsModal({ onClose }: Props) {
             {activeTab === "shortcuts" && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-[9px] font-bold uppercase tracking-[0.2em] text-blue-400/80 border-b border-white/5 pb-2 flex-1">Key Bindings</h3>
+                  <h3 className="text-[9px] font-bold uppercase tracking-[0.2em] text-blue-400/80 border-b border-zinc-900 pb-2 flex-1">Key Bindings</h3>
                   {hasShortcutChanges && (
                     <button onClick={handleResetShortcuts}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-white/10 text-zinc-500 hover:text-zinc-300 hover:border-white/20 transition-all text-[9px] font-bold">
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-zinc-850 text-zinc-400 hover:text-zinc-200 bg-zinc-900 hover:bg-zinc-800 transition-all text-[9px] font-bold">
                       <RotateCcw size={10} /> Reset
                     </button>
                   )}
@@ -376,7 +366,7 @@ export function SettingsModal({ onClose }: Props) {
                         {items.map(item => {
                           const isRecording = recordingId === item.id;
                           return (
-                            <div key={item.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-all group">
+                            <div key={item.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-zinc-900/40 border border-zinc-900 hover:bg-zinc-900/80 transition-all group">
                               <div className="flex-1 min-w-0">
                                 <div className="text-xs font-bold text-zinc-300">{item.label}</div>
                                 <div className="text-[9px] text-zinc-600">{item.description}</div>
@@ -394,7 +384,7 @@ export function SettingsModal({ onClose }: Props) {
                                     className={`px-3 py-1.5 rounded-lg border text-[10px] font-bold font-mono transition-all min-w-[90px] ${
                                       item.keys !== item.defaultKeys
                                         ? 'bg-amber-500/10 border-amber-500/20 text-amber-400 hover:bg-amber-500/15'
-                                        : 'bg-white/5 border-white/10 text-zinc-400 hover:text-zinc-200 hover:bg-white/10'
+                                        : 'bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
                                     }`}
                                   >
                                     {item.keys}
@@ -429,7 +419,7 @@ export function SettingsModal({ onClose }: Props) {
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-4 border-t border-white/5 bg-white/[0.02] flex items-center justify-end gap-3 shrink-0">
+          <div className="px-6 py-4 border-t border-zinc-900 bg-zinc-900/20 flex items-center justify-end gap-3 shrink-0">
             <button onClick={onClose}
               className="px-4 py-2 text-zinc-500 hover:text-zinc-300 font-bold uppercase text-[9px] tracking-widest transition-colors">
               Cancel

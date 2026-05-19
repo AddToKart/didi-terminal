@@ -156,11 +156,11 @@ export function MockDataGenerator({ isOpen, onClose }: MockDataGeneratorProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm transition-all duration-300">
-      <div className="bg-[#0b0b0d]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl w-full max-w-5xl h-full sm:h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/80 transition-all duration-300">
+      <div className="bg-[#0b0b0d] border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-5xl h-full sm:h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header */}
-        <div className="px-6 py-4 border-b border-white/5 bg-zinc-900/40 flex items-center justify-between shrink-0">
+        <div className="px-6 py-4 border-b border-zinc-800 bg-zinc-950 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-xl text-green-400 border border-green-500/20 shadow-sm">
               <Database size={20} />
@@ -172,18 +172,18 @@ export function MockDataGenerator({ isOpen, onClose }: MockDataGeneratorProps) {
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg text-zinc-500 hover:text-white hover:bg-white/5 transition-colors"
+            className="p-2 rounded-lg text-zinc-450 hover:text-white bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 transition-colors"
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Content */}
-        <div className="flex flex-1 overflow-hidden flex-col md:flex-row">
+        <div className="flex flex-1 overflow-hidden flex-col md:flex-row bg-[#09090b]">
           
           {/* Sidebar - Schema Builder */}
-          <div className="w-full md:w-1/3 flex flex-col border-r border-white/5 bg-zinc-900/20">
-            <div className="p-4 border-b border-white/5 bg-zinc-900/40">
+          <div className="w-full md:w-1/3 flex flex-col border-r border-zinc-800 bg-zinc-950/20">
+            <div className="p-4 border-b border-zinc-800 bg-zinc-900/20">
               <div className="flex items-center justify-between mb-4">
                 <h4 className="text-sm font-semibold text-zinc-200">Schema</h4>
                 <button
@@ -201,17 +201,17 @@ export function MockDataGenerator({ isOpen, onClose }: MockDataGeneratorProps) {
                     type="number" 
                     value={rowCount}
                     onChange={(e) => setRowCount(Math.max(1, Math.min(10000, parseInt(e.target.value) || 10)))}
-                    className="bg-black/40 border border-white/10 rounded px-2 py-1 text-xs text-zinc-200 w-20 outline-none focus:border-green-500/50 text-right"
+                    className="bg-black/60 border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-200 w-20 outline-none focus:border-green-500/50 text-right"
                   />
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs text-zinc-400">Format:</span>
-                  <div className="flex bg-black/40 rounded-lg p-0.5 border border-white/5">
+                  <div className="flex bg-black/60 rounded-lg p-0.5 border border-zinc-800">
                     {(["json", "csv", "sql"] as const).map(fmt => (
                       <button
                         key={fmt}
                         onClick={() => setFormat(fmt)}
-                        className={`px-3 py-1 text-[11px] font-medium rounded-md transition-all uppercase tracking-wider ${format === fmt ? "bg-zinc-800 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-300"}`}
+                        className={`px-3 py-1 text-[11px] font-medium rounded-md transition-all uppercase tracking-wider ${format === fmt ? "bg-zinc-800 text-white shadow-sm border border-zinc-700" : "text-zinc-550 hover:text-zinc-300"}`}
                       >
                         {fmt}
                       </button>
@@ -225,7 +225,7 @@ export function MockDataGenerator({ isOpen, onClose }: MockDataGeneratorProps) {
                       type="text" 
                       value={tableName}
                       onChange={(e) => setTableName(e.target.value)}
-                      className="bg-black/40 border border-white/10 rounded px-2 py-1 text-xs text-zinc-200 w-32 outline-none focus:border-green-500/50"
+                      className="bg-black/60 border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-200 w-32 outline-none focus:border-green-500/50"
                     />
                   </div>
                 )}
@@ -241,10 +241,10 @@ export function MockDataGenerator({ isOpen, onClose }: MockDataGeneratorProps) {
 
             <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
               {fields.map((field) => (
-                <div key={field.id} className="bg-black/40 border border-white/5 p-3 rounded-xl relative group">
+                <div key={field.id} className="bg-black/60 border border-zinc-800 p-3 rounded-xl relative group">
                   <button 
                     onClick={() => removeField(field.id)}
-                    className="absolute top-2 right-2 text-zinc-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                    className="absolute top-2 right-2 text-zinc-650 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
                   >
                     <Trash2 size={12} />
                   </button>
@@ -254,14 +254,14 @@ export function MockDataGenerator({ isOpen, onClose }: MockDataGeneratorProps) {
                       value={field.name}
                       onChange={(e) => updateField(field.id, { name: e.target.value })}
                       placeholder="Field name"
-                      className="flex-1 bg-transparent border-b border-white/10 px-1 py-0.5 text-xs text-zinc-200 font-mono focus:border-green-500/50 outline-none"
+                      className="flex-1 bg-transparent border-b border-zinc-800 px-1 py-0.5 text-xs text-zinc-200 font-mono focus:border-green-500/50 outline-none"
                     />
                   </div>
                   <div className="flex items-center gap-2">
                     <select
                       value={field.type}
                       onChange={(e) => updateField(field.id, { type: e.target.value as FieldType })}
-                      className="w-full bg-zinc-900 border border-white/10 rounded px-2 py-1.5 text-[11px] text-zinc-300 outline-none focus:border-green-500/50 appearance-none"
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded px-2 py-1.5 text-[11px] text-zinc-300 outline-none focus:border-green-500/50 appearance-none font-mono"
                     >
                       <option value="uuid">UUID</option>
                       <option value="fullName">Full Name</option>
@@ -283,7 +283,7 @@ export function MockDataGenerator({ isOpen, onClose }: MockDataGeneratorProps) {
                         value={field.options || ""}
                         onChange={(e) => updateField(field.id, { options: e.target.value })}
                         placeholder="item1, item2, item3"
-                        className="w-full bg-black/40 border border-white/10 px-2 py-1.5 text-[10px] text-zinc-400 rounded outline-none focus:border-green-500/50"
+                        className="w-full bg-black/60 border border-zinc-800 px-2 py-1.5 text-[10px] text-zinc-400 rounded outline-none focus:border-green-500/50"
                       />
                     </div>
                   )}
@@ -293,19 +293,19 @@ export function MockDataGenerator({ isOpen, onClose }: MockDataGeneratorProps) {
           </div>
 
           {/* Main Content - Preview */}
-          <div className="flex-1 flex flex-col bg-black/40 relative">
+          <div className="flex-1 flex flex-col bg-zinc-950/20 relative">
             <div className="absolute top-4 right-6 flex items-center gap-2 z-10">
               <button
                 onClick={handleCopy}
                 disabled={!output}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800/80 hover:bg-zinc-700/80 text-zinc-300 rounded-lg text-xs font-medium border border-white/5 transition-all disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-md"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-xs font-medium border border-zinc-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
                 {copied ? "Copied!" : "Copy"}
               </button>
             </div>
             
-            <div className="flex-1 overflow-auto p-6 custom-scrollbar">
+            <div className="flex-1 overflow-auto p-6 custom-scrollbar bg-[#09090b]">
               {output ? (
                 <pre className="text-xs font-mono text-zinc-300 leading-relaxed">
                   {output}

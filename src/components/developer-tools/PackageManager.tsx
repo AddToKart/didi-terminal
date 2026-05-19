@@ -248,15 +248,15 @@ export function PackageManager({ currentProject, isOpen, onClose }: PackageManag
   return (
     <>
       <div 
-        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] animate-in fade-in duration-300" 
+        className="fixed inset-0 bg-black/75 z-[100] animate-in fade-in duration-300" 
         onClick={onClose}
       />
 
       <div className="fixed inset-0 flex items-center justify-center z-[101] p-4 pointer-events-none">
-        <div className="bg-[#121214]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden w-full max-w-5xl h-[800px] flex flex-col pointer-events-auto animate-in zoom-in-95 slide-in-from-bottom-4 duration-300 ring-1 ring-white/5">
+        <div className="bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden w-full max-w-5xl h-[800px] flex flex-col pointer-events-auto animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
           
           {/* Header */}
-          <div className="p-4 border-b border-white/5 bg-zinc-900/60 shrink-0 flex items-center justify-between">
+          <div className="p-4 border-b border-zinc-800 bg-zinc-900/15 shrink-0 flex items-center justify-between">
             <div className="flex items-center">
               <div className="flex items-center gap-3 w-[280px] shrink-0">
                 <div className="p-2 bg-blue-500/10 rounded-lg border border-blue-500/20 shrink-0">
@@ -265,7 +265,7 @@ export function PackageManager({ currentProject, isOpen, onClose }: PackageManag
                 <h3 className="text-lg font-semibold text-white tracking-tight truncate">Visual Package Manager</h3>
               </div>
               
-              <div className="h-6 w-px bg-white/10 mx-4 shrink-0" />
+              <div className="h-6 w-px bg-zinc-800 mx-4 shrink-0" />
 
               <div className="shrink-0">
                 <Select 
@@ -275,14 +275,14 @@ export function PackageManager({ currentProject, isOpen, onClose }: PackageManag
                     if (cfg) setActiveConfig(cfg);
                   }}
                 >
-                  <SelectTrigger className="w-[200px] bg-black/40 border-white/10 text-xs font-bold text-blue-400 focus:ring-1 focus:ring-blue-500/50 shadow-inner h-9">
+                  <SelectTrigger className="w-[200px] bg-zinc-900 border-zinc-800 text-xs font-bold text-blue-400 focus:ring-1 focus:ring-blue-500/50 shadow-inner h-9">
                     <SelectValue placeholder="Select Workspace..." />
                   </SelectTrigger>
-                  <SelectContent position="popper" sideOffset={4} className="bg-zinc-950 border-white/10 z-[200]">
+                  <SelectContent position="popper" sideOffset={4} className="bg-zinc-950 border-zinc-800 z-[200]">
                     {configs.map((cfg, idx) => (
-                      <SelectItem key={idx} value={String(idx)} className="text-xs font-medium focus:bg-white/10 focus:text-white cursor-pointer">
+                      <SelectItem key={idx} value={String(idx)} className="text-xs font-medium focus:bg-zinc-900 focus:text-white cursor-pointer">
                         <span className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-[9px] uppercase px-1 border-white/10 text-zinc-500">{cfg.manager}</Badge>
+                          <Badge variant="outline" className="text-[9px] uppercase px-1 border-zinc-800 text-zinc-500">{cfg.manager}</Badge>
                           <span className="truncate max-w-[120px]">{cfg.name}</span>
                         </span>
                       </SelectItem>
@@ -298,7 +298,7 @@ export function PackageManager({ currentProject, isOpen, onClose }: PackageManag
                 size="sm"
                 onClick={() => activeConfig && fetchPackages(activeConfig)}
                 disabled={loading}
-                className="h-9 border-white/10 bg-black/40 hover:bg-white/10 text-zinc-300"
+                className="h-9 border-zinc-800 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 animate-none"
               >
                 <RefreshCw size={14} className={cn("mr-2", loading && "animate-spin")} />
                 Refresh
@@ -313,14 +313,14 @@ export function PackageManager({ currentProject, isOpen, onClose }: PackageManag
                 </Button>
               )}
               
-              <Button variant="ghost" size="icon" onClick={onClose} className="text-zinc-400 hover:text-white hover:bg-white/10 rounded-lg">
+              <Button variant="ghost" size="icon" onClick={onClose} className="text-zinc-400 hover:text-white hover:bg-zinc-900 rounded-lg">
                 <X size={18} />
               </Button>
             </div>
           </div>
 
           {/* Search & Filter Bar */}
-          <div className="p-4 border-b border-white/5 bg-black/20 flex items-center justify-between shrink-0 relative overflow-hidden">
+          <div className="p-4 border-b border-zinc-800 bg-zinc-900/20 flex items-center justify-between shrink-0 relative overflow-hidden">
             {loading && <Progress value={scanProgress} className="absolute bottom-0 left-0 w-full h-[2px] rounded-none bg-transparent [&>div]:bg-blue-500 transition-all duration-300" />}
             <div className="relative w-80 group z-10">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-blue-400 transition-colors" />
@@ -329,13 +329,13 @@ export function PackageManager({ currentProject, isOpen, onClose }: PackageManag
                 placeholder="Filter packages..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className="w-full bg-black/40 border border-white/5 rounded-lg py-2 pl-9 pr-4 text-xs font-medium text-white placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 transition-all shadow-inner"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg py-2 pl-9 pr-4 text-xs font-medium text-white placeholder:text-zinc-650 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 transition-all shadow-inner"
               />
             </div>
           </div>
 
           {/* Table Area */}
-          <div className="flex-1 overflow-auto custom-scrollbar bg-[#0d0d0f]">
+          <div className="flex-1 overflow-auto custom-scrollbar bg-zinc-950">
             {loading && packages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-zinc-500 space-y-4">
                 <Loader2 size={32} className="animate-spin text-blue-500/50" />
@@ -348,8 +348,8 @@ export function PackageManager({ currentProject, isOpen, onClose }: PackageManag
               </div>
             ) : (
               <Table>
-                <TableHeader className="bg-zinc-950/50 sticky top-0 z-10 backdrop-blur-md">
-                  <TableRow className="border-white/5 hover:bg-transparent">
+                <TableHeader className="bg-zinc-900/80 sticky top-0 z-10">
+                  <TableRow className="border-zinc-800 hover:bg-transparent">
                     <TableHead className="w-[300px] text-xs font-bold text-zinc-400">Package</TableHead>
                     <TableHead className="text-xs font-bold text-zinc-400">Installed</TableHead>
                     <TableHead className="text-xs font-bold text-zinc-400">Latest</TableHead>
@@ -363,7 +363,7 @@ export function PackageManager({ currentProject, isOpen, onClose }: PackageManag
                     const isUpdating = updating.has(pkg.name);
                     
                     return (
-                      <TableRow key={pkg.name} className="border-white/5 hover:bg-white/[0.02] transition-colors group">
+                      <TableRow key={pkg.name} className="border-zinc-900 hover:bg-zinc-900/35 transition-colors group">
                         <TableCell className="font-mono text-xs font-medium text-blue-400">
                           <div className="flex items-center gap-2">
                             <span className="truncate max-w-[250px]">{pkg.name}</span>
@@ -410,7 +410,7 @@ export function PackageManager({ currentProject, isOpen, onClose }: PackageManag
           </div>
             
           {/* Footer Status */}
-          <div className="p-3 border-t border-white/5 bg-black/40 text-[10px] text-zinc-500 font-medium flex justify-between items-center shrink-0">
+          <div className="p-3 border-t border-zinc-800 bg-[#09090b] text-[10px] text-zinc-500 font-medium flex justify-between items-center shrink-0">
             <span>Showing {filteredPkgs.length} packages</span>
             {updatesAvailable > 0 && <span className="text-amber-400">{updatesAvailable} updates available</span>}
           </div>

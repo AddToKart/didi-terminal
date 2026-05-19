@@ -59,7 +59,7 @@ export function AmbientMode() {
 
       <div className="relative z-10 flex flex-col items-center gap-8 animate-in zoom-in-95 slide-in-from-bottom-4 duration-1000 delay-300">
         <div className="flex flex-col items-center gap-2">
-          <div className="p-6 rounded-full bg-white/[0.04] border border-white/5 shadow-2xl relative group">
+          <div className="p-6 rounded-full bg-zinc-900/40 border border-zinc-800/80 shadow-2xl relative group">
             <Monitor size={48} className="text-brand-accent animate-pulse relative z-10" />
           </div>
           <div className="mt-4 flex flex-col items-center">
@@ -76,13 +76,13 @@ export function AmbientMode() {
           </div>
         </div>
 
-        <div className="flex items-center gap-12 px-8 py-3 rounded-2xl bg-black/45 border border-white/5">
+        <div className="flex items-center gap-12 px-8 py-3 rounded-2xl bg-black/45 border border-zinc-800/80">
           <div className="flex flex-col items-center gap-1">
             <Clock size={14} className="text-zinc-500" />
             <span className="text-[8px] font-bold text-zinc-600 uppercase tracking-tighter">Uptime</span>
             <span className="text-[10px] font-mono text-zinc-400">Stable</span>
           </div>
-          <div className="w-px h-8 bg-white/5" />
+          <div className="w-px h-8 bg-zinc-900/60" />
           <div className="flex flex-col items-center gap-1">
             <Cpu size={14} className="text-zinc-500" />
             <span className="text-[8px] font-bold text-zinc-600 uppercase tracking-tighter">Core</span>
@@ -99,3 +99,4 @@ export function AmbientMode() {
     </div>
   );
 }
+

@@ -260,7 +260,7 @@ export function PersonalKanban({ workspaceId, isOpen, onClose, filterDate }: Per
         </button>
       </div>
 
-      <div className="flex-1 overflow-hidden p-5 bg-black/20">
+      <div className="flex-1 overflow-hidden p-5 bg-[#070709]">
         <DndContext 
           sensors={sensors} 
           collisionDetection={pointerWithin} 
@@ -326,7 +326,7 @@ export function PersonalKanban({ workspaceId, isOpen, onClose, filterDate }: Per
 
       {/* Edit Modal */}
       {editingTask && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85">
           <div className="w-[450px] bg-[#121214] border border-zinc-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="px-5 py-4 border-b border-zinc-800/60 flex items-center justify-between bg-zinc-900/30">
               <h3 className="text-sm font-bold text-white">

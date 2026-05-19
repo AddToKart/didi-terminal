@@ -117,17 +117,17 @@ export function HtmlToJsx({ isOpen, onClose }: HtmlToJsxProps) {
 
   return (
     <div className="fixed inset-0 z-[100]">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/75" onClick={onClose} />
       <div className="absolute inset-0 flex items-center justify-center p-0 sm:p-3">
-        <div className="bg-[#0b0b0d]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] overflow-hidden flex flex-col w-full max-w-3xl h-[75vh] sm:rounded-xl">
+        <div className="bg-zinc-950 border border-zinc-800 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] overflow-hidden flex flex-col w-full max-w-3xl h-[75vh] sm:rounded-xl">
 
-          <div className="px-5 pt-5 pb-3 border-b border-white/5 bg-zinc-900/40 shrink-0">
+          <div className="px-5 pt-5 pb-3 border-b border-zinc-800 bg-zinc-900/10 shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-orange-500/10 rounded-xl text-orange-400 border border-orange-500/20"><Code2 size={18} /></div>
                 <div><h3 className="text-sm font-bold text-white">HTML to JSX</h3><p className="text-[10px] text-zinc-500 uppercase tracking-wider mt-0.5">Convert HTML to React JSX</p></div>
               </div>
-              <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all"><X size={14} /></button>
+              <button onClick={onClose} className="p-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-all"><X size={14} /></button>
             </div>
           </div>
 
@@ -139,7 +139,7 @@ export function HtmlToJsx({ isOpen, onClose }: HtmlToJsxProps) {
               </div>
               <textarea value={input} onChange={e => setInput(e.target.value)}
                 placeholder="Paste HTML here..."
-                className="flex-1 bg-black/30 border border-white/5 rounded-xl p-4 text-xs font-mono text-zinc-300 placeholder:text-zinc-700 resize-none outline-none focus:border-orange-500/30 transition-all min-h-[120px] sm:min-h-0"
+                className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl p-4 text-xs font-mono text-zinc-300 placeholder:text-zinc-700 resize-none outline-none focus:border-orange-500/30 transition-all min-h-[120px] sm:min-h-0"
                 spellCheck={false} />
             </div>
 
@@ -156,7 +156,7 @@ export function HtmlToJsx({ isOpen, onClose }: HtmlToJsxProps) {
                   </button>
                 )}
               </div>
-              <div className="flex-1 bg-black/30 border border-white/5 rounded-xl p-4 overflow-y-auto custom-scrollbar min-h-[120px] sm:min-h-0">
+              <div className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl p-4 overflow-y-auto custom-scrollbar min-h-[120px] sm:min-h-0">
                 {output ? (
                   <pre className="text-xs font-mono text-orange-300 whitespace-pre-wrap">{output}</pre>
                 ) : (
@@ -166,7 +166,7 @@ export function HtmlToJsx({ isOpen, onClose }: HtmlToJsxProps) {
             </div>
           </div>
 
-          <div className="px-5 py-2.5 border-t border-white/5 bg-white/[0.02] flex items-center gap-3 text-[9px] text-zinc-600 overflow-x-auto custom-scrollbar shrink-0">
+          <div className="px-5 py-2.5 border-t border-zinc-800 bg-zinc-950 flex items-center gap-3 text-[9px] text-zinc-600 overflow-x-auto custom-scrollbar shrink-0">
             <span className="font-bold uppercase tracking-wider shrink-0">Transforms:</span>
             <span className="shrink-0">class → className</span>
             <span className="shrink-0">for → htmlFor</span>

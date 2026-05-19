@@ -682,7 +682,7 @@ export function TerminalInstance({ agentId, agentName, cwd, onRemove, onDetach, 
 
   return (
     <div
-      className={`flex flex-col h-full w-full transition-colors duration-300 ${isZenMode ? 'bg-black zen-terminal' : sentinelPaused ? 'bg-transparent border border-red-400 shadow-sm z-10 relative' : isPulsing ? 'bg-transparent border border-brand-accent animate-pulse-border shadow-sm z-10 relative' : isFocused ? 'bg-transparent border border-brand-accent shadow-sm z-10 relative' : 'bg-transparent border border-app-border z-0'}`}
+      className={`flex flex-col h-full w-full transition-colors duration-300 outline-none ${isZenMode ? 'bg-black zen-terminal' : sentinelPaused ? 'bg-transparent border border-red-400 shadow-sm z-10 relative' : isPulsing ? 'bg-transparent border border-brand-accent animate-pulse-border shadow-sm z-10 relative' : isFocused ? 'bg-transparent border border-brand-accent shadow-sm z-10 relative' : 'bg-transparent border border-app-border z-0'}`}
       tabIndex={-1}
       onFocus={handleFocus}
       onBlur={handleBlur}
@@ -705,7 +705,7 @@ export function TerminalInstance({ agentId, agentName, cwd, onRemove, onDetach, 
             <span className={`text-[11px] font-bold tracking-widest uppercase ${sentinelPaused ? 'text-red-200' : isPulsing ? 'text-brand-primary' : isFocused ? 'text-brand-primary' : 'text-zinc-200'}`}>
               {agentName}
             </span>
-            {(isPulsing || sentinelPaused) && <Zap size={12} className="text-brand-warn animate-pulse" />}
+            {(isPulsing || sentinelPaused) && <Zap size={12} className="text-brand-warn" />}
           </div>
 
           <TerminalLaneStrip
@@ -723,29 +723,54 @@ export function TerminalInstance({ agentId, agentName, cwd, onRemove, onDetach, 
           />
 
 
-          <div className="h-full flex items-center gap-3 px-3 shrink-0">
-            <div className="hidden md:flex items-center gap-2 text-[9px] font-mono text-zinc-400 font-bold mr-2">
-              <span title="CPU Usage">{stats.cpu.toFixed(1)}% CPU</span>
-              <span title="Memory Usage">{(stats.mem / 1024 / 1024).toFixed(0)} MB</span>
+          <div className="h-full flex items-center gap-2 px-3 shrink-0">
+            {/* CPU & Memory pill widgets */}
+            <div className="hidden md:flex items-center gap-1.5">
+              <div className="flex items-center bg-zinc-950/80 border border-zinc-800/80 px-2 py-0.5 rounded text-zinc-400 font-mono text-[9px] font-bold shadow-inner" title="CPU Usage">
+                <span className="text-[8px] text-zinc-600 mr-0.5 uppercase tracking-tighter">CPU</span>
+                <span className="text-zinc-300">{stats.cpu.toFixed(1)}%</span>
+              </div>
+              <div className="flex items-center bg-zinc-950/80 border border-zinc-800/80 px-2 py-0.5 rounded text-zinc-400 font-mono text-[9px] font-bold shadow-inner" title="Memory Usage">
+                <span className="text-[8px] text-zinc-600 mr-0.5 uppercase tracking-tighter">MEM</span>
+                <span className="text-zinc-300">{(stats.mem / 1024 / 1024).toFixed(0)}MB</span>
+              </div>
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className={`w-1.5 h-1.5 rounded-full ${isReady ? 'bg-emerald-400' : 'bg-brand-warn animate-pulse'}`}></div>
-              <span className="text-[9px] font-bold text-zinc-300 font-medium tracking-tight">
+
+            {/* State capsule */}
+            <div className={`flex items-center gap-1.5 bg-zinc-950/80 border px-2 py-0.5 rounded-md font-mono text-[9px] font-bold ${
+              sentinelPaused
+                ? "border-red-900/50 text-red-400 shadow-[0_0_8px_rgba(239,68,68,0.05)]"
+                : isReady
+                ? "border-zinc-800/80 text-zinc-400"
+                : "border-amber-900/50 text-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.05)]"
+            }`}>
+              <span className="relative flex h-1.5 w-1.5 shrink-0">
+                {sentinelPaused ? (
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]"></span>
+                ) : isReady ? (
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]"></span>
+                ) : (
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-brand-warn shadow-[0_0_8px_rgba(245,158,11,0.6)]"></span>
+                )}
+              </span>
+              <span className="tracking-tight uppercase text-[9px]">
                 {sentinelPaused ? 'PAUSED' : isReady ? 'IDLE' : 'INIT'}
               </span>
             </div>
+
+            {/* Button clusters */}
             {onRemove && (
-              <div className="flex items-center gap-1 ml-2">
+              <div className="flex items-center gap-1 ml-1">
                 <button
                   onClick={handlePopOut}
-                  className="text-slate-500 hover:text-brand-primary transition-colors bg-app-bg hover:bg-brand-accent/10 p-1 rounded-sm border border-app-border hover:border-brand-accent/30"
+                  className="text-zinc-500 hover:text-brand-primary transition-all duration-200 bg-zinc-950/60 hover:bg-brand-accent/10 p-1 rounded border border-zinc-800/80 hover:border-brand-accent/40 active:scale-95 shrink-0"
                   title="Pop-out Terminal"
                 >
-                  <ExternalLink size={10} strokeWidth={2} />
+                  <ExternalLink size={10} strokeWidth={2.5} />
                 </button>
                 <button
                   onClick={handleRemovePane}
-                  className="text-slate-500 hover:text-red-400 transition-colors bg-app-bg hover:bg-red-400/10 p-1 rounded-sm border border-app-border hover:border-red-400/30"
+                  className="text-zinc-500 hover:text-red-400 transition-all duration-200 bg-zinc-950/60 hover:bg-red-500/10 p-1 rounded border border-zinc-800/80 hover:border-red-500/40 active:scale-95 shrink-0"
                   title="Terminate Agent"
                 >
                   <X size={10} strokeWidth={3} />

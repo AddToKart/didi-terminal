@@ -292,15 +292,15 @@ export function MdViewer({ currentProject, isOpen, onClose }: MdViewerProps) {
   return (
     <>
       <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-md z-[100] animate-in fade-in duration-500"
+        className="fixed inset-0 bg-black/80 z-[100] animate-in fade-in duration-500"
         onClick={onClose}
       />
 
       <div className="fixed inset-0 flex items-center justify-center z-[101] p-2 pointer-events-none">
-        <div className={`bg-[#0b0b0d]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col pointer-events-auto animate-in zoom-in-95 slide-in-from-bottom-4 duration-300 ${isFullscreen ? "w-full h-full" : "w-full max-w-7xl h-[85vh]"}`}>
+        <div className={`bg-[#0b0b0d] border border-zinc-800 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col pointer-events-auto animate-in zoom-in-95 slide-in-from-bottom-4 duration-300 ${isFullscreen ? "w-full h-full" : "w-full max-w-7xl h-[85vh]"}`}>
 
           {/* Header */}
-          <div className="px-5 py-4 border-b border-white/5 bg-zinc-900/40 shrink-0">
+          <div className="px-5 py-4 border-b border-zinc-800 bg-zinc-950 shrink-0">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-blue-500/10 rounded-lg text-blue-400 border border-blue-500/20">
@@ -317,7 +317,7 @@ export function MdViewer({ currentProject, isOpen, onClose }: MdViewerProps) {
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => setIsFullscreen(!isFullscreen)}
-                  className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95"
+                  className="p-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95"
                   title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
                 >
                   {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
@@ -325,14 +325,14 @@ export function MdViewer({ currentProject, isOpen, onClose }: MdViewerProps) {
                 <button
                   onClick={handleRefresh}
                   disabled={loading}
-                  className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95 disabled:opacity-50"
+                  className="p-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95 disabled:opacity-50"
                   title="Refresh"
                 >
                   <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
                 </button>
                 <button
                   onClick={onClose}
-                  className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95"
+                  className="p-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95"
                 >
                   <X size={14} />
                 </button>
@@ -344,7 +344,7 @@ export function MdViewer({ currentProject, isOpen, onClose }: MdViewerProps) {
               {selectedFile && (
                 <button
                   onClick={() => setSidebarOpen(!sidebarOpen)}
-                  className={`p-1.5 rounded text-xs font-bold transition-all flex items-center gap-1.5 ${sidebarOpen ? 'bg-zinc-800/60 text-zinc-300' : 'bg-white/5 text-zinc-500 hover:text-zinc-300'}`}
+                  className={`p-1.5 rounded text-xs font-bold transition-all flex items-center gap-1.5 ${sidebarOpen ? 'bg-zinc-800 text-zinc-300' : 'bg-zinc-900 text-zinc-500 hover:text-zinc-300 border border-zinc-800'}`}
                   title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
                 >
                   <Sidebar size={14} />
@@ -359,7 +359,7 @@ export function MdViewer({ currentProject, isOpen, onClose }: MdViewerProps) {
                 <input
                   type="text"
                   placeholder="Filter files..."
-                  className="w-full bg-black/40 border border-white/5 rounded-lg py-2 pl-9 pr-4 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/30 transition-all shadow-inner"
+                  className="w-full bg-black/60 border border-zinc-800 rounded-lg py-2 pl-9 pr-4 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/30 transition-all shadow-inner"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   autoFocus
@@ -372,13 +372,13 @@ export function MdViewer({ currentProject, isOpen, onClose }: MdViewerProps) {
           <div className="flex-1 flex min-h-0">
             {/* Sidebar - file tree */}
             {sidebarVisible && (
-              <div className="w-64 border-r border-white/5 bg-black/20 flex flex-col shrink-0 animate-in fade-in slide-in-from-left-2 duration-200">
-                <div className="px-4 py-3 border-b border-white/5">
+              <div className="w-64 border-r border-zinc-800 bg-zinc-950/40 flex flex-col shrink-0 animate-in fade-in slide-in-from-left-2 duration-200">
+                <div className="px-4 py-3 border-b border-zinc-800">
                   <div className="flex items-center gap-2">
                     {dirHistory.length > 0 && (
                       <button
                         onClick={handleGoBack}
-                        className="p-1 hover:bg-white/10 rounded text-zinc-400 hover:text-white transition-colors"
+                        className="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white transition-colors"
                         title="Go back"
                       >
                         <ChevronRight size={14} className="rotate-180" />
@@ -413,7 +413,7 @@ export function MdViewer({ currentProject, isOpen, onClose }: MdViewerProps) {
                               <button
                                 key={entry.path}
                                 onClick={() => handleSelectEntry(entry)}
-                                className="w-full flex items-center gap-2.5 px-4 py-2 text-xs transition-all text-left text-zinc-400 hover:text-white hover:bg-white/[0.03]"
+                                className="w-full flex items-center gap-2.5 px-4 py-2 text-xs transition-all text-left text-zinc-400 hover:text-white hover:bg-zinc-900/50"
                               >
                                 <Icon size={14} className="text-zinc-600 shrink-0" />
                                 <span className="truncate">{entry.name}</span>
@@ -435,7 +435,7 @@ export function MdViewer({ currentProject, isOpen, onClose }: MdViewerProps) {
                               <button
                                 key={entry.path}
                                 onClick={() => handleSelectEntry(entry)}
-                                className={`w-full flex items-center gap-2.5 px-4 py-2 text-xs transition-all text-left ${isActive ? 'bg-blue-500/10 text-blue-400 border-l-2 border-blue-500' : 'text-zinc-400 hover:text-white hover:bg-white/[0.03] border-l-2 border-transparent'}`}
+                                className={`w-full flex items-center gap-2.5 px-4 py-2 text-xs transition-all text-left ${isActive ? 'bg-blue-500/10 text-blue-400 border-l-2 border-blue-500' : 'text-zinc-400 hover:text-white hover:bg-zinc-900/50 border-l-2 border-transparent'}`}
                               >
                                 <Icon size={14} className={`${getFileIcon(entry)} shrink-0`} />
                                 <span className="truncate flex-1">{entry.name}</span>
@@ -458,7 +458,7 @@ export function MdViewer({ currentProject, isOpen, onClose }: MdViewerProps) {
                               <button
                                 key={entry.path}
                                 onClick={() => handleSelectEntry(entry)}
-                                className={`w-full flex items-center gap-2.5 px-4 py-2 text-xs transition-all text-left ${isActive ? 'bg-blue-500/10 text-blue-400 border-l-2 border-blue-500' : 'text-zinc-400 hover:text-white hover:bg-white/[0.03] border-l-2 border-transparent'}`}
+                                className={`w-full flex items-center gap-2.5 px-4 py-2 text-xs transition-all text-left ${isActive ? 'bg-blue-500/10 text-blue-400 border-l-2 border-blue-500' : 'text-zinc-400 hover:text-white hover:bg-zinc-900/50 border-l-2 border-transparent'}`}
                               >
                                 <Icon size={14} className="text-zinc-600 shrink-0" />
                                 <span className="truncate">{entry.name}</span>
@@ -481,11 +481,11 @@ export function MdViewer({ currentProject, isOpen, onClose }: MdViewerProps) {
             )}
 
             {/* Content Area */}
-            <div className="flex-1 flex flex-col min-w-0 bg-black/10">
+            <div className="flex-1 flex flex-col min-w-0 bg-zinc-950/20">
               {selectedFile ? (
                 <>
                   {/* Content Toolbar */}
-                  <div className="flex items-center justify-between px-6 py-2.5 border-b border-white/5 bg-zinc-900/30 shrink-0">
+                  <div className="flex items-center justify-between px-6 py-2.5 border-b border-zinc-800 bg-zinc-900/40 shrink-0">
                     <div className="flex items-center gap-2 min-w-0">
                       <FileText size={14} className="text-blue-400 shrink-0" />
                       <span className="text-xs font-bold text-zinc-300 truncate">{selectedFile.name}</span>
@@ -501,7 +501,7 @@ export function MdViewer({ currentProject, isOpen, onClose }: MdViewerProps) {
                         <>
                           <button
                             onClick={() => setIsPreview(!isPreview)}
-                            className={`p-1.5 rounded text-xs font-bold transition-all flex items-center gap-1.5 ${isPreview ? 'bg-blue-500/20 text-blue-400' : 'bg-white/5 text-zinc-400 hover:text-white'}`}
+                            className={`p-1.5 rounded text-xs font-bold transition-all flex items-center gap-1.5 ${isPreview ? 'bg-blue-500/20 text-blue-400' : 'bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400'}`}
                             title={isPreview ? "Show raw" : "Show preview"}
                           >
                             {isPreview ? <Eye size={14} /> : <FileCode size={14} />}
@@ -509,14 +509,14 @@ export function MdViewer({ currentProject, isOpen, onClose }: MdViewerProps) {
                           </button>
                           <button
                             onClick={handleCopyContent}
-                            className="p-1.5 bg-white/5 hover:bg-white/10 rounded text-zinc-400 hover:text-white transition-all"
+                            className="p-1.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded text-zinc-400 hover:text-white transition-all"
                             title="Copy content"
                           >
                             {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
                           </button>
                           <button
                             onClick={handleEnterEdit}
-                            className="p-1.5 bg-white/5 hover:bg-white/10 rounded text-zinc-400 hover:text-white transition-all"
+                            className="p-1.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded text-zinc-400 hover:text-white transition-all"
                             title="Edit"
                           >
                             <Edit3 size={14} />
@@ -524,7 +524,7 @@ export function MdViewer({ currentProject, isOpen, onClose }: MdViewerProps) {
                           {isPreview && !isEditing && toc.length > 0 && (
                             <button
                               onClick={() => setSidebarOpen(!sidebarOpen)}
-                              className={`p-1.5 rounded text-xs font-bold transition-all flex items-center gap-1.5 ${sidebarOpen ? 'bg-zinc-800/60 text-zinc-300' : 'bg-white/5 text-zinc-400 hover:text-white'}`}
+                              className={`p-1.5 rounded text-xs font-bold transition-all flex items-center gap-1.5 ${sidebarOpen ? 'bg-zinc-800 text-zinc-300' : 'bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400'}`}
                               title="Table of contents"
                             >
                               <ListTree size={14} />
@@ -535,7 +535,7 @@ export function MdViewer({ currentProject, isOpen, onClose }: MdViewerProps) {
                         <>
                           <button
                             onClick={() => setShowFind(!showFind)}
-                            className={`p-1.5 rounded text-xs font-bold transition-all flex items-center gap-1.5 ${showFind ? 'bg-blue-500/20 text-blue-400' : 'bg-white/5 text-zinc-400 hover:text-white'}`}
+                            className={`p-1.5 rounded text-xs font-bold transition-all flex items-center gap-1.5 ${showFind ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400'}`}
                             title="Find in file (Ctrl+F)"
                           >
                             <Search size={14} />
@@ -543,14 +543,14 @@ export function MdViewer({ currentProject, isOpen, onClose }: MdViewerProps) {
                           <button
                             onClick={handleSave}
                             disabled={saving}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 disabled:bg-white/10 disabled:text-zinc-500 text-white rounded-lg transition-all text-xs font-bold shadow-lg shadow-blue-500/20 active:scale-95"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 disabled:bg-zinc-800 disabled:text-zinc-500 text-white rounded-lg transition-all text-xs font-bold shadow-lg shadow-blue-500/20 active:scale-95"
                           >
                             <Save size={14} />
                             {saving ? "Saving..." : "Save"}
                           </button>
                           <button
                             onClick={handleCancelEdit}
-                            className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white rounded-lg text-xs font-bold transition-all"
+                            className="px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-white rounded-lg text-xs font-bold transition-all"
                           >
                             Cancel
                           </button>
@@ -561,14 +561,14 @@ export function MdViewer({ currentProject, isOpen, onClose }: MdViewerProps) {
 
                   {/* Find bar */}
                   {showFind && isEditing && (
-                    <div className="flex items-center gap-3 px-6 py-2 border-b border-white/5 bg-zinc-900/20 shrink-0">
+                    <div className="flex items-center gap-3 px-6 py-2 border-b border-zinc-800 bg-zinc-900/40 shrink-0">
                       <Search size={12} className="text-zinc-500 shrink-0" />
                       <input
                         type="text"
                         value={findText}
                         onChange={(e) => setFindText(e.target.value)}
                         placeholder="Find in file..."
-                        className="flex-1 bg-black/40 border border-white/5 rounded px-3 py-1.5 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/30 transition-all"
+                        className="flex-1 bg-black/60 border border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/30 transition-all"
                         autoFocus
                       />
                       {findText && (
@@ -587,7 +587,7 @@ export function MdViewer({ currentProject, isOpen, onClose }: MdViewerProps) {
 
                   {/* Content Body */}
                   <div className="flex-1 flex min-h-0">
-                    <div className="flex-1 overflow-y-auto custom-scrollbar">
+                    <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#09090b]">
                       {contentLoading ? (
                         <div className="flex items-center justify-center h-full">
                           <RefreshCw size={20} className="animate-spin text-zinc-500" />
@@ -601,7 +601,7 @@ export function MdViewer({ currentProject, isOpen, onClose }: MdViewerProps) {
                           <p className="text-[11px] text-zinc-500">{error}</p>
                           <button
                             onClick={() => loadFileContent(selectedFile.path)}
-                            className="mt-4 px-4 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs transition-colors"
+                            className="mt-4 px-4 py-1.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg text-xs transition-colors"
                           >
                             Retry
                           </button>
@@ -609,7 +609,7 @@ export function MdViewer({ currentProject, isOpen, onClose }: MdViewerProps) {
                       ) : isEditing ? (
                         <div className="flex h-full">
                           {/* Line numbers */}
-                          <div className="select-none text-right px-3 py-6 text-[11px] font-mono leading-relaxed text-zinc-700 bg-black/20 border-r border-white/5 shrink-0" style={{ minWidth: "3.5rem" }}>
+                          <div className="select-none text-right px-3 py-6 text-[11px] font-mono leading-relaxed text-zinc-700 bg-black/20 border-r border-zinc-800 shrink-0" style={{ minWidth: "3.5rem" }}>
                             {Array.from({ length: lineCount }, (_, i) => (
                               <div key={i + 1}>{i + 1}</div>
                             ))}
@@ -626,7 +626,7 @@ export function MdViewer({ currentProject, isOpen, onClose }: MdViewerProps) {
                       ) : isPreview ? (
                         <div className="p-8">
                           <div
-                            className="prose prose-invert max-w-none text-sm leading-relaxed text-zinc-300 [&_h1]:text-xl [&_h1]:font-bold [&_h1]:text-white [&_h1]:mb-5 [&_h1]:pb-2 [&_h1]:border-b [&_h1]:border-white/10 [&_h2]:text-lg [&_h2]:font-bold [&_h2]:text-white [&_h2]:mt-8 [&_h2]:mb-3 [&_h2]:pb-1 [&_h2]:border-b [&_h2]:border-white/5 [&_h3]:text-base [&_h3]:font-bold [&_h3]:text-white [&_h3]:mt-6 [&_h3]:mb-2 [&_p]:mb-4 [&_p]:leading-relaxed [&_code]:bg-zinc-800 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:font-mono [&_code]:text-orange-300 [&_pre]:bg-zinc-900 [&_pre]:p-5 [&_pre]:rounded-xl [&_pre]:mb-6 [&_pre]:border [&_pre]:border-white/5 [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:text-zinc-300 [&_pre_code]:text-xs [&_li]:ml-5 [&_li]:mb-1.5 [&_li]:pl-1 [&_a]:text-blue-400 [&_a]:underline [&_a]:hover:text-blue-300 [&_a]:transition-colors [&_strong]:text-white [&_em]:text-zinc-200 [&_img]:rounded-lg [&_img]:my-4 [&_img]:max-w-full [&_hr]:border-zinc-800 [&_hr]:my-6"
+                            className="prose prose-invert max-w-none text-sm leading-relaxed text-zinc-300 [&_h1]:text-xl [&_h1]:font-bold [&_h1]:text-white [&_h1]:mb-5 [&_h1]:pb-2 [&_h1]:border-b [&_h1]:border-zinc-850 [&_h2]:text-lg [&_h2]:font-bold [&_h2]:text-white [&_h2]:mt-8 [&_h2]:mb-3 [&_h2]:pb-1 [&_h2]:border-b [&_h2]:border-zinc-900 [&_h3]:text-base [&_h3]:font-bold [&_h3]:text-white [&_h3]:mt-6 [&_h3]:mb-2 [&_p]:mb-4 [&_p]:leading-relaxed [&_code]:bg-zinc-800 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:font-mono [&_code]:text-orange-300 [&_pre]:bg-zinc-900 [&_pre]:p-5 [&_pre]:rounded-xl [&_pre]:mb-6 [&_pre]:border [&_pre]:border-zinc-800 [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:text-zinc-300 [&_pre_code]:text-xs [&_li]:ml-5 [&_li]:mb-1.5 [&_li]:pl-1 [&_a]:text-blue-400 [&_a]:underline [&_a]:hover:text-blue-300 [&_a]:transition-colors [&_strong]:text-white [&_em]:text-zinc-200 [&_img]:rounded-lg [&_img]:my-4 [&_img]:max-w-full [&_hr]:border-zinc-800 [&_hr]:my-6"
                             dangerouslySetInnerHTML={{ __html: renderedHtml }}
                           />
                         </div>
@@ -639,8 +639,8 @@ export function MdViewer({ currentProject, isOpen, onClose }: MdViewerProps) {
 
                     {/* TOC sidebar (preview mode only) */}
                     {isPreview && !isEditing && toc.length > 0 && sidebarOpen && (
-                      <div className="w-56 border-l border-white/5 bg-black/20 flex flex-col shrink-0 animate-in fade-in slide-in-from-right-2 duration-200">
-                        <div className="px-4 py-3 border-b border-white/5">
+                      <div className="w-56 border-l border-zinc-800 bg-zinc-950/40 flex flex-col shrink-0 animate-in fade-in slide-in-from-right-2 duration-200">
+                        <div className="px-4 py-3 border-b border-zinc-800">
                           <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
                             Table of Contents
                           </span>
@@ -651,10 +651,10 @@ export function MdViewer({ currentProject, isOpen, onClose }: MdViewerProps) {
                               key={i}
                               href={`#${entry.anchor}`}
                               onClick={(e) => {
-                                e.preventDefault();
-                                const el = document.getElementById(entry.anchor);
-                                el?.scrollIntoView({ behavior: "smooth" });
-                              }}
+                                  e.preventDefault();
+                                  const el = document.getElementById(entry.anchor);
+                                  el?.scrollIntoView({ behavior: "smooth" });
+                                }}
                               className="block px-4 py-1.5 text-[11px] text-zinc-500 hover:text-blue-400 hover:bg-blue-500/5 transition-colors truncate"
                               style={{ paddingLeft: `${12 + (entry.level - 1) * 16}px` }}
                             >
@@ -667,8 +667,8 @@ export function MdViewer({ currentProject, isOpen, onClose }: MdViewerProps) {
                   </div>
                 </>
               ) : (
-                <div className="flex-1 flex flex-col items-center justify-center text-zinc-500 gap-4 animate-in fade-in">
-                  <div className="p-6 rounded-full bg-white/[0.02] border border-white/5">
+                <div className="flex-1 flex flex-col items-center justify-center text-zinc-500 gap-4 animate-in fade-in bg-[#09090b]">
+                  <div className="p-6 rounded-full bg-zinc-900/30 border border-zinc-800">
                     <FileText size={48} className="opacity-20" />
                   </div>
                   <div className="text-center">
@@ -681,7 +681,7 @@ export function MdViewer({ currentProject, isOpen, onClose }: MdViewerProps) {
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-2 border-t border-white/5 bg-white/[0.02] flex items-center justify-between text-[10px] text-zinc-600 font-bold uppercase tracking-widest shrink-0">
+          <div className="px-6 py-2 border-t border-zinc-800 bg-zinc-900/30 flex items-center justify-between text-[10px] text-zinc-600 font-bold uppercase tracking-widest shrink-0">
             <div className="flex items-center gap-4">
               <span className="text-blue-400">Markdown</span>
               {selectedFile && (

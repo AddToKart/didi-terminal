@@ -605,7 +605,7 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
 
               {(showCodeReview || showGitPanel || showPersonalKanban || showCalendar || showFileExplorer) && (
                 <div
-                  className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[45] animate-in fade-in duration-300"
+                  className="fixed inset-0 bg-black/85 z-[45] animate-in fade-in duration-300"
                   onClick={() => {
                     setShowCodeReview(false);
                     setShowGitPanel(false);

@@ -338,11 +338,11 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/75" onClick={onClose} />
       
-      <div className="relative w-full max-w-6xl h-[80vh] bg-zinc-900/90 border border-white/10 rounded-xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-6xl h-[80vh] bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-white/[0.02]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-900/10">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
               <Database size={20} className="text-amber-500" />
@@ -359,13 +359,13 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
             {dbPath && (
               <button
                 onClick={refreshTables}
-                className="p-2 text-zinc-400 hover:text-white transition-colors rounded-lg hover:bg-white/5"
+                className="p-2 text-zinc-400 hover:text-white transition-colors rounded-lg hover:bg-zinc-900/60"
                 title="Refresh Tables"
               >
                 <RefreshCw size={18} className={isLoading ? "animate-spin" : ""} />
               </button>
             )}
-            <button onClick={onClose} className="p-2 text-zinc-400 hover:text-white transition-colors rounded-lg hover:bg-white/5">
+            <button onClick={onClose} className="p-2 text-zinc-400 hover:text-white transition-colors rounded-lg hover:bg-zinc-900/60">
               <X size={20} />
             </button>
           </div>
@@ -373,7 +373,7 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
 
         <div className="flex-1 flex min-h-0">
           {/* Sidebar */}
-          <div className="w-64 border-r border-white/5 bg-black/20 flex flex-col">
+          <div className="w-64 border-r border-zinc-800/80 bg-[#0a0a0c] flex flex-col">
             <div className="p-4 space-y-2">
               <button
                 onClick={handleSelectDb}
@@ -387,7 +387,7 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
                 className={`w-full flex items-center justify-center gap-2 px-4 py-2 border rounded-lg text-xs font-bold transition-all ${
                   dbPath 
                     ? 'bg-red-500/10 hover:bg-red-500/20 border-red-500/30 text-red-500' 
-                    : showRemoteForm ? 'bg-blue-500/20 border-blue-500/50 text-blue-400' : 'bg-white/5 hover:bg-white/10 border-white/10 text-zinc-300'
+                    : showRemoteForm ? 'bg-blue-500/20 border-blue-500/50 text-blue-400' : 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-300'
                 }`}
               >
                 {dbPath ? <X size={14} /> : <Globe size={14} />}
@@ -397,7 +397,7 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
                 onClick={() => { setActiveTab("query"); setSelectedTable(null); }}
                 disabled={!dbPath}
                 className={`w-full flex items-center justify-center gap-2 px-4 py-2 border rounded-lg text-xs font-bold transition-all ${
-                  activeTab === "query" ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-400' : 'bg-white/5 hover:bg-white/10 border-white/10 text-zinc-300'
+                  activeTab === "query" ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-400' : 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-300'
                 } ${!dbPath ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <Terminal size={14} />
@@ -421,7 +421,7 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
                       className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm transition-all group ${
                         isSelected
                           ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
-                          : 'text-zinc-400 hover:text-white hover:bg-white/5 border border-transparent'
+                          : 'text-zinc-400 hover:text-white hover:bg-zinc-900/60 border border-transparent'
                       }`}
                     >
                       <div className="flex items-center gap-2 overflow-hidden">
@@ -449,8 +449,8 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
           <div className="flex-1 flex flex-col min-w-0 bg-black/10 relative">
             {/* Remote Connection Form Overlay */}
             {showRemoteForm && (
-              <div className="absolute inset-0 z-20 bg-zinc-900/95 backdrop-blur flex items-center justify-center p-8 animate-in fade-in duration-200 overflow-y-auto">
-                <form onSubmit={handleConnectRemote} className="w-full max-w-xl bg-zinc-950 border border-white/10 rounded-xl p-8 shadow-2xl space-y-6">
+              <div className="absolute inset-0 z-20 bg-zinc-950 flex items-center justify-center p-8 animate-in fade-in duration-200 overflow-y-auto">
+                <form onSubmit={handleConnectRemote} className="w-full max-w-xl bg-zinc-900 border border-zinc-800 rounded-xl p-8 shadow-2xl space-y-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
@@ -461,7 +461,7 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
                         <p className="text-xs text-zinc-500 font-medium">PostgreSQL or MySQL/MariaDB</p>
                       </div>
                     </div>
-                    <div className="flex bg-white/5 p-1 rounded-lg border border-white/10">
+                    <div className="flex bg-zinc-950 p-1 rounded-lg border border-zinc-800">
                       <button
                         type="button"
                         onClick={() => { setDbMode("postgres"); setConnDetails(prev => ({ ...prev, port: "5432" })); }}
@@ -495,7 +495,7 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
                           value={remoteUrl}
                           onChange={(e) => setRemoteUrl(e.target.value)}
                           placeholder={dbMode === "mysql" ? "mysql://user:pass@localhost:3306/db" : "postgres://user:pass@localhost:5432/db"}
-                          className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors font-mono"
+                          className="w-full bg-black/50 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors font-mono"
                         />
                       </div>
                     ) : (
@@ -506,7 +506,7 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
                             type="text"
                             value={connDetails.host}
                             onChange={(e) => setConnDetails(prev => ({ ...prev, host: e.target.value }))}
-                            className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+                            className="w-full bg-black/50 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
                           />
                         </div>
                         <div className="col-span-4 space-y-2">
@@ -515,7 +515,7 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
                             type="text"
                             value={connDetails.port}
                             onChange={(e) => setConnDetails(prev => ({ ...prev, port: e.target.value }))}
-                            className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+                            className="w-full bg-black/50 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
                           />
                         </div>
                         <div className="col-span-6 space-y-2">
@@ -524,7 +524,7 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
                             type="text"
                             value={connDetails.username}
                             onChange={(e) => setConnDetails(prev => ({ ...prev, username: e.target.value }))}
-                            className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+                            className="w-full bg-black/50 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
                           />
                         </div>
                         <div className="col-span-6 space-y-2">
@@ -533,7 +533,7 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
                             type="password"
                             value={connDetails.password}
                             onChange={(e) => setConnDetails(prev => ({ ...prev, password: e.target.value }))}
-                            className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+                            className="w-full bg-black/50 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
                           />
                         </div>
                         <div className="col-span-12 space-y-2">
@@ -542,13 +542,13 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
                             type="text"
                             value={connDetails.database}
                             onChange={(e) => setConnDetails(prev => ({ ...prev, database: e.target.value }))}
-                            className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+                            className="w-full bg-black/50 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
                           />
                         </div>
                       </div>
                     )}
 
-                    <div className="flex items-center justify-between py-2 border-t border-white/5">
+                    <div className="flex items-center justify-between py-2 border-t border-zinc-800/80">
                       <div className="flex items-center gap-3">
                         <label className="relative inline-flex items-center cursor-pointer">
                           <input
@@ -557,7 +557,7 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
                             checked={useConnectionString}
                             onChange={() => setUseConnectionString(!useConnectionString)}
                           />
-                          <div className="w-9 h-5 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500 peer-checked:after:bg-white"></div>
+                          <div className="w-9 h-5 bg-zinc-800/80 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500 peer-checked:after:bg-white"></div>
                         </label>
                         <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Use Connection String</span>
                       </div>
@@ -567,7 +567,7 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
                       <button
                         type="button"
                         onClick={() => { setShowRemoteForm(false); setError(null); }}
-                        className="flex-1 px-6 py-3 rounded-xl font-bold text-xs bg-white/5 hover:bg-white/10 text-zinc-300 transition-all border border-white/5"
+                        className="flex-1 px-6 py-3 rounded-xl font-bold text-xs bg-zinc-900/60 hover:bg-zinc-800/80 text-zinc-300 transition-all border border-zinc-800/80"
                       >
                         CANCEL
                       </button>
@@ -587,13 +587,13 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
 
             {selectedTable ? (
               <>
-                <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between gap-4">
+                <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-2 text-zinc-300">
                     <TableIcon size={16} />
                     <span className="font-bold text-sm tracking-tight">
                       {selectedTable.schema ? `${selectedTable.schema}.${selectedTable.name}` : selectedTable.name}
                     </span>
-                    <span className="text-[10px] bg-white/5 px-1.5 py-0.5 rounded text-zinc-500">{data.length} rows</span>
+                    <span className="text-[10px] bg-zinc-900 px-1.5 py-0.5 rounded text-zinc-500 border border-zinc-800">{data.length} rows</span>
                   </div>
                   <div className="relative flex-1 max-w-sm">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
@@ -602,7 +602,7 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
                       placeholder="Search in results..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full bg-white/5 border border-white/10 rounded-md py-1.5 pl-9 pr-4 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/50 transition-colors"
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-md py-1.5 pl-9 pr-4 text-xs text-white placeholder:text-zinc-650 focus:outline-none focus:border-amber-500/50 transition-colors"
                     />
                   </div>
                 </div>
@@ -615,18 +615,18 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
                     </div>
                   ) : (
                     <table className="w-full border-collapse text-left">
-                      <thead className="sticky top-0 bg-zinc-900 z-10">
+                      <thead className="sticky top-0 bg-zinc-950 z-10">
                         <tr>
                           {columns.map(col => (
-                            <th key={col} className="px-4 py-3 text-[10px] font-black text-zinc-500 uppercase tracking-widest border-b border-white/5 bg-zinc-900/50 backdrop-blur-md">
+                            <th key={col} className="px-4 py-3 text-[10px] font-black text-zinc-500 uppercase tracking-widest border-b border-zinc-800 bg-zinc-950">
                               {col}
                             </th>
                           ))}
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-white/[0.03]">
+                      <tbody className="divide-y divide-zinc-900">
                         {filteredData.map((row, i) => (
-                          <tr key={i} className="hover:bg-white/[0.02] transition-colors group">
+                          <tr key={i} className="hover:bg-zinc-900/40 transition-colors group">
                             {columns.map(col => {
                               const isEditing = editingCell?.rowIndex === i && editingCell?.colName === col;
                               return (
@@ -663,12 +663,12 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
               </>
             ) : activeTab === "query" ? (
               <div className="flex-1 flex flex-col min-h-0 bg-zinc-950">
-                <div className="p-4 border-b border-white/5 bg-zinc-900/50">
+                <div className="p-4 border-b border-zinc-800/80 bg-zinc-900/50">
                   <textarea
                     value={customQuery}
                     onChange={e => setCustomQuery(e.target.value)}
                     placeholder="Enter SQL query here... (e.g. SELECT * FROM users)"
-                    className="w-full h-28 bg-black/50 border border-white/10 rounded-xl p-4 text-sm font-mono text-zinc-300 focus:outline-none focus:border-indigo-500/50 transition-colors resize-none shadow-inner"
+                    className="w-full h-28 bg-black/50 border border-zinc-800 rounded-xl p-4 text-sm font-mono text-zinc-300 focus:outline-none focus:border-indigo-500/50 transition-colors resize-none shadow-inner"
                   />
                   <div className="flex justify-end mt-3">
                     <button
@@ -681,7 +681,7 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
                     </button>
                   </div>
                 </div>
-                <div className="flex-1 overflow-auto bg-black/20 p-4">
+                <div className="flex-1 overflow-auto bg-[#0a0a0c] p-4">
                   {queryError && (
                     <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs font-mono animate-in fade-in">
                       {queryError}
@@ -694,18 +694,18 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
                         Query executed successfully. {queryResult.rows_affected} rows affected.
                       </div>
                     ) : (
-                      <div className="border border-white/10 rounded-xl overflow-hidden animate-in fade-in">
+                      <div className="border border-zinc-800 rounded-xl overflow-hidden animate-in fade-in">
                         <table className="w-full border-collapse text-left">
                           <thead className="bg-zinc-900">
                             <tr>
                               {queryResult.columns.map((col, i) => (
-                                <th key={i} className="px-4 py-3 text-[10px] font-black text-zinc-500 uppercase tracking-widest border-b border-white/5">{col}</th>
+                                <th key={i} className="px-4 py-3 text-[10px] font-black text-zinc-500 uppercase tracking-widest border-b border-zinc-800/80">{col}</th>
                               ))}
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-white/[0.03]">
                             {queryResult.rows.map((row, i) => (
-                              <tr key={i} className="hover:bg-white/[0.02]">
+                              <tr key={i} className="hover:bg-zinc-900/20">
                                 {row.map((cell, j) => (
                                   <td key={j} className="px-4 py-2 text-xs text-zinc-400 font-mono whitespace-nowrap overflow-hidden text-ellipsis max-w-xs">{cell === null ? <span className="italic opacity-50">null</span> : String(cell)}</td>
                                 ))}
@@ -735,7 +735,7 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
                   </>
                 ) : (
                   <>
-                    <div className="p-6 rounded-full bg-white/[0.02] border border-white/5">
+                    <div className="p-6 rounded-full bg-zinc-900/20 border border-zinc-800/80">
                       <Database size={48} className="opacity-20" />
                     </div>
                     <div className="text-center">
@@ -750,7 +750,7 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-2 border-t border-white/5 bg-white/[0.02] flex items-center justify-between text-[10px] text-zinc-600 font-bold uppercase tracking-widest">
+        <div className="px-6 py-2 border-t border-zinc-800 bg-[#09090b] flex items-center justify-between text-[10px] text-zinc-600 font-bold uppercase tracking-widest">
           <div className="flex items-center gap-4">
             <span className={`uppercase ${dbBadgeColor}`}>{dbMode} driver</span>
             {selectedTable && activeTab === "table" && <span>Table: {selectedTable.schema ? `${selectedTable.schema}.${selectedTable.name}` : selectedTable.name}</span>}
@@ -767,3 +767,4 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
     </div>
   );
 }
+

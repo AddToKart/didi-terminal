@@ -165,9 +165,9 @@ function IssueDetailView({
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-white/5 bg-white/[0.02] flex items-center justify-between shrink-0">
+      <div className="px-6 py-4 border-b border-zinc-800/80 bg-zinc-900/20 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <button onClick={onBack} className="p-1.5 hover:bg-white/10 rounded-lg transition-colors border border-white/5">
+          <button onClick={onBack} className="p-1.5 hover:bg-zinc-800/80 rounded-lg transition-colors border border-zinc-800/80">
             <ArrowRight size={14} className="rotate-180 text-zinc-400" />
           </button>
           <div className="flex items-center gap-2">
@@ -198,12 +198,12 @@ function IssueDetailView({
                   onKeyDown={e => { if (e.key === "Enter") onSaveTitle(); if (e.key === "Escape") setEditingTitle(false); }}
                 />
                 <button onClick={onSaveTitle} className="px-3 py-2 bg-brand-accent text-black rounded-lg text-xs font-bold">Save</button>
-                <button onClick={() => setEditingTitle(false)} className="px-3 py-2 bg-white/5 text-zinc-400 rounded-lg text-xs">Cancel</button>
+                <button onClick={() => setEditingTitle(false)} className="px-3 py-2 bg-zinc-900/60 text-zinc-400 rounded-lg text-xs">Cancel</button>
               </div>
             ) : (
               <div className="flex items-start gap-2 group">
                 <h2 className="text-lg font-bold text-zinc-100 flex-1">{issue.title}</h2>
-                <button onClick={() => { setEditingTitle(true); setTitleDraft(issue.title); }} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded transition-all">
+                <button onClick={() => { setEditingTitle(true); setTitleDraft(issue.title); }} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-zinc-800/80 rounded transition-all">
                   <FileText size={12} className="text-zinc-500" />
                 </button>
               </div>
@@ -227,24 +227,24 @@ function IssueDetailView({
                 <button onClick={() => onRemoveLabel(l.name)} className="opacity-0 group-hover:opacity-100 hover:text-red-400 transition-all">×</button>
               </span>
             ))}
-            <button onClick={onLoadLabels} className="text-[10px] px-2 py-1 rounded-md border border-white/10 text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition-all">
+            <button onClick={onLoadLabels} className="text-[10px] px-2 py-1 rounded-md border border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/60 transition-all">
               + Label
             </button>
           </div>
 
           {/* Label Picker */}
           {showLabelPicker && (
-            <div className="bg-black/40 border border-white/10 rounded-xl p-3 space-y-2">
+            <div className="bg-black/40 border border-zinc-800 rounded-xl p-3 space-y-2">
               <input
                 placeholder="Search labels..."
                 value={labelSearch}
                 onChange={e => setLabelSearch(e.target.value)}
-                className="w-full bg-zinc-900/50 border border-white/10 rounded-md px-3 py-1.5 text-xs text-white focus:outline-none"
+                className="w-full bg-zinc-900/50 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white focus:outline-none"
                 autoFocus
               />
               <div className="max-h-40 overflow-y-auto space-y-1">
                 {availableLabels.filter(l => l.name.toLowerCase().includes(labelSearch.toLowerCase()) && !issue.labels.find(il => il.name === l.name)).map(l => (
-                  <button key={l.name} onClick={() => onAddLabel(l.name)} className="w-full text-left px-2 py-1.5 rounded hover:bg-white/5 transition-colors flex items-center gap-2">
+                  <button key={l.name} onClick={() => onAddLabel(l.name)} className="w-full text-left px-2 py-1.5 rounded hover:bg-zinc-900/60 transition-colors flex items-center gap-2">
                     <div className="w-3 h-3 rounded" style={{ backgroundColor: `#${l.color}` }} />
                     <span className="text-xs text-zinc-300">{l.name}</span>
                     {l.description && <span className="text-[10px] text-zinc-600 truncate">{l.description}</span>}
@@ -256,7 +256,7 @@ function IssueDetailView({
           )}
 
           {/* Body */}
-          <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4">
+          <div className="bg-zinc-900/20 border border-zinc-800/80 rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
               <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Description</span>
               {!editingBody && (
@@ -273,7 +273,7 @@ function IssueDetailView({
                 />
                 <div className="flex gap-2">
                   <button onClick={onSaveBody} className="px-3 py-1.5 bg-brand-accent text-black rounded-lg text-xs font-bold">Save</button>
-                  <button onClick={() => setEditingBody(false)} className="px-3 py-1.5 bg-white/5 text-zinc-400 rounded-lg text-xs">Cancel</button>
+                  <button onClick={() => setEditingBody(false)} className="px-3 py-1.5 bg-zinc-900/60 text-zinc-400 rounded-lg text-xs">Cancel</button>
                 </div>
               </div>
             ) : (
@@ -285,7 +285,7 @@ function IssueDetailView({
           <div className="space-y-4">
             <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Comments ({issue.comments.length})</div>
             {issue.comments.map(c => (
-              <div key={c.id} className="bg-white/[0.02] border border-white/5 rounded-xl p-4">
+              <div key={c.id} className="bg-zinc-900/20 border border-zinc-800/80 rounded-xl p-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-bold text-zinc-300">@{c.author}</span>
                   <span className="text-[10px] text-zinc-600">{new Date(c.createdAt).toLocaleString()}</span>
@@ -296,13 +296,13 @@ function IssueDetailView({
           </div>
 
           {/* Comment Input */}
-          <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4">
+          <div className="bg-zinc-900/20 border border-zinc-800/80 rounded-xl p-4">
             <textarea
               value={onComment}
               onChange={e => onCommentChange(e.target.value)}
               placeholder="Write a comment..."
               rows={4}
-              className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white font-mono focus:border-brand-accent/50 focus:outline-none resize-none placeholder:text-zinc-600"
+              className="w-full bg-black/40 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white font-mono focus:border-brand-accent/50 focus:outline-none resize-none placeholder:text-zinc-600"
             />
             <div className="flex justify-end mt-2">
               <button onClick={onSubmitComment} disabled={!onComment.trim()} className="px-4 py-2 bg-brand-accent text-black rounded-lg text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed">
@@ -358,9 +358,9 @@ function PRDetailView({
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-white/5 bg-white/[0.02] flex items-center justify-between shrink-0">
+      <div className="px-6 py-4 border-b border-zinc-800/80 bg-zinc-900/20 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <button onClick={onBack} className="p-1.5 hover:bg-white/10 rounded-lg transition-colors border border-white/5">
+          <button onClick={onBack} className="p-1.5 hover:bg-zinc-800/80 rounded-lg transition-colors border border-zinc-800/80">
             <ArrowRight size={14} className="rotate-180 text-zinc-400" />
           </button>
           <div className="flex items-center gap-2">
@@ -411,12 +411,12 @@ function PRDetailView({
                   onKeyDown={e => { if (e.key === "Enter") onSaveTitle(); if (e.key === "Escape") setEditingTitle(false); }}
                 />
                 <button onClick={onSaveTitle} className="px-3 py-2 bg-brand-accent text-black rounded-lg text-xs font-bold">Save</button>
-                <button onClick={() => setEditingTitle(false)} className="px-3 py-2 bg-white/5 text-zinc-400 rounded-lg text-xs">Cancel</button>
+                <button onClick={() => setEditingTitle(false)} className="px-3 py-2 bg-zinc-900/60 text-zinc-400 rounded-lg text-xs">Cancel</button>
               </div>
             ) : (
               <div className="flex items-start gap-2 group">
                 <h2 className="text-lg font-bold text-zinc-100 flex-1">{pr.title}</h2>
-                <button onClick={() => { setEditingTitle(true); setTitleDraft(pr.title); }} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded transition-all">
+                <button onClick={() => { setEditingTitle(true); setTitleDraft(pr.title); }} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-zinc-800/80 rounded transition-all">
                   <FileText size={12} className="text-zinc-500" />
                 </button>
               </div>
@@ -464,7 +464,7 @@ function PRDetailView({
                 <div key={r.id} className={`p-3 rounded-xl border ${
                   r.state === "APPROVED" ? "bg-emerald-500/5 border-emerald-500/20" :
                   r.state === "CHANGES_REQUESTED" ? "bg-red-500/5 border-red-500/20" :
-                  "bg-white/[0.02] border-white/5"
+                  "bg-zinc-900/20 border-zinc-800/80"
                 }`}>
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs font-bold text-zinc-300">@{r.author}</span>
@@ -481,25 +481,25 @@ function PRDetailView({
 
           {/* Review Form */}
           {showReviewForm && (
-            <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4 space-y-3">
+            <div className="bg-zinc-900/20 border border-zinc-800/80 rounded-xl p-4 space-y-3">
               <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Submit Review</div>
               <textarea
                 value={reviewBody}
                 onChange={e => setReviewBody(e.target.value)}
                 placeholder="Review comments (optional)..."
                 rows={3}
-                className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none resize-none placeholder:text-zinc-600"
+                className="w-full bg-black/40 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none resize-none placeholder:text-zinc-600"
               />
               <div className="flex gap-2">
                 <button onClick={() => onSubmitReview("APPROVE")} className="px-3 py-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg text-xs font-bold hover:bg-emerald-500/20">Approve</button>
                 <button onClick={() => onSubmitReview("REQUEST_CHANGES")} className="px-3 py-1.5 bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg text-xs font-bold hover:bg-red-500/20">Request Changes</button>
-                <button onClick={() => onSubmitReview("COMMENT")} className="px-3 py-1.5 bg-white/5 text-zinc-400 border border-white/10 rounded-lg text-xs font-bold hover:bg-white/10">Comment</button>
+                <button onClick={() => onSubmitReview("COMMENT")} className="px-3 py-1.5 bg-zinc-900/60 text-zinc-400 border border-zinc-800 rounded-lg text-xs font-bold hover:bg-zinc-800/80">Comment</button>
               </div>
             </div>
           )}
 
           {/* Body */}
-          <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4">
+          <div className="bg-zinc-900/20 border border-zinc-800/80 rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
               <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Description</span>
               {!editingBody && (
@@ -516,7 +516,7 @@ function PRDetailView({
                 />
                 <div className="flex gap-2">
                   <button onClick={onSaveBody} className="px-3 py-1.5 bg-brand-accent text-black rounded-lg text-xs font-bold">Save</button>
-                  <button onClick={() => setEditingBody(false)} className="px-3 py-1.5 bg-white/5 text-zinc-400 rounded-lg text-xs">Cancel</button>
+                  <button onClick={() => setEditingBody(false)} className="px-3 py-1.5 bg-zinc-900/60 text-zinc-400 rounded-lg text-xs">Cancel</button>
                 </div>
               </div>
             ) : (
@@ -529,7 +529,7 @@ function PRDetailView({
             <div className="space-y-2">
               <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Commits ({pr.commits.length})</div>
               {pr.commits.map(c => (
-                <div key={c.sha} className="flex items-center gap-3 p-2.5 bg-white/[0.02] border border-white/5 rounded-lg">
+                <div key={c.sha} className="flex items-center gap-3 p-2.5 bg-zinc-900/20 border border-zinc-800/80 rounded-lg">
                   <GitCommit size={14} className="text-zinc-500 shrink-0" />
                   <span className="text-xs text-zinc-300 truncate flex-1">{c.message}</span>
                   <span className="text-[10px] text-zinc-600 font-mono shrink-0">{c.sha.slice(0, 7)}</span>
@@ -542,7 +542,7 @@ function PRDetailView({
           <div className="space-y-4">
             <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Comments ({pr.comments.length})</div>
             {pr.comments.map(c => (
-              <div key={c.id} className="bg-white/[0.02] border border-white/5 rounded-xl p-4">
+              <div key={c.id} className="bg-zinc-900/20 border border-zinc-800/80 rounded-xl p-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-bold text-zinc-300">@{c.author}</span>
                   <span className="text-[10px] text-zinc-600">{new Date(c.createdAt).toLocaleString()}</span>
@@ -553,13 +553,13 @@ function PRDetailView({
           </div>
 
           {/* Comment Input */}
-          <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4">
+          <div className="bg-zinc-900/20 border border-zinc-800/80 rounded-xl p-4">
             <textarea
               value={onComment}
               onChange={e => onCommentChange(e.target.value)}
               placeholder="Write a comment..."
               rows={4}
-              className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white font-mono focus:border-brand-accent/50 focus:outline-none resize-none placeholder:text-zinc-600"
+              className="w-full bg-black/40 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white font-mono focus:border-brand-accent/50 focus:outline-none resize-none placeholder:text-zinc-600"
             />
             <div className="flex justify-end mt-2">
               <button onClick={onSubmitComment} disabled={!onComment.trim()} className="px-4 py-2 bg-brand-accent text-black rounded-lg text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed">
@@ -984,19 +984,19 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] animate-in fade-in duration-300" onClick={onClose} />
+      <div className="fixed inset-0 bg-black/85 z-[100] animate-in fade-in duration-300" onClick={onClose} />
 
       <div className="fixed inset-0 flex items-center justify-center z-[101] p-4 pointer-events-none">
-        <div className="bg-[#0e0e11] border border-white/10 rounded-2xl shadow-[0_0_80px_-15px_rgba(0,0,0,0.8)] overflow-hidden w-full max-w-[1400px] h-[90vh] flex flex-col pointer-events-auto animate-in zoom-in-95 slide-in-from-bottom-8 duration-300">
+        <div className="bg-[#08080a] border border-zinc-800 rounded-2xl shadow-[0_0_80px_-15px_rgba(0,0,0,0.9)] overflow-hidden w-full max-w-[1400px] h-[90vh] flex flex-col pointer-events-auto animate-in zoom-in-95 slide-in-from-bottom-8 duration-300">
 
           {/* Top Navigation Bar */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-black/20 shrink-0">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-[#0d0d10] shrink-0">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2 text-zinc-100">
                 <Globe size={20} className="text-white" />
                 <h2 className="text-sm font-bold tracking-wide">Git Center</h2>
                 {status && (
-                  <span className="text-xs font-mono text-zinc-400 bg-white/5 px-2 py-1 rounded-md border border-white/5 ml-2">    
+                  <span className="text-xs font-mono text-zinc-400 bg-zinc-900 px-2 py-1 rounded-md border border-zinc-800 ml-2">    
                     {currentProject?.split(/[\\/]/).pop()}
                   </span>
                 )}
@@ -1004,10 +1004,10 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
             </div>
 
             <div className="flex items-center gap-2">
-              <button onClick={refresh} disabled={loading} className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/5 rounded-lg text-zinc-300 hover:text-white transition-all text-xs flex items-center gap-2 disabled:opacity-50">
+              <button onClick={refresh} disabled={loading} className="px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg text-zinc-300 hover:text-white transition-all text-xs flex items-center gap-2 disabled:opacity-50">
                 <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> Refresh
               </button>
-              <button onClick={onClose} className="p-1.5 bg-white/5 hover:bg-red-500/20 border border-white/5 rounded-lg text-zinc-400 hover:text-red-400 transition-all">
+              <button onClick={onClose} className="p-1.5 bg-zinc-900 hover:bg-red-950/40 border border-zinc-800 rounded-lg text-zinc-400 hover:text-red-400 transition-all">
                 <X size={16} />
               </button>
             </div>
@@ -1029,7 +1029,7 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
           <div className="flex-1 flex overflow-hidden">
             
             {/* Sidebar Navigation */}
-            <div className="w-56 border-r border-white/5 bg-black/40 flex flex-col p-3 gap-1 shrink-0">
+            <div className="w-56 border-r border-zinc-800/80 bg-black/40 flex flex-col p-3 gap-1 shrink-0">
               <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 mb-2 px-2 pt-2">Views</div>
               {TABS.map(tab => {
                 const Icon = tab.icon;
@@ -1046,7 +1046,7 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
                     key={tab.id}
                     onClick={() => { setActiveTab(tab.id as any); setSearchTerm(""); closeDetailView(); }}
                     className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-                      isActive ? "bg-brand-accent/15 text-brand-accent border border-brand-accent/20" : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200 border border-transparent"
+                      isActive ? "bg-brand-accent/15 text-brand-accent border border-brand-accent/20" : "text-zinc-400 hover:bg-zinc-900/60 hover:text-zinc-200 border border-transparent"
                     }`}
                   >
                     <div className="flex items-center gap-2.5">
@@ -1054,7 +1054,7 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
                       {tab.label}
                     </div>
                     {badgeCount > 0 && (
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${isActive ? 'bg-brand-accent/20' : 'bg-white/10'}`}>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${isActive ? 'bg-brand-accent/20' : 'bg-zinc-800/80'}`}>
                         {badgeCount}
                       </span>
                     )}
@@ -1063,14 +1063,14 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
               })}
 
               {/* Status Indicator */}
-              <div className="mt-auto p-3 bg-white/[0.02] border border-white/5 rounded-xl space-y-2">
+              <div className="mt-auto p-3 bg-zinc-900/20 border border-zinc-800/80 rounded-xl space-y-2">
                 <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Current Branch</div>
                 <div className="flex items-center gap-2 text-sm text-brand-accent font-mono">
                   <GitBranch size={14} />
                   <span className="truncate">{status?.branch || "..."}</span>
                 </div>
                 {status?.remote && (
-                  <div className="text-[10px] text-zinc-500 font-mono truncate pt-2 border-t border-white/5 mt-2">
+                  <div className="text-[10px] text-zinc-500 font-mono truncate pt-2 border-t border-zinc-800/80 mt-2">
                     {parseGitHubRemote(status.remote)?.owner}/{parseGitHubRemote(status.remote)?.repo}
                   </div>
                 )}
@@ -1084,8 +1084,8 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
               {activeTab === "overview" && (
                 <div className="flex-1 flex overflow-hidden">
                   {/* Left: Working Tree */}
-                  <div className="flex-[3] border-r border-white/5 flex flex-col min-w-0">
-                    <div className="px-5 py-3 bg-white/[0.02] border-b border-white/5 flex items-center justify-between">
+                  <div className="flex-[3] border-r border-zinc-800/80 flex flex-col min-w-0">
+                    <div className="px-5 py-3 bg-zinc-900/20 border-b border-zinc-800/80 flex items-center justify-between">
                       <h3 className="text-sm font-bold text-zinc-200">Working Tree</h3>
                       {status && status.unstaged.length > 0 && (
                         <button onClick={stageAll} className="px-3 py-1 bg-brand-accent/20 hover:bg-brand-accent/30 text-brand-accent border border-brand-accent/20 rounded-md text-xs font-bold transition-all flex items-center gap-1">
@@ -1101,15 +1101,15 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
                             Staged Changes
                             <span className="bg-emerald-500/10 px-1.5 py-0.5 rounded">{status.staged.length}</span>
                           </div>
-                          <div className="bg-white/[0.02] border border-white/5 rounded-xl overflow-hidden">
+                          <div className="bg-zinc-900/20 border border-zinc-800/80 rounded-xl overflow-hidden">
                             {status.staged.map(f => (
-                              <div key={f.path} className="flex items-center justify-between p-2.5 border-b border-white/5 hover:bg-white/5 group">
+                              <div key={f.path} className="flex items-center justify-between p-2.5 border-b border-zinc-800/80 hover:bg-zinc-900/60 group">
                                 <div className="flex items-center gap-3 min-w-0">
                                   <StatusIcon status={f.status} />
                                   <FileIcon filename={f.path.split("/").pop()!} size={16} />
                                   <span className="text-xs text-zinc-300 truncate font-mono">{f.path}</span>      
                                 </div>
-                                <button onClick={() => unstage(f.path)} className="opacity-0 group-hover:opacity-100 p-1 bg-white/10 hover:bg-white/20 text-zinc-400 rounded transition-all" title="Unstage">
+                                <button onClick={() => unstage(f.path)} className="opacity-0 group-hover:opacity-100 p-1 bg-zinc-800/80 hover:bg-white/20 text-zinc-400 rounded transition-all" title="Unstage">
                                   <Minus size={14} />
                                 </button>
                               </div>
@@ -1125,9 +1125,9 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
                             Unstaged Changes
                             <span className="bg-amber-500/10 px-1.5 py-0.5 rounded">{status.unstaged.length}</span>
                           </div>
-                          <div className="bg-white/[0.02] border border-white/5 rounded-xl overflow-hidden">
+                          <div className="bg-zinc-900/20 border border-zinc-800/80 rounded-xl overflow-hidden">
                             {status.unstaged.map(f => (
-                              <div key={f.path} className="flex items-center justify-between p-2.5 border-b border-white/5 hover:bg-white/5 group">
+                              <div key={f.path} className="flex items-center justify-between p-2.5 border-b border-zinc-800/80 hover:bg-zinc-900/60 group">
                                 <div className="flex items-center gap-3 min-w-0">
                                   <StatusIcon status={f.status} />
                                   <FileIcon filename={f.path.split("/").pop()!} size={16} />
@@ -1147,7 +1147,7 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
                         </div>
                       )}
                       {status && status.staged.length === 0 && status.unstaged.length === 0 && (
-                        <div className="h-32 flex flex-col items-center justify-center text-zinc-600 gap-2 border border-dashed border-white/10 rounded-xl">
+                        <div className="h-32 flex flex-col items-center justify-center text-zinc-600 gap-2 border border-dashed border-zinc-800 rounded-xl">
                           <Check size={24} />
                           <span className="text-xs font-mono">Working tree clean</span>
                         </div>
@@ -1157,7 +1157,7 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
 
                   {/* Right: Commit & Actions */}
                   <div className="flex-[2] flex flex-col min-w-0 bg-black/20">
-                    <div className="p-5 border-b border-white/5 space-y-3">
+                    <div className="p-5 border-b border-zinc-800/80 space-y-3">
                       <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Create Commit</div>
                       <textarea
                         value={commitMsg}
@@ -1165,7 +1165,7 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
                         placeholder="Commit message... (Ctrl+Enter)"
                         onKeyDown={e => { if (e.key === "Enter" && e.ctrlKey) commit(); }}
                         rows={3}
-                        className="w-full resize-none bg-black/60 border border-white/10 rounded-xl p-3 text-sm text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-brand-accent/50 focus:ring-1 focus:ring-brand-accent/50 transition-all font-mono"
+                        className="w-full resize-none bg-black/60 border border-zinc-800 rounded-xl p-3 text-sm text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-brand-accent/50 focus:ring-1 focus:ring-brand-accent/50 transition-all font-mono"
                       />
                       <div className="flex items-center gap-2">
                         <button
@@ -1176,22 +1176,22 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
                           {busy === "commit" ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                           Commit
                         </button>
-                        <button onClick={pull} disabled={!!busy} className="flex-1 flex items-center justify-center gap-2 py-2 bg-white/5 hover:bg-white/10 border border-white/5 text-zinc-300 rounded-lg transition-all disabled:opacity-50 text-xs font-bold">
+                        <button onClick={pull} disabled={!!busy} className="flex-1 flex items-center justify-center gap-2 py-2 bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-800/80 text-zinc-300 rounded-lg transition-all disabled:opacity-50 text-xs font-bold">
                           {busy === "pull" ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Pull
                         </button>
-                        <button onClick={push} disabled={!!busy} className="flex-1 flex items-center justify-center gap-2 py-2 bg-white/5 hover:bg-white/10 border border-white/5 text-zinc-300 rounded-lg transition-all disabled:opacity-50 text-xs font-bold">
+                        <button onClick={push} disabled={!!busy} className="flex-1 flex items-center justify-center gap-2 py-2 bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-800/80 text-zinc-300 rounded-lg transition-all disabled:opacity-50 text-xs font-bold">
                           {busy === "push" ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} Push
                         </button>
                       </div>
                     </div>
                     
                     <div className="flex-1 overflow-hidden flex flex-col">
-                      <div className="px-5 py-3 bg-white/[0.02] border-b border-white/5">
+                      <div className="px-5 py-3 bg-zinc-900/20 border-b border-zinc-800/80">
                         <h3 className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Recent Commits</h3>
                       </div>
                       <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2">
                         {log.slice(0, 5).map(entry => (
-                          <div key={entry.hash} className="p-3 bg-white/[0.02] border border-white/5 rounded-xl">
+                          <div key={entry.hash} className="p-3 bg-zinc-900/20 border border-zinc-800/80 rounded-xl">
                             <p className="text-sm font-medium text-zinc-200 mb-2 truncate">{entry.message}</p>
                             <div className="flex items-center justify-between text-xs">
                               <span className="text-zinc-500">{entry.author}</span>
@@ -1210,12 +1210,12 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
                 <div className="flex-1 flex overflow-hidden">
                   
                   {/* Sidebar: Commits & Files */}
-                  <div className="w-[350px] border-r border-white/5 flex flex-col min-w-0 bg-[#0d0d0f] shrink-0">
-                    <div className="px-4 py-3 border-b border-white/5 bg-white/[0.02] shrink-0 flex items-center justify-between">
+                  <div className="w-[350px] border-r border-zinc-800/80 flex flex-col min-w-0 bg-[#0d0d0f] shrink-0">
+                    <div className="px-4 py-3 border-b border-zinc-800/80 bg-zinc-900/20 shrink-0 flex items-center justify-between">
                       <h3 className="text-[11px] font-bold uppercase tracking-widest text-zinc-400">Source Control: Graph</h3>
                     </div>
                     
-                    <div className="p-2 border-b border-white/5 shrink-0 bg-black/20">
+                    <div className="p-2 border-b border-zinc-800/80 shrink-0 bg-black/20">
                       <div className="relative">
                         <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" />
                         <input
@@ -1223,7 +1223,7 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
                           placeholder="Search commits..."
                           value={searchTerm}
                           onChange={e => setSearchTerm(e.target.value)}
-                          className="bg-zinc-900/50 border border-white/10 rounded-md pl-8 pr-3 py-1.5 text-xs text-zinc-200 focus:border-brand-accent/50 outline-none w-full transition-colors"
+                          className="bg-zinc-900/50 border border-zinc-800 rounded-md pl-8 pr-3 py-1.5 text-xs text-zinc-200 focus:border-brand-accent/50 outline-none w-full transition-colors"
                         />
                       </div>
                     </div>
@@ -1236,7 +1236,7 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
                           <div key={entry.hash} className="flex flex-col">
                             {/* Commit Row */}
                             <div 
-                              className={`flex flex-col px-3 py-2 cursor-pointer transition-colors ${isExpanded ? 'bg-brand-accent/10 border-l-2 border-brand-accent' : 'border-l-2 border-transparent hover:bg-white/5'}`}
+                              className={`flex flex-col px-3 py-2 cursor-pointer transition-colors ${isExpanded ? 'bg-brand-accent/10 border-l-2 border-brand-accent' : 'border-l-2 border-transparent hover:bg-zinc-900/60'}`}
                               onClick={() => handleCommitClick(entry.hash)}
                             >
                               <div className="flex items-center justify-between gap-2 mb-1">
@@ -1261,7 +1261,7 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
 
                             {/* Expanded Files List */}
                             {isExpanded && (
-                              <div className="bg-black/40 border-y border-white/5 py-1">
+                              <div className="bg-black/40 border-y border-zinc-800/80 py-1">
                                 {commitFiles.length === 0 ? (
                                   <div className="py-3 flex justify-center">
                                     <Loader2 size={14} className="animate-spin text-zinc-500" />
@@ -1273,7 +1273,7 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
                                       <div
                                         key={file.path}
                                         onClick={() => handleFileClick(entry.hash, file.path)}
-                                        className={`flex items-center justify-between px-3 py-1.5 pl-8 cursor-pointer transition-colors ${isSelectedFile ? 'bg-brand-accent/20 text-brand-accent' : 'hover:bg-white/5 text-zinc-400'}`}
+                                        className={`flex items-center justify-between px-3 py-1.5 pl-8 cursor-pointer transition-colors ${isSelectedFile ? 'bg-brand-accent/20 text-brand-accent' : 'hover:bg-zinc-900/60 text-zinc-400'}`}
                                       >
                                         <div className="flex items-center gap-2 min-w-0">
                                           <FileIcon filename={file.path.split("/").pop()!} size={14} />
@@ -1311,7 +1311,7 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
                       </div>
                     ) : (
                       <>
-                        <div className="px-5 py-3 border-b border-white/5 bg-[#0e0e11] shrink-0 flex items-center gap-3">
+                        <div className="px-5 py-3 border-b border-zinc-800/80 bg-[#0e0e11] shrink-0 flex items-center gap-3">
                           <FileIcon filename={selectedFile.split("/").pop()!} size={16} />
                           <h3 className="text-xs font-bold text-zinc-200">
                             {selectedFile.split("/").pop()}
@@ -1326,7 +1326,7 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
                               <span className="text-xs font-medium tracking-wide">Loading diff...</span>
                             </div>
                           ) : fileDiff ? (
-                            <div className="text-[11px] font-mono leading-relaxed bg-[#0d0d0f] border border-white/5 rounded-xl overflow-hidden shadow-2xl">
+                            <div className="text-[11px] font-mono leading-relaxed bg-[#0d0d0f] border border-zinc-800/80 rounded-xl overflow-hidden shadow-2xl">
                               <table className="w-full border-collapse">
                                 <tbody className="align-top">
                                   {(() => {
@@ -1336,7 +1336,7 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
                                     return fileDiff.split('\n').map((line, i) => {
                                       if (line.startsWith('diff --git') || line.startsWith('index ') || line.startsWith('new file ') || line.startsWith('deleted file ')) {
                                         return (
-                                          <tr key={`header-${i}`} className="bg-black/80 border-b border-white/5">
+                                          <tr key={`header-${i}`} className="bg-black/80 border-b border-zinc-800/80">
                                             <td colSpan={4} className="px-4 py-2 text-zinc-500 text-[10px] select-none font-bold">
                                               {line}
                                             </td>
@@ -1366,7 +1366,7 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
                                       const content = line.substring(1);
                                       const prefix = isAdded ? '+' : isRemoved ? '-' : ' ';
 
-                                      let rowClass = "text-zinc-300 hover:bg-white/[0.02]";
+                                      let rowClass = "text-zinc-300 hover:bg-zinc-900/20";
                                       let prefixClass = "text-zinc-600 px-2 py-0.5 select-none w-6 text-center border-r border-transparent";
                                       let contentClass = "px-4 py-0.5 whitespace-pre break-all";
 
@@ -1388,8 +1388,8 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
 
                                       return (
                                         <tr key={i} className={rowClass}>
-                                          <td className="text-zinc-600/50 text-[10px] px-2 py-0.5 text-right w-10 select-none border-r border-white/5 bg-[#0a0a0c]">{currentOldLine}</td>
-                                          <td className="text-zinc-600/50 text-[10px] px-2 py-0.5 text-right w-10 select-none border-r border-white/5 bg-[#0a0a0c]">{currentNewLine}</td>
+                                          <td className="text-zinc-600/50 text-[10px] px-2 py-0.5 text-right w-10 select-none border-r border-zinc-800/80 bg-[#0a0a0c]">{currentOldLine}</td>
+                                          <td className="text-zinc-600/50 text-[10px] px-2 py-0.5 text-right w-10 select-none border-r border-zinc-800/80 bg-[#0a0a0c]">{currentNewLine}</td>
                                           <td className={prefixClass}>{prefix}</td>
                                           <td className={contentClass}>{content || ' '}</td>
                                         </tr>
@@ -1423,7 +1423,7 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
                         placeholder="Search branches..."
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
-                        className="bg-black/40 border border-white/10 rounded-lg pl-9 pr-4 py-1.5 text-xs text-white focus:border-brand-accent/50 outline-none w-64"
+                        className="bg-black/40 border border-zinc-800 rounded-lg pl-9 pr-4 py-1.5 text-xs text-white focus:border-brand-accent/50 outline-none w-64"
                       />
                     </div>
                   </div>
@@ -1439,7 +1439,7 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
                         value={newBranchName}
                         onChange={e => setNewBranchName(e.target.value)}
                         placeholder="feature/new-idea"
-                        className="bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-brand-accent/50 outline-none w-full font-mono transition-all"
+                        className="bg-black/40 border border-zinc-800 rounded-xl p-3 text-sm text-white focus:border-brand-accent/50 outline-none w-full font-mono transition-all"
                         onKeyDown={e => { if (e.key === 'Enter') createBranch(); }}
                       />
                       <button
@@ -1453,7 +1453,7 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
 
                     {/* Branch List */}
                     {branches.filter(b => b.name.toLowerCase().includes(searchTerm.toLowerCase())).map(b => (
-                      <div key={b.name} className="p-5 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-white/10 hover:bg-white/[0.04] transition-all flex flex-col group">
+                      <div key={b.name} className="p-5 rounded-2xl bg-zinc-900/20 border border-zinc-800/80 hover:border-zinc-800 hover:bg-zinc-900/40 transition-all flex flex-col group">
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex items-center gap-2 min-w-0">
                             <GitBranch size={16} className={b.isCurrent ? "text-brand-accent" : "text-zinc-500 shrink-0"} />
@@ -1466,19 +1466,19 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
                           {b.lastCommit || "No commit history"}
                         </div>
 
-                        <div className="flex items-center justify-between mt-auto pt-4 border-t border-white/5">
+                        <div className="flex items-center justify-between mt-auto pt-4 border-t border-zinc-800/80">
                           <div className="text-[10px] text-zinc-600 font-mono">{b.date}</div>
 
                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             {!b.isCurrent && (
                               <>
-                                <button onClick={() => mergeBranch(b.name)} className="p-2 bg-white/5 hover:bg-indigo-500/20 text-zinc-400 hover:text-indigo-400 rounded-lg transition-colors" title="Merge into current">
+                                <button onClick={() => mergeBranch(b.name)} className="p-2 bg-zinc-900/60 hover:bg-indigo-500/20 text-zinc-400 hover:text-indigo-400 rounded-lg transition-colors" title="Merge into current">
                                   <GitMerge size={14} />
                                 </button>
-                                <button onClick={() => deleteBranch(b.name)} className="p-2 bg-white/5 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 rounded-lg transition-colors mr-1" title="Delete Branch">
+                                <button onClick={() => deleteBranch(b.name)} className="p-2 bg-zinc-900/60 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 rounded-lg transition-colors mr-1" title="Delete Branch">
                                   <Trash2 size={14} />
                                 </button>
-                                <button onClick={() => switchBranch(b.name)} className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1">
+                                <button onClick={() => switchBranch(b.name)} className="px-3 py-1.5 bg-zinc-800/80 hover:bg-white/20 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1">
                                   Switch <ArrowRight size={12} />
                                 </button>
                               </>
@@ -1557,9 +1557,9 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
                   {/* List View (only when no detail selected) */}
                   {!selectedIssue && !selectedPR && (
                     <>
-                      <div className="px-6 py-4 border-b border-white/5 bg-white/[0.02] flex items-center justify-between">
+                      <div className="px-6 py-4 border-b border-zinc-800/80 bg-zinc-900/20 flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <button onClick={() => setActiveTab("overview")} className="p-1 hover:bg-white/10 rounded transition-colors">
+                          <button onClick={() => setActiveTab("overview")} className="p-1 hover:bg-zinc-800/80 rounded transition-colors">
                             <ArrowRight size={14} className="rotate-180 text-zinc-400" />
                           </button>
                           <h3 className="text-sm font-bold text-zinc-200 capitalize">GitHub {activeTab.replace("prs", "Pull Requests")}</h3>
@@ -1576,7 +1576,7 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
                             placeholder={`Search ${activeTab}...`}
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
-                            className="bg-black/40 border border-white/10 rounded-lg pl-9 pr-4 py-1.5 text-xs text-white focus:border-brand-accent/50 outline-none w-64"
+                            className="bg-black/40 border border-zinc-800 rounded-lg pl-9 pr-4 py-1.5 text-xs text-white focus:border-brand-accent/50 outline-none w-64"
                           />
                         </div>
                       </div>
@@ -1596,7 +1596,7 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
                           )}
 
                           {activeTab === "issues" && githubIssues.filter(i => i.title.toLowerCase().includes(searchTerm.toLowerCase())).map(issue => (
-                            <div key={issue.number} className="p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-white/10 hover:bg-white/[0.04] transition-all group cursor-pointer" onClick={() => openIssueDetail(issue)}>
+                            <div key={issue.number} className="p-4 rounded-xl bg-zinc-900/20 border border-zinc-800/80 hover:border-zinc-800 hover:bg-zinc-900/40 transition-all group cursor-pointer" onClick={() => openIssueDetail(issue)}>
                               <div className="flex items-start justify-between gap-4 mb-2">
                                 <h4 className="text-sm font-bold text-zinc-200 group-hover:text-brand-accent transition-colors leading-tight">
                                   {issue.title}
@@ -1610,7 +1610,7 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
                               {issue.labels.length > 0 && (
                                 <div className="flex flex-wrap items-center gap-1.5 mb-3">
                                   {issue.labels.map(l => (
-                                    <span key={l.name} className="text-[9px] px-1.5 py-0.5 rounded-md border border-white/10 font-medium" style={{ color: `#${l.color}`, backgroundColor: `#${l.color}15` }}>
+                                    <span key={l.name} className="text-[9px] px-1.5 py-0.5 rounded-md border border-zinc-800 font-medium" style={{ color: `#${l.color}`, backgroundColor: `#${l.color}15` }}>
                                       {l.name}
                                     </span>
                                   ))}
@@ -1626,7 +1626,7 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
                           ))}
 
                           {activeTab === "prs" && githubPRs.filter(p => p.title.toLowerCase().includes(searchTerm.toLowerCase())).map(pr => (
-                            <div key={pr.number} className="p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-white/10 hover:bg-white/[0.04] transition-all group cursor-pointer" onClick={() => openPRDetail(pr)}>
+                            <div key={pr.number} className="p-4 rounded-xl bg-zinc-900/20 border border-zinc-800/80 hover:border-zinc-800 hover:bg-zinc-900/40 transition-all group cursor-pointer" onClick={() => openPRDetail(pr)}>
                               <div className="flex items-start justify-between gap-4 mb-2">
                                 <h4 className="text-sm font-bold text-zinc-200 group-hover:text-brand-accent transition-colors leading-tight">
                                   {pr.title}
@@ -1642,7 +1642,7 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
                                   <GitMerge size={10} /> {pr.branchRef}
                                 </span>
                                 {pr.labels.map(l => (
-                                  <span key={l.name} className="text-[9px] px-1.5 py-0.5 rounded-md border border-white/10 font-medium" style={{ color: `#${l.color}`, backgroundColor: `#${l.color}15` }}>
+                                  <span key={l.name} className="text-[9px] px-1.5 py-0.5 rounded-md border border-zinc-800 font-medium" style={{ color: `#${l.color}`, backgroundColor: `#${l.color}15` }}>
                                     {l.name}
                                   </span>
                                 ))}

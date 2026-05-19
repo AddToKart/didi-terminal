@@ -55,9 +55,9 @@ export function TwoFactorModal({ isOpen, workspaceId, workspaceName, onVerify, o
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-zinc-950/90 backdrop-blur-md animate-in fade-in duration-300" onClick={onCancel} />
+      <div className="absolute inset-0 bg-black/85 animate-in fade-in duration-300" onClick={onCancel} />
       
-      <div className="relative w-full max-w-sm bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-sm bg-[#0a0a0c] border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
         <div className="h-1.5 w-full bg-brand-accent shadow-[0_0_15px_rgba(var(--brand-accent-rgb),0.3)]" />
         
         <div className="p-8 flex flex-col items-center text-center">
@@ -69,7 +69,7 @@ export function TwoFactorModal({ isOpen, workspaceId, workspaceName, onVerify, o
           <p className="text-sm text-zinc-400 mb-8 px-4">
             Enter your PIN to unlock <span className="text-white font-bold">{workspaceName}</span>
           </p>
-
+ 
           <form onSubmit={handleSubmit} className="w-full space-y-6">
             <div className="relative group">
               <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-brand-accent transition-colors" size={18} />
@@ -80,17 +80,17 @@ export function TwoFactorModal({ isOpen, workspaceId, workspaceName, onVerify, o
                 value={pin}
                 onChange={(e) => setPin(e.target.value)}
                 className={`w-full h-12 bg-zinc-950 border pl-12 pr-4 rounded-xl text-center text-lg font-bold tracking-[0.5em] outline-none transition-all ${
-                  error ? 'border-red-500/50 text-red-400 focus:ring-1 focus:ring-red-500' : 'border-white/10 text-white focus:border-brand-accent focus:ring-1 focus:ring-brand-accent'
+                  error ? 'border-red-500/50 text-red-400 focus:ring-1 focus:ring-red-500' : 'border-zinc-800 text-white focus:border-brand-accent focus:ring-1 focus:ring-brand-accent'
                 }`}
               />
             </div>
-
+ 
             {error && (
               <p className="text-xs text-red-400 bg-red-400/5 py-2 px-3 rounded-lg border border-red-400/10 animate-in shake duration-300">
                 {error}
               </p>
             )}
-
+ 
             <div className="flex flex-col gap-3 pt-2">
               <button
                 type="submit"
@@ -118,7 +118,7 @@ export function TwoFactorModal({ isOpen, workspaceId, workspaceName, onVerify, o
           </form>
         </div>
         
-        <div className="px-8 py-4 bg-zinc-950/50 border-t border-white/5 flex items-center justify-center gap-2">
+        <div className="px-8 py-4 bg-[#070709] border-t border-zinc-800 flex items-center justify-center gap-2">
           <Fingerprint size={12} className="text-zinc-600" />
           <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">Didi Security Protocol</span>
         </div>

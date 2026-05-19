@@ -104,8 +104,8 @@ function SectionItem({ workspaceId, section, isActive, tasks, agentReadyStates, 
       className={cn(
         "pl-9 pr-2 py-2 flex flex-col gap-1 group cursor-pointer transition-all duration-300 relative border-l-2 ml-1 mr-2 my-0.5 rounded-r-lg",
         isActive
-          ? "bg-zinc-800/60 border-brand-accent shadow-[inset_1px_0_0_0_rgba(255,255,255,0.05)]"
-          : "border-transparent hover:bg-zinc-800/30 hover:border-zinc-700"
+          ? "bg-zinc-900/40 border-brand-accent shadow-[inset_1px_0_0_0_rgba(255,255,255,0.01)]"
+          : "border-transparent hover:bg-zinc-900/20 hover:border-zinc-800 hover:pl-[38px]"
       )}
     >
       <div className="flex items-center justify-between">
@@ -121,7 +121,7 @@ function SectionItem({ workspaceId, section, isActive, tasks, agentReadyStates, 
             }}
             onClick={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
-            className="text-xs font-bold bg-zinc-950/80 border border-white/10 rounded-md px-1 py-0.5 outline-none text-white w-full focus:ring-1 focus:ring-brand-accent"
+            className="text-xs font-bold bg-zinc-950/80 border border-zinc-800 rounded-md px-1 py-0.5 outline-none text-white w-full focus:ring-1 focus:ring-brand-accent"
           />
         ) : (
           <span
@@ -151,14 +151,14 @@ function SectionItem({ workspaceId, section, isActive, tasks, agentReadyStates, 
                 <MoreVertical size={12} className="text-zinc-400" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40 rounded-xl shadow-2xl border-white/10 bg-zinc-900/95 backdrop-blur-md">
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setIsEditing(true); }} className="gap-2 cursor-pointer text-xs focus:bg-white/10">
+            <DropdownMenuContent align="end" className="w-40 rounded-xl shadow-2xl border-zinc-800 bg-zinc-950">
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setIsEditing(true); }} className="gap-2 cursor-pointer text-xs focus:bg-zinc-900 focus:text-white">
                 <Pencil size={14} className="text-zinc-400" /> Rename
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onOpenSecurity(workspaceId); }} className="gap-2 cursor-pointer text-xs focus:bg-white/10">
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onOpenSecurity(workspaceId); }} className="gap-2 cursor-pointer text-xs focus:bg-zinc-900 focus:text-white">
                 <Shield size={14} className="text-zinc-400" /> Security
               </DropdownMenuItem>
-              <DropdownMenuSeparator className="bg-white/5" />
+              <DropdownMenuSeparator className="bg-zinc-800" />
               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDelete(workspaceId, section.id); }} className="gap-2 cursor-pointer text-xs text-red-400 focus:bg-red-500/10 focus:text-red-300">
                 <Trash2 size={14} /> Delete
               </DropdownMenuItem>
@@ -273,22 +273,22 @@ function SortableWorkspaceItem({
         className={cn(
           "group relative flex flex-col justify-between rounded-xl cursor-pointer select-none transition-all duration-300 ease-out border",
           isDragOverlay
-            ? "bg-zinc-900 shadow-2xl border-brand-accent/50 backdrop-blur-xl scale-105" 
+            ? "bg-zinc-900 shadow-2xl border-brand-accent/50 scale-105" 
             : isDragging
             ? "opacity-40 scale-95 grayscale"
             : isActive
-            ? "bg-zinc-900/80 border-white/10 shadow-lg"
-            : "border-transparent hover:bg-zinc-800/40"
+            ? "bg-[#111216] border-zinc-800 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.5)] shadow-zinc-950/80 ring-1 ring-white/5 hover:border-zinc-700/80"
+            : "border-transparent hover:bg-zinc-900/60"
         )}
       >
         {/* Active Indicator Bar on the far left */}
         {isActive && !isDragging && !isDragOverlay && (
-          <div className="absolute left-0 top-3 w-1 h-8 bg-brand-accent rounded-r-full shadow-[0_0_12px_rgba(var(--brand-accent-rgb),0.8)] z-10" />
+          <div className="absolute left-0 top-3.5 w-0.5 h-7 bg-brand-accent rounded-r-full shadow-[0_0_10px_#00f0ff] z-10" />
         )}
         <div className="flex items-center justify-between px-2 py-3">
           <div className="flex items-center gap-2 flex-1 min-w-0 pl-1">
             <CollapsibleTrigger asChild>
-              <Button variant="ghost" size="icon" className="size-6 rounded-md hover:bg-white/10 text-zinc-500 hover:text-zinc-300 p-0 shrink-0 transition-colors" onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}>
+              <Button variant="ghost" size="icon" className="size-6 rounded-md hover:bg-zinc-800/80 text-zinc-500 hover:text-zinc-300 p-0 shrink-0 transition-colors" onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}>
                 {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
               </Button>
             </CollapsibleTrigger>
@@ -305,7 +305,7 @@ function SortableWorkspaceItem({
                   }}
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={(e) => e.stopPropagation()}
-                  className="text-sm font-bold bg-zinc-950/80 border border-white/10 rounded-md px-1.5 py-0.5 outline-none text-white w-full focus:ring-1 focus:ring-brand-accent"
+                  className="text-sm font-bold bg-zinc-950/80 border border-zinc-800 rounded-md px-1.5 py-0.5 outline-none text-white w-full focus:ring-1 focus:ring-brand-accent"
                 />
               ) : (
                 <div
@@ -329,7 +329,7 @@ function SortableWorkspaceItem({
                     <>
                       <span className="text-zinc-700 mx-0.5">•</span>
                       <span
-                        className="flex items-center gap-1 font-mono tracking-tighter truncate rounded-md bg-white/5 px-1 text-zinc-400"
+                        className="flex items-center gap-1 font-mono tracking-tighter truncate rounded-md bg-zinc-900/60 px-1 text-zinc-400"
                         title={`Branch: ${branch}`}
                       >
                         <GitBranch size={9} />
@@ -347,10 +347,10 @@ function SortableWorkspaceItem({
               <TooltipTrigger asChild>
                 <div
                   className={cn(
-                    "w-2 h-2 rounded-full transition-all duration-300",
+                    "w-1.5 h-1.5 rounded-full transition-all duration-300",
                     ws.directory
-                      ? "bg-emerald-400/80 shadow-[0_0_8px_rgba(52,211,153,0.4)]"
-                      : "bg-amber-400/80 shadow-[0_0_8px_rgba(251,191,36,0.4)]"
+                      ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"
+                      : "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]"
                   )}
                 />
               </TooltipTrigger>
@@ -374,23 +374,23 @@ function SortableWorkspaceItem({
                   <MoreVertical size={14} className="text-zinc-500" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48 rounded-xl shadow-2xl border-white/10 bg-zinc-900/95 backdrop-blur-md">
-                <DropdownMenuItem onClick={() => onOpenDirectory(ws.id)} className="gap-2 cursor-pointer text-xs focus:bg-white/10">
+              <DropdownMenuContent align="end" className="w-48 rounded-xl shadow-2xl border-zinc-800 bg-zinc-950">
+                <DropdownMenuItem onClick={() => onOpenDirectory(ws.id)} className="gap-2 cursor-pointer text-xs focus:bg-zinc-900 focus:text-white">
                   <FolderOpen size={14} className="text-zinc-400" /> Open Directory
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => onRenameStart(ws.id, ws.name)}
-                  className="gap-2 cursor-pointer text-xs focus:bg-white/10"
+                  className="gap-2 cursor-pointer text-xs focus:bg-zinc-900 focus:text-white"
                 >
                   <Pencil size={14} className="text-zinc-400" /> Rename
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => onOpenSecurity(ws.id)}
-                  className="gap-2 cursor-pointer text-xs focus:bg-white/10"
+                  className="gap-2 cursor-pointer text-xs focus:bg-zinc-900 focus:text-white"
                 >
                   <Shield size={14} className="text-zinc-400" /> Security
                 </DropdownMenuItem>
-                <DropdownMenuSeparator className="bg-white/5" />
+                <DropdownMenuSeparator className="bg-zinc-800" />
                 <DropdownMenuItem
                   onClick={() => onDelete(ws.id)}
                   className="gap-2 cursor-pointer text-xs text-red-400 focus:bg-red-500/10 focus:text-red-300"
@@ -501,7 +501,7 @@ export function AppGlobalSidebar({
 
   return (
     <TooltipProvider delayDuration={300}>
-      <aside className="w-80 border-r border-white/5 bg-[#0b0c0e] flex flex-col shadow-2xl z-20 shrink-0 relative overflow-hidden">
+      <aside className="w-80 border-r border-zinc-800/80 bg-[#0b0c0e] flex flex-col shadow-2xl z-20 shrink-0 relative overflow-hidden">
         <ScrollArea className="flex-1 px-3 mt-4">
           <div className="space-y-6 pb-6">
             <div>
@@ -513,7 +513,7 @@ export function AppGlobalSidebar({
                       variant="ghost"
                       size="icon"
                       onClick={onCreateWorkspace}
-                      className="size-5 rounded-md hover:bg-white/10 text-zinc-400 hover:text-zinc-200"
+                      className="size-5 rounded-md hover:bg-zinc-800/80 text-zinc-400 hover:text-zinc-200"
                     >
                       <Plus size={12} strokeWidth={3} />
                     </Button>
@@ -595,8 +595,8 @@ export function AppGlobalSidebar({
           </div>
         </ScrollArea>
 
-        <div className="p-4 bg-[#0b0c0e]/90 border-t border-white/5 backdrop-blur-md relative z-10 space-y-4">
-          <div className="bg-zinc-900/50 p-1 rounded-xl flex gap-1 ring-1 ring-white/5 shadow-inner">
+        <div className="p-4 bg-[#08080a] border-t border-zinc-800/80 relative z-10 space-y-4">
+          <div className="bg-zinc-950 p-1 rounded-xl flex gap-1 border border-zinc-800/80 shadow-inner">
             <Button
               variant={appMode === "terminal" ? "secondary" : "ghost"}
               size="sm"
@@ -604,8 +604,8 @@ export function AppGlobalSidebar({
               className={cn(
                 "flex-1 min-w-0 h-8 px-2 rounded-lg text-[11px] font-semibold transition-all",
                 appMode === "terminal"
-                  ? "bg-white/10 text-white shadow-sm hover:bg-white/15"
-                  : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
+                  ? "bg-zinc-800 text-white border border-zinc-800/60 shadow-sm hover:bg-zinc-700"
+                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60"
               )}
             >
               <TerminalSquare size={14} className="mr-1 shrink-0" strokeWidth={2.5} /> <span className="truncate">Terminal</span>
@@ -617,8 +617,8 @@ export function AppGlobalSidebar({
               className={cn(
                 "flex-1 min-w-0 h-8 px-2 rounded-lg text-[11px] font-semibold transition-all",
                 appMode === "orchestrator"
-                  ? "bg-purple-500/20 text-purple-200 shadow-sm ring-1 ring-purple-500/30 hover:bg-purple-500/30"
-                  : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
+                  ? "bg-purple-500/20 text-purple-200 shadow-sm border border-purple-500/40 hover:bg-purple-500/30"
+                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60"
               )}
             >
               <Workflow size={14} className="mr-1 shrink-0" strokeWidth={2.5} /> <span className="truncate">Orchestrator</span>
@@ -630,8 +630,8 @@ export function AppGlobalSidebar({
               className={cn(
                 "w-8 h-8 shrink-0 rounded-lg transition-all",
                 appMode === "zen"
-                  ? "bg-emerald-500/20 text-emerald-200 shadow-sm ring-1 ring-emerald-500/30 hover:bg-emerald-500/30"
-                  : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
+                  ? "bg-emerald-500/20 text-emerald-200 shadow-sm border border-emerald-500/40 hover:bg-emerald-500/30"
+                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60"
               )}
               title="Zen Mode"
             >
@@ -645,24 +645,24 @@ export function AppGlobalSidebar({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="size-8 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 data-[state=open]:bg-white/10 data-[state=open]:text-white">
+                      <Button variant="ghost" size="icon" className="size-8 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/60 data-[state=open]:bg-zinc-800/60 data-[state=open]:text-white">
                         <Share2 size={16} />
                       </Button>
                     </DropdownMenuTrigger>
                   </TooltipTrigger>
                   <TooltipContent>Remote Dashboard</TooltipContent>
                 </Tooltip>
-                <DropdownMenuContent align="start" sideOffset={12} className="w-64 p-3 rounded-2xl border-white/10 shadow-2xl bg-zinc-950/95 backdrop-blur-xl">
+                <DropdownMenuContent align="start" sideOffset={12} className="w-64 p-3 rounded-2xl border-zinc-800 shadow-2xl bg-zinc-950">
                   <div className="flex items-center gap-2 mb-2">
                     <Globe size={14} className="text-brand-accent" />
                     <p className="text-xs font-semibold text-zinc-200">Local Network Access</p>
                   </div>
-                  <div className="bg-black/50 p-2 rounded-xl border border-white/5 flex items-center justify-between gap-2 group">
+                  <div className="bg-black/50 p-2 rounded-xl border border-zinc-900 flex items-center justify-between gap-2 group">
                     <p className="text-[10px] font-mono text-zinc-400 truncate pl-1">http://localhost:1420/dashboard</p>
                     <Button
                       variant="secondary"
                       size="icon"
-                      className="size-6 rounded-md shrink-0 bg-white/5 hover:bg-white/10"
+                      className="size-6 rounded-md shrink-0 bg-zinc-900 hover:bg-zinc-800"
                       onClick={(e) => {
                         e.stopPropagation();
                         navigator.clipboard.writeText("http://localhost:1420/dashboard");
@@ -679,7 +679,7 @@ export function AppGlobalSidebar({
 
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="size-8 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10">
+                  <Button variant="ghost" size="icon" className="size-8 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/60">
                     <Palette size={16} />
                   </Button>
                 </TooltipTrigger>
@@ -688,7 +688,7 @@ export function AppGlobalSidebar({
 
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="size-8 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10">
+                  <Button variant="ghost" size="icon" className="size-8 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/60">
                     <Bell size={16} />
                   </Button>
                 </TooltipTrigger>
@@ -702,7 +702,7 @@ export function AppGlobalSidebar({
                   variant="ghost"
                   size="icon"
                   onClick={onOpenSettings}
-                  className="size-8 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10"
+                  className="size-8 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/60"
                 >
                   <Settings size={16} />
                 </Button>
@@ -715,4 +715,5 @@ export function AppGlobalSidebar({
     </TooltipProvider>
   );
 }
+
 

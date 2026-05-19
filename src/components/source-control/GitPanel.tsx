@@ -264,8 +264,8 @@ export function GitPanel({ currentProject, isOpen, onClose, onOpenFullscreen }: 
       </div>
 
       {/* Modern Professional Tabs */}
-      <div className="px-3 py-2 border-b border-white/5 bg-zinc-900/20">
-        <div className="flex bg-black/40 p-1 rounded-lg border border-white/5">
+      <div className="px-3 py-2 border-b border-zinc-800/80 bg-zinc-900/20">
+        <div className="flex bg-[#08080a] p-1 rounded-lg border border-zinc-800/80">
           {(["overview", "branches", "history"] as const).map(tab => (
             <button
               key={tab}
@@ -273,7 +273,7 @@ export function GitPanel({ currentProject, isOpen, onClose, onOpenFullscreen }: 
               className={`flex-1 flex items-center justify-center py-1.5 rounded-md text-[9px] font-bold uppercase tracking-wider transition-all duration-200 ${
                 activeTab === tab 
                   ? "bg-brand-accent text-white shadow-lg shadow-brand-accent/20" 
-                  : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
+                  : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/60"
               }`}
             >
               {tab}
@@ -377,7 +377,7 @@ export function GitPanel({ currentProject, isOpen, onClose, onOpenFullscreen }: 
               </Section>
             </div>
 
-            <div className="flex-1 overflow-y-auto custom-scrollbar border-t border-white/[0.03] pt-4">
+            <div className="flex-1 overflow-y-auto custom-scrollbar border-t border-zinc-800/50 pt-4">
               <Section
                 title="Changes"
                 count={status.unstaged.length}
@@ -427,7 +427,7 @@ export function GitPanel({ currentProject, isOpen, onClose, onOpenFullscreen }: 
                 className={`p-3 rounded-lg border transition-all flex flex-col gap-2 ${
                   b.isCurrent 
                     ? "bg-brand-accent/10 border-brand-accent/20" 
-                    : "bg-white/[0.02] border-white/5 hover:bg-white/5"
+                    : "bg-zinc-900/20 border-zinc-800/80 hover:bg-zinc-900/60"
                 }`}
               >
                 <div className="flex items-center justify-between">
@@ -440,7 +440,7 @@ export function GitPanel({ currentProject, isOpen, onClose, onOpenFullscreen }: 
                 {!b.isCurrent && (
                   <button 
                     onClick={() => run("switch:" + b.name, () => invoke("git_panel_switch_branch", { cwd: currentProject!, branch: b.name }))}
-                    className="w-full py-1.5 bg-white/5 hover:bg-white/10 text-white text-[10px] font-bold rounded transition-colors"
+                    className="w-full py-1.5 bg-zinc-900/60 hover:bg-zinc-800/80 text-white text-[10px] font-bold rounded transition-colors"
                   >
                     Checkout
                   </button>
@@ -457,7 +457,7 @@ export function GitPanel({ currentProject, isOpen, onClose, onOpenFullscreen }: 
               <p className="text-[10px] text-zinc-600 px-3 py-8 text-center italic">No commits yet</p>
             ) : (
               log.map(entry => (
-                <div key={entry.hash} className="flex items-start gap-2.5 px-4 py-3 hover:bg-zinc-800/30 border-b border-white/[0.03] transition-colors group">
+                <div key={entry.hash} className="flex items-start gap-2.5 px-4 py-3 hover:bg-zinc-800/30 border-b border-zinc-800/50 transition-colors group">
                   <div className="mt-1 w-1.5 h-1.5 rounded-full border border-zinc-600 bg-zinc-900 shrink-0" />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start gap-2 flex-wrap">
@@ -478,3 +478,4 @@ export function GitPanel({ currentProject, isOpen, onClose, onOpenFullscreen }: 
     </div>
   );
 }
+

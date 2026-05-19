@@ -178,13 +178,13 @@ function WebDevPopover({ onToggleIconBrowser, onToggleTailwindLabs, onToggleNpmL
       {open && coords && (
         <div 
           id="web-dev-popover-menu"
-          className="fixed w-64 bg-[#0b0b0d]/98 backdrop-blur-2xl border border-white/10 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.6)] overflow-hidden z-[500]"
+          className="fixed w-64 bg-zinc-950 border border-zinc-800 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.6)] overflow-hidden z-[500]"
           style={{
             top: `${coords.top}px`,
             right: `${coords.right}px`
           }}
         >
-          <div className="px-4 py-2.5 border-b border-white/5">
+          <div className="px-4 py-2.5 border-b border-zinc-900">
             <span className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest">Web Development</span>
           </div>
           <div className="p-1.5">
@@ -192,9 +192,9 @@ function WebDevPopover({ onToggleIconBrowser, onToggleTailwindLabs, onToggleNpmL
               <button
                 key={item.label}
                 onClick={item.action}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all hover:bg-white/[0.04] group text-left"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all hover:bg-zinc-900 group text-left"
               >
-                <div className={`p-2 rounded-lg bg-gradient-to-br ${item.gradient} border border-white/5`}>
+                <div className={`p-2 rounded-lg bg-gradient-to-br ${item.gradient} border border-zinc-900`}>
                   <item.icon size={16} className={item.color} />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -202,12 +202,12 @@ function WebDevPopover({ onToggleIconBrowser, onToggleTailwindLabs, onToggleNpmL
                   <div className="text-[9px] text-zinc-600 mt-0.5">{item.desc}</div>
                 </div>
                 {item.badge && (
-                  <span className="text-[9px] font-mono text-zinc-600 bg-white/5 px-1.5 py-0.5 rounded border border-white/5">{item.badge}</span>
+                  <span className="text-[9px] font-mono text-zinc-500 bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-800">{item.badge}</span>
                 )}
               </button>
             ))}
           </div>
-          <div className="px-4 py-2 border-t border-white/5 bg-white/[0.02]">
+          <div className="px-4 py-2 border-t border-zinc-900 bg-zinc-900/30">
             <span className="text-[8px] text-zinc-700">More tools coming soon</span>
           </div>
         </div>
@@ -271,7 +271,7 @@ export function AppTopbar({
         </button>
         <form onSubmit={onSpawnAgent} className="flex items-center gap-1 md:gap-2" data-tauri-drag-region>
         <div className="relative flex items-center">
-          <button type="submit" className="absolute left-1.5 text-brand-primary transition-all duration-200 hover:scale-110 active:scale-95 p-1 z-10 rounded">
+          <button type="submit" className="absolute left-1.5 text-zinc-500 hover:text-brand-primary transition-all duration-200 hover:scale-110 active:scale-95 p-1 z-10 rounded">
             <Plus size={14} strokeWidth={3} />
           </button>
           <input
@@ -279,171 +279,180 @@ export function AppTopbar({
             value={newAgentName}
             onChange={e => onChangeNewAgentName(e.target.value)}
             placeholder={appMode === "terminal" ? "Spawn new terminal..." : "Spawn new agent..."}
-            className="bg-app-panel border border-app-border focus:border-brand-accent text-white pl-8 pr-3 py-0 text-[10px] font-bold outline-none transition-all duration-300 w-24 sm:w-32 md:w-48 lg:w-64 placeholder:text-zinc-400 rounded-md shadow-sm h-5"
+            className="bg-zinc-950/80 border border-zinc-800 focus:border-brand-accent/60 text-white pl-8 pr-14 py-0 text-[10px] font-bold outline-none transition-all duration-300 w-24 sm:w-32 md:w-48 lg:w-64 placeholder:text-zinc-500 rounded-md shadow-inner h-6 focus:shadow-[0_0_10px_rgba(0,240,255,0.1)] focus:ring-1 focus:ring-brand-accent/30"
           />
+          <div className="absolute right-2 flex items-center gap-0.5 pointer-events-none select-none">
+            <kbd className="bg-zinc-900 border border-zinc-800 rounded px-1 py-0.5 text-[7px] font-mono text-zinc-400 font-bold uppercase tracking-wide">Ctrl</kbd>
+            <kbd className="bg-zinc-900 border border-zinc-800 rounded px-1.5 py-0.5 text-[7px] font-mono text-zinc-400 font-bold uppercase tracking-wide">K</kbd>
+          </div>
         </div>
         <button
           type="button"
           onClick={onSpawnBrowser}
-          className="p-1 rounded-lg transition-all duration-200 text-zinc-300 hover:text-brand-primary bg-app-panel border border-app-border hover:border-brand-primary/30 hover:scale-105 active:scale-95 hover:shadow-[0_0_8px_rgba(var(--brand-primary),0.2)]"
+          className="p-1 h-6 w-6 flex items-center justify-center rounded-md transition-all duration-200 text-zinc-400 hover:text-brand-primary bg-app-panel border border-app-border hover:border-brand-primary/30 hover:scale-105 active:scale-95 hover:shadow-[0_0_8px_rgba(228,228,231,0.2)]"
           title="Open Browser Pane"
         >
-          <Globe size={16} strokeWidth={2.5} />
+          <Globe size={14} strokeWidth={2.5} />
         </button>
       </form>
       </div>
 
-      <div className="flex items-stretch h-full gap-1 md:gap-3" data-tauri-drag-region>
+      <div className="flex items-center h-full gap-1.5" data-tauri-drag-region>
         {appMode === "orchestrator" && (
-          <div className="flex items-center gap-1 md:gap-3 px-1 md:px-2" data-tauri-drag-region>
-
-            <button
-              onClick={onOpenBrainstorm}
-              className="p-1 rounded-lg transition-all duration-200 text-zinc-300 hover:text-brand-primary bg-app-panel border border-app-border hover:border-brand-primary/30 hover:scale-105 active:scale-95 hover:shadow-[0_0_8px_rgba(var(--brand-primary),0.2)]"
-              title="Brainstorm Mode"
-            >
-              <Brain size={16} strokeWidth={2.5} />
-            </button>
-            <button
-              onClick={onOpenMasterPlan}
-              className="p-1 rounded-lg transition-all duration-200 text-zinc-300 hover:text-brand-primary bg-app-panel border border-app-border hover:border-brand-primary/30 hover:scale-105 active:scale-95 hover:shadow-[0_0_8px_rgba(var(--brand-primary),0.2)]"
-              title="Master Plan Board"
-            >
-              <ClipboardList size={16} strokeWidth={2.5} />
-            </button>
-            <button
-              onClick={onOpenNetworkGraph}
-              className="p-1 rounded-lg transition-all duration-200 text-zinc-300 hover:text-brand-primary bg-app-panel border border-app-border hover:border-brand-primary/30 hover:scale-105 active:scale-95 hover:shadow-[0_0_8px_rgba(var(--brand-primary),0.2)]"
-              title="Collaboration Graph"
-            >
-              <Network size={16} strokeWidth={2.5} />
-            </button>
-          </div>
-        )}
-        <div className="flex items-center gap-1 md:gap-3 px-1 md:px-2" data-tauri-drag-region>
-        {currentProject && (
-          <div className="flex items-center bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-1.5 py-0.5 gap-1 shadow-sm ml-2">
-            <div className={`flex items-center gap-1 transition-all duration-700 ease-in-out ${isToolsOpen ? "max-w-[1200px] opacity-100 px-0.5" : "max-w-0 opacity-0 overflow-hidden"}`}>
+          <>
+            <div className="flex items-center bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-1.5 py-0.5 gap-1 shadow-sm" data-tauri-drag-region>
               <button
-                onClick={onToggleFileExplorer}
-                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all duration-200 shrink-0 hover:scale-105 active:scale-95"
-                title="Project Explorer"
+                onClick={onOpenBrainstorm}
+                className="p-1 rounded-lg transition-all duration-200 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 hover:scale-105 active:scale-95 shrink-0"
+                title="Brainstorm Mode"
               >
-                <FolderSearch size={14} />
+                <Brain size={14} strokeWidth={2} />
               </button>
-
               <button
-                onClick={onTogglePersonalKanban}
-                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all duration-200 shrink-0 hover:scale-105 active:scale-95"
-                title="My Tasks"
+                onClick={onOpenMasterPlan}
+                className="p-1 rounded-lg transition-all duration-200 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 hover:scale-105 active:scale-95 shrink-0"
+                title="Master Plan Board"
               >
-                <LayoutList size={14} />
+                <ClipboardList size={14} strokeWidth={2} />
               </button>
-
               <button
-                onClick={onToggleCalendar}
-                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all duration-200 shrink-0 hover:scale-105 active:scale-95"
-                title="Calendar"
+                onClick={onOpenNetworkGraph}
+                className="p-1 rounded-lg transition-all duration-200 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 hover:scale-105 active:scale-95 shrink-0"
+                title="Collaboration Graph"
               >
-                <Calendar size={14} />
-              </button>
-
-              <button
-                onClick={onToggleEnvManager}
-                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all duration-200 shrink-0 hover:scale-105 active:scale-95"
-                title="Env Manager"
-              >
-                <FileKey2 size={14} />
-              </button>
-
-              <button
-                onClick={onTogglePackageManager}
-                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all duration-200 shrink-0 hover:scale-105 active:scale-95"
-                title="Package Manager"
-              >
-                <Package size={14} />
-              </button>
-
-              <button
-                onClick={onToggleApiLab}
-                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all duration-200 shrink-0 hover:scale-105 active:scale-95"
-                title="API Lab"
-              >
-                <Zap size={14} />
-              </button>
-
-              <button
-                onClick={onToggleMonorepoGraph}
-                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all duration-200 shrink-0 hover:scale-105 active:scale-95"
-                title="Dependency Graph"
-              >
-                <FolderTree size={14} />
-              </button>
-
-              <button
-                onClick={onToggleMdViewer}
-                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all duration-200 shrink-0 hover:scale-105 active:scale-95"
-                title="Markdown Viewer"
-              >
-                <FileText size={14} />
-              </button>
-
-              <button
-                onClick={onToggleConfigEditor}
-                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all duration-200 shrink-0 hover:scale-105 active:scale-95"
-                title="Config Editor"
-              >
-                <FileCode size={14} />
-              </button>
-
-              {/* Web Dev Tools Popover */}
-              <WebDevPopover
-                onToggleIconBrowser={onToggleIconBrowser}
-                onToggleTailwindLabs={onToggleTailwindLabs}
-                onToggleNpmLookup={onToggleNpmLookup}
-                onToggleHtmlToJsx={onToggleHtmlToJsx}
-                onToggleSvgOptimizer={onToggleSvgOptimizer}
-                onToggleStorageInspector={onToggleStorageInspector}
-                onToggleMockDataGenerator={onToggleMockDataGenerator}
-              />
-              <button
-                onClick={onToggleGitPanel}
-                className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all duration-200 shrink-0 hover:scale-105 active:scale-95"
-                title="Source Control"
-              >
-                <GitMerge size={14} />
+                <Network size={14} strokeWidth={2} />
               </button>
             </div>
-
-            <button
-              onClick={() => setIsToolsOpen(!isToolsOpen)}
-              className={`p-1 rounded-md transition-all duration-200 hover:scale-105 active:scale-95 ${isToolsOpen ? "bg-white/5 text-zinc-300" : "text-zinc-500 hover:text-zinc-300"}`}
-              title={isToolsOpen ? "Collapse Tools" : "Expand Tools"}
-            >
-              {isToolsOpen ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
-            </button>
-
-            {codeReviewStats && (
-              <button
-                onClick={onToggleCodeReview}
-                className="flex items-center group relative overflow-hidden bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-700/50 hover:border-zinc-600 rounded-lg px-2 py-0.5 transition-all ml-0.5 shadow-lg shrink-0"
-                title="Open Code Review"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 to-red-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <div className="flex items-center gap-1.5 relative z-10 font-mono text-[10px] font-bold tracking-tight">
-                  <span className={`flex items-center gap-0.5 ${codeReviewStats.additions > 0 ? "text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.3)]" : "text-emerald-400/50"}`}>
-                    <span>+</span>{codeReviewStats.additions}
-                  </span>
-                  <span className={`flex items-center gap-0.5 ${codeReviewStats.deletions > 0 ? "text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.3)]" : "text-red-400/50"}`}>
-                    <span>-</span>{codeReviewStats.deletions}
-                  </span>
-                </div>
-              </button>
-            )}
-          </div>
+            <div className="w-[1px] h-4 bg-zinc-800/60 shrink-0 self-center mx-1" />
+          </>
         )}
 
-        <div className="flex items-center bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-1.5 py-0.5 gap-1 shadow-sm ml-2">
+        {currentProject && (
+          <>
+            <div className="flex items-center bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-1.5 py-0.5 gap-1 shadow-sm">
+              <div className={`flex items-center gap-1 transition-all duration-700 ease-in-out ${isToolsOpen ? "max-w-[1200px] opacity-100 px-0.5" : "max-w-0 opacity-0 overflow-hidden"}`}>
+                <button
+                  onClick={onToggleFileExplorer}
+                  className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all duration-200 shrink-0 hover:scale-105 active:scale-95"
+                  title="Project Explorer"
+                >
+                  <FolderSearch size={14} />
+                </button>
+
+                <button
+                  onClick={onTogglePersonalKanban}
+                  className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all duration-200 shrink-0 hover:scale-105 active:scale-95"
+                  title="My Tasks"
+                >
+                  <LayoutList size={14} />
+                </button>
+
+                <button
+                  onClick={onToggleCalendar}
+                  className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all duration-200 shrink-0 hover:scale-105 active:scale-95"
+                  title="Calendar"
+                >
+                  <Calendar size={14} />
+                </button>
+
+                <button
+                  onClick={onToggleEnvManager}
+                  className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all duration-200 shrink-0 hover:scale-105 active:scale-95"
+                  title="Env Manager"
+                >
+                  <FileKey2 size={14} />
+                </button>
+
+                <button
+                  onClick={onTogglePackageManager}
+                  className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all duration-200 shrink-0 hover:scale-105 active:scale-95"
+                  title="Package Manager"
+                >
+                  <Package size={14} />
+                </button>
+
+                <button
+                  onClick={onToggleApiLab}
+                  className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all duration-200 shrink-0 hover:scale-105 active:scale-95"
+                  title="API Lab"
+                >
+                  <Zap size={14} />
+                </button>
+
+                <button
+                  onClick={onToggleMonorepoGraph}
+                  className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all duration-200 shrink-0 hover:scale-105 active:scale-95"
+                  title="Dependency Graph"
+                >
+                  <FolderTree size={14} />
+                </button>
+
+                <button
+                  onClick={onToggleMdViewer}
+                  className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all duration-200 shrink-0 hover:scale-105 active:scale-95"
+                  title="Markdown Viewer"
+                >
+                  <FileText size={14} />
+                </button>
+
+                <button
+                  onClick={onToggleConfigEditor}
+                  className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all duration-200 shrink-0 hover:scale-105 active:scale-95"
+                  title="Config Editor"
+                >
+                  <FileCode size={14} />
+                </button>
+
+                {/* Web Dev Tools Popover */}
+                <WebDevPopover
+                  onToggleIconBrowser={onToggleIconBrowser}
+                  onToggleTailwindLabs={onToggleTailwindLabs}
+                  onToggleNpmLookup={onToggleNpmLookup}
+                  onToggleHtmlToJsx={onToggleHtmlToJsx}
+                  onToggleSvgOptimizer={onToggleSvgOptimizer}
+                  onToggleStorageInspector={onToggleStorageInspector}
+                  onToggleMockDataGenerator={onToggleMockDataGenerator}
+                />
+                <button
+                  onClick={onToggleGitPanel}
+                  className="p-1 text-zinc-400 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/60 hover:border-zinc-700 rounded-lg transition-all duration-200 shrink-0 hover:scale-105 active:scale-95"
+                  title="Source Control"
+                >
+                  <GitMerge size={14} />
+                </button>
+              </div>
+
+              <button
+                onClick={() => setIsToolsOpen(!isToolsOpen)}
+                className={`p-1 rounded-md transition-all duration-200 hover:scale-105 active:scale-95 ${isToolsOpen ? "bg-white/5 text-zinc-300" : "text-zinc-500 hover:text-zinc-300"}`}
+                title={isToolsOpen ? "Collapse Tools" : "Expand Tools"}
+              >
+                {isToolsOpen ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
+              </button>
+
+              {codeReviewStats && (
+                <button
+                  onClick={onToggleCodeReview}
+                  className="flex items-center group relative overflow-hidden bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-700/50 hover:border-zinc-600 rounded-lg px-2 py-0.5 transition-all ml-0.5 shadow-lg shrink-0"
+                  title="Open Code Review"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 to-red-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                  <div className="flex items-center gap-1.5 relative z-10 font-mono text-[10px] font-bold tracking-tight">
+                    <span className={`flex items-center gap-0.5 ${codeReviewStats.additions > 0 ? "text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.3)]" : "text-emerald-400/50"}`}>
+                      <span>+</span>{codeReviewStats.additions}
+                    </span>
+                    <span className={`flex items-center gap-0.5 ${codeReviewStats.deletions > 0 ? "text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.3)]" : "text-red-400/50"}`}>
+                      <span>-</span>{codeReviewStats.deletions}
+                    </span>
+                  </div>
+                </button>
+              )}
+            </div>
+            <div className="w-[1px] h-4 bg-zinc-800/60 shrink-0 self-center mx-1" />
+          </>
+        )}
+
+        <div className="flex items-center bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-1.5 py-0.5 gap-1 shadow-sm">
           <button
             onClick={() => onSetLayoutOrientation("vertical")}
             className={`p-1 rounded-md transition-all duration-200 hover:scale-105 active:scale-95 ${layoutOrientation === "vertical" ? "bg-brand-accent/30 text-white shadow-inner" : "text-zinc-500 hover:text-zinc-300"}`}
@@ -498,9 +507,10 @@ export function AppTopbar({
             {showExtras ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
           </button>
         </div>
-        </div>
-        
-        <div className="h-full">
+
+        <div className="w-[1px] h-4 bg-zinc-800/60 shrink-0 self-center mx-1" />
+
+        <div className="h-full flex items-center shrink-0">
           <WindowControls />
         </div>
       </div>

@@ -105,11 +105,11 @@ export function ProjectFileExplorer({ currentProject, isOpen, onClose }: Project
 
   return (
     <div 
-      className={`fixed top-0 right-0 h-screen w-[450px] bg-zinc-950/95 backdrop-blur-xl border-l border-zinc-800/50 shadow-2xl z-[50] transition-all duration-500 transform ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
+      className={`fixed top-0 right-0 h-screen w-[450px] bg-[#070709] border-l border-zinc-800 shadow-2xl z-[50] transition-all duration-500 transform ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
     >
       <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="p-4 border-b border-zinc-800/50 flex items-center justify-between bg-zinc-900/20">
+        <div className="p-4 border-b border-zinc-800 flex items-center justify-between bg-[#0d0d10]">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-indigo-500/10 rounded-xl border border-indigo-500/20">
               <FolderOpen className="text-indigo-400" size={20} />
@@ -123,19 +123,19 @@ export function ProjectFileExplorer({ currentProject, isOpen, onClose }: Project
           </div>
           <button 
             onClick={onClose}
-            className="p-2 hover:bg-white/5 rounded-lg text-zinc-500 hover:text-white transition-colors"
+            className="p-2 hover:bg-zinc-800 rounded-lg text-zinc-500 hover:text-white transition-colors"
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Toolbar */}
-        <div className="p-3 border-b border-zinc-800/50 flex flex-col gap-3">
+        <div className="p-3 border-b border-zinc-800 flex flex-col gap-3">
           <div className="flex items-center gap-2">
             <button
               onClick={handleBack}
               disabled={history.length <= 1}
-              className="p-1.5 hover:bg-white/5 rounded-lg text-zinc-400 disabled:opacity-30 disabled:hover:bg-transparent"
+              className="p-1.5 hover:bg-zinc-850 rounded-lg text-zinc-400 disabled:opacity-30 disabled:hover:bg-transparent"
               title="Go Back"
             >
               <ChevronRight className="rotate-180" size={18} />
@@ -147,12 +147,12 @@ export function ProjectFileExplorer({ currentProject, isOpen, onClose }: Project
                 placeholder="Search files..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-zinc-900/50 border border-zinc-800 focus:border-indigo-500/50 rounded-xl py-1.5 pl-9 pr-4 text-xs text-white placeholder:text-zinc-600 outline-none transition-all"
+                className="w-full bg-[#0a0a0c] border border-zinc-800 focus:border-indigo-500/40 rounded-xl py-1.5 pl-9 pr-4 text-xs text-white placeholder:text-zinc-600 outline-none transition-all"
               />
             </div>
             <button
               onClick={() => loadDirectory(currentPath)}
-              className={`p-1.5 hover:bg-white/5 rounded-lg text-zinc-400 ${loading ? 'animate-spin text-indigo-400' : ''}`}
+              className={`p-1.5 hover:bg-zinc-850 rounded-lg text-zinc-400 ${loading ? 'animate-spin text-indigo-400' : ''}`}
               title="Refresh"
             >
               <RefreshCw size={18} />
@@ -214,7 +214,7 @@ export function ProjectFileExplorer({ currentProject, isOpen, onClose }: Project
 
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button 
-                          className="p-1.5 hover:bg-white/10 rounded-md text-zinc-500 hover:text-indigo-400"
+                          className="p-1.5 hover:bg-zinc-800 rounded-md text-zinc-500 hover:text-indigo-400"
                           title="Copy Path"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -238,7 +238,7 @@ export function ProjectFileExplorer({ currentProject, isOpen, onClose }: Project
         </div>
 
         {/* Footer */}
-        <div className="p-3 border-t border-zinc-800/50 bg-zinc-900/10 flex items-center justify-between text-[10px] text-zinc-500 font-mono">
+        <div className="p-3 border-t border-zinc-800 bg-[#0c0c0f] flex items-center justify-between text-[10px] text-zinc-500 font-mono">
           <div className="flex items-center gap-3">
             <span>{entries.filter(e => e.is_dir).length} Folders</span>
             <span>{entries.filter(e => !e.is_dir).length} Files</span>

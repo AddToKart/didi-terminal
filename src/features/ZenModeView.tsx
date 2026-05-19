@@ -34,11 +34,11 @@ export function ZenModeView({ controller }: ZenModeProps) {
           <div className="absolute top-0 left-0 right-0 -translate-y-full group-hover/exit:translate-y-0 transition-transform duration-300 flex items-center justify-center py-4">
             <button
               onClick={() => setAppMode("terminal")}
-              className="bg-brand-accent/20 hover:bg-brand-accent/40 text-brand-primary text-[10px] font-bold px-6 py-2 rounded-full border border-brand-accent/30 backdrop-blur-xl shadow-2xl transition-all uppercase tracking-[0.3em]"
+              className="bg-zinc-900 hover:bg-zinc-800 text-brand-primary text-[10px] font-bold px-6 py-2 rounded-full border border-zinc-700 shadow-2xl transition-all uppercase tracking-[0.3em]"
             >
               Exit Zen Mode (Alt + Q)
             </button>
-            <div className="absolute right-4 top-4 h-9 bg-black/40 backdrop-blur-xl border border-white/5 rounded-xl overflow-hidden shadow-2xl">
+            <div className="absolute right-4 top-4 h-9 bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden shadow-2xl">
               <WindowControls />
             </div>
           </div>

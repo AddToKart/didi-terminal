@@ -88,10 +88,10 @@ export function SecurityPanel({ workspaceId, workspaceName, isOpen, onClose }: S
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-zinc-950/90 backdrop-blur-md" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/85" onClick={onClose} />
       
-      <div className="relative w-full max-w-md bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-white/[0.02]">
+      <div className="relative w-full max-w-md bg-[#0a0a0c] border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-[#0e0e12]">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-brand-accent/10 border border-brand-accent/20">
               <Lock size={18} className="text-brand-accent" />
@@ -121,7 +121,7 @@ export function SecurityPanel({ workspaceId, workspaceName, isOpen, onClose }: S
             </div>
           )}
 
-          <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center justify-between">
+          <div className="p-4 rounded-2xl bg-[#0d0d10] border border-zinc-800/60 flex items-center justify-between">
             <div className="space-y-1">
               <h3 className="text-sm font-bold text-white">Encryption Status</h3>
               <p className="text-[11px] text-zinc-500">Secure Argon2id Hashing</p>
@@ -142,7 +142,7 @@ export function SecurityPanel({ workspaceId, workspaceName, isOpen, onClose }: S
                   placeholder="Enter PIN"
                   value={pin}
                   onChange={(e) => setPin(e.target.value)}
-                  className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-brand-accent transition-all font-mono tracking-widest"
+                  className="w-full bg-[#08080a] border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-brand-accent transition-all font-mono tracking-widest"
                 />
                 <button 
                   onClick={() => setShowPin(!showPin)}
@@ -161,7 +161,7 @@ export function SecurityPanel({ workspaceId, workspaceName, isOpen, onClose }: S
                   placeholder="Repeat PIN"
                   value={confirmPin}
                   onChange={(e) => setConfirmPin(e.target.value)}
-                  className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-brand-accent transition-all font-mono tracking-widest"
+                  className="w-full bg-[#08080a] border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-brand-accent transition-all font-mono tracking-widest"
                 />
               </div>
             )}
@@ -185,7 +185,7 @@ export function SecurityPanel({ workspaceId, workspaceName, isOpen, onClose }: S
           </div>
         </div>
 
-        <div className="px-6 py-4 bg-zinc-950/50 border-t border-white/5">
+        <div className="px-6 py-4 bg-[#08080a] border-t border-zinc-800">
           <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest text-center">
             Your PIN is never stored in plain text.
           </p>

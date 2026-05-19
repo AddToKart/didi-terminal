@@ -44,7 +44,7 @@ export class ErrorBoundary extends Component<Props, State> {
           </p>
           <button
             onClick={this.handleRetry}
-            className="flex items-center gap-1.5 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs text-zinc-300 hover:text-white transition-all"
+            className="flex items-center gap-1.5 px-4 py-2 bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-800 rounded-lg text-xs text-zinc-300 hover:text-white transition-all"
           >
             <RefreshCw size={12} />
             Try Again
@@ -56,3 +56,4 @@ export class ErrorBoundary extends Component<Props, State> {
     return this.props.children;
   }
 }
+

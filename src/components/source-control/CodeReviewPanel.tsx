@@ -147,10 +147,10 @@ export function CodeReviewPanel({ currentProject, isOpen, onClose, onStatsUpdate
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="w-[850px] border-l border-white/10 bg-zinc-950/95 backdrop-blur-3xl flex flex-col shadow-2xl z-50 shrink-0 h-full absolute right-0 top-0">
+      <div className="w-[850px] border-l border-zinc-800 bg-[#070709] flex flex-col shadow-2xl z-50 shrink-0 h-full absolute right-0 top-0">
         
         {/* Header */}
-        <div className="flex flex-col border-b border-white/5 bg-zinc-900/40 shrink-0 relative overflow-hidden">
+        <div className="flex flex-col border-b border-zinc-800 bg-[#0d0d10] shrink-0 relative overflow-hidden">
           {/* Progress bar background */}
           <div 
             className="absolute bottom-0 left-0 h-[2px] bg-brand-accent transition-all duration-500 ease-out"
@@ -166,7 +166,7 @@ export function CodeReviewPanel({ currentProject, isOpen, onClose, onStatsUpdate
                 <div className="flex items-center gap-2">
                   <h2 className="text-sm font-bold text-white tracking-tight">Code Review</h2>
                   {status && (
-                    <Badge variant="secondary" className="bg-zinc-800/80 text-zinc-300 hover:bg-zinc-800 gap-1 rounded-md px-2 py-0 h-5">
+                    <Badge variant="secondary" className="bg-[#121215] text-zinc-300 hover:bg-zinc-800 gap-1 rounded-md px-2 py-0 h-5 border border-zinc-800">
                       <GitPullRequest size={10} />
                       {status.branch}
                     </Badge>
@@ -194,7 +194,7 @@ export function CodeReviewPanel({ currentProject, isOpen, onClose, onStatsUpdate
                       onClick={markAllAsReviewed}
                       className={cn(
                         "h-8 gap-1.5 transition-all",
-                        allReviewed ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/30" : "border-white/10 text-zinc-300"
+                        allReviewed ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/30" : "border-zinc-800 text-zinc-300"
                       )}
                     >
                       {allReviewed ? <CheckCircle2 size={14} /> : <Check size={14} />}
@@ -204,7 +204,7 @@ export function CodeReviewPanel({ currentProject, isOpen, onClose, onStatsUpdate
                   <TooltipContent>Mark all files as reviewed</TooltipContent>
                 </Tooltip>
               )}
-              <div className="w-px h-6 bg-white/10 mx-1" />
+              <div className="w-px h-6 bg-zinc-800 mx-1" />
               <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
                 <PopoverTrigger asChild>
                   <Button 
@@ -216,7 +216,7 @@ export function CodeReviewPanel({ currentProject, isOpen, onClose, onStatsUpdate
                     <GitCommit size={14} /> Commit {reviewedFiles.size > 0 && `(${reviewedFiles.size})`}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent align="end" className="w-80 p-3 bg-zinc-950/95 backdrop-blur-xl border-white/10 shadow-2xl rounded-xl z-[100]">
+                <PopoverContent align="end" className="w-80 p-3 bg-[#0a0a0c] border border-zinc-800 shadow-2xl rounded-xl z-[100]">
                   <div className="flex flex-col gap-2">
                     <p className="text-[11px] font-bold text-zinc-300 px-1 uppercase tracking-widest">Commit Changes</p>
                     <textarea
@@ -231,10 +231,10 @@ export function CodeReviewPanel({ currentProject, isOpen, onClose, onStatsUpdate
                       }}
                       autoFocus
                       rows={3}
-                      className="w-full resize-none bg-zinc-900/60 border border-zinc-800 rounded-lg px-3 py-2.5 text-[11px] text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-brand-accent/50 focus:ring-1 focus:ring-brand-accent/20 transition-all font-mono leading-relaxed"
+                      className="w-full resize-none bg-[#08080a] border border-zinc-800 rounded-lg px-3 py-2.5 text-[11px] text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-brand-accent/50 focus:ring-1 focus:ring-brand-accent/20 transition-all font-mono leading-relaxed"
                     />
                     <div className="flex justify-end gap-2 mt-1">
-                      <Button variant="ghost" size="sm" onClick={() => setPopoverOpen(false)} className="h-7 text-xs text-zinc-400 hover:text-white hover:bg-white/10">Cancel</Button>
+                      <Button variant="ghost" size="sm" onClick={() => setPopoverOpen(false)} className="h-7 text-xs text-zinc-400 hover:text-white hover:bg-[#121215]">Cancel</Button>
                       <Button 
                         size="sm" 
                         onClick={handleCommit} 
@@ -248,7 +248,7 @@ export function CodeReviewPanel({ currentProject, isOpen, onClose, onStatsUpdate
                   </div>
                 </PopoverContent>
               </Popover>
-              <Button variant="ghost" size="icon" onClick={onClose} className="size-8 text-zinc-400 hover:text-white hover:bg-white/10">
+              <Button variant="ghost" size="icon" onClick={onClose} className="size-8 text-zinc-400 hover:text-white hover:bg-[#121215]">
                 <X size={16} />
               </Button>
             </div>
@@ -256,7 +256,7 @@ export function CodeReviewPanel({ currentProject, isOpen, onClose, onStatsUpdate
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto bg-zinc-950/50 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto bg-[#070709] custom-scrollbar">
           <div className="p-4 space-y-4 pb-12">
             {loading && !status ? (
               <div className="text-xs font-medium text-zinc-500 text-center py-20 animate-pulse">Analyzing diffs...</div>
@@ -280,14 +280,14 @@ export function CodeReviewPanel({ currentProject, isOpen, onClose, onStatsUpdate
                     onOpenChange={() => toggleFile(file.path)}
                     className={cn(
                       "border rounded-xl bg-zinc-950 overflow-hidden transition-all duration-200",
-                      isReviewed ? "border-white/5 opacity-60 hover:opacity-100" : "border-white/10 shadow-lg",
+                      isReviewed ? "border-zinc-800/50 opacity-60 hover:opacity-100" : "border-zinc-800 shadow-lg",
                       isExpanded && !isReviewed ? "ring-1 ring-brand-accent/30 border-brand-accent/30" : ""
                     )}
                   >
                     <CollapsibleTrigger asChild>
                       <div className={cn(
                         "flex items-center justify-between p-3 cursor-pointer group transition-colors select-none",
-                        isExpanded ? "bg-zinc-900/60 border-b border-white/5" : "hover:bg-zinc-900/40"
+                        isExpanded ? "bg-[#0d0d10] border-b border-zinc-800/60" : "hover:bg-[#0c0c0f]"
                       )}>
                         <div className="flex items-center gap-3 truncate">
                           <button
@@ -361,7 +361,7 @@ export function CodeReviewPanel({ currentProject, isOpen, onClose, onStatsUpdate
                                     newLine = parseInt(match[2], 10);
                                   }
                                   return (
-                                    <tr key={`h-${i}`} className="bg-zinc-900/40 border-y border-white/5">
+                                    <tr key={`h-${i}`} className="bg-[#0a0a0d] border-y border-zinc-800/40">
                                       <td colSpan={4} className="px-4 py-1.5 text-zinc-500 text-[10px] select-none text-center">
                                         <span className="opacity-70">••• {line.replace(/@@/g, '').trim()} •••</span>
                                       </td>
@@ -374,7 +374,7 @@ export function CodeReviewPanel({ currentProject, isOpen, onClose, onStatsUpdate
                                 const content = line.substring(1);
                                 const prefix = isAdded ? '+' : isRemoved ? '-' : ' ';
 
-                                let rowClass = "text-zinc-300 hover:bg-white/[0.02]";
+                                let rowClass = "text-zinc-300 hover:bg-zinc-800/30";
                                 let prefixClass = "text-zinc-600 px-2 py-0.5 select-none w-6 text-center border-r border-transparent";
                                 let contentClass = "px-4 py-0.5 whitespace-pre break-all";
 
@@ -396,8 +396,8 @@ export function CodeReviewPanel({ currentProject, isOpen, onClose, onStatsUpdate
 
                                 return (
                                   <tr key={i} className={rowClass}>
-                                    <td className="text-zinc-600/60 text-[10px] px-2 py-0.5 text-right w-12 select-none border-r border-white/5 bg-zinc-950">{currentOldLine}</td>
-                                    <td className="text-zinc-600/60 text-[10px] px-2 py-0.5 text-right w-12 select-none border-r border-white/5 bg-zinc-950">{currentNewLine}</td>
+                                    <td className="text-zinc-600/60 text-[10px] px-2 py-0.5 text-right w-12 select-none border-r border-zinc-800/50 bg-[#070709]">{currentOldLine}</td>
+                                    <td className="text-zinc-600/60 text-[10px] px-2 py-0.5 text-right w-12 select-none border-r border-zinc-800/50 bg-[#070709]">{currentNewLine}</td>
                                     <td className={prefixClass}>{prefix}</td>
                                     <td className={contentClass}>{content || ' '}</td>
                                   </tr>

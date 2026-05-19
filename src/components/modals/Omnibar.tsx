@@ -148,7 +148,7 @@ export function Omnibar({ isOpen, onClose, actions }: OmnibarProps) {
           
           <div className="relative z-10 w-full h-full bg-[#0b0b0d] rounded-[11px] overflow-hidden flex flex-col">
             {/* Search */}
-          <div className="flex items-center gap-3 px-5 py-4 border-b border-white/5">
+          <div className="flex items-center gap-3 px-5 py-4 border-b border-zinc-800/80">
             <Search size={16} className="text-zinc-500 shrink-0" />
             <input
               ref={inputRef}
@@ -161,7 +161,7 @@ export function Omnibar({ isOpen, onClose, actions }: OmnibarProps) {
               spellCheck={false}
               autoComplete="off"
             />
-            <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-zinc-600 bg-white/5 rounded border border-white/5">
+            <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-zinc-600 bg-zinc-900/60 rounded border border-zinc-800/80">
               <Command size={10} />K
             </kbd>
           </div>
@@ -215,17 +215,17 @@ export function Omnibar({ isOpen, onClose, actions }: OmnibarProps) {
           ) : null}
 
           {/* Footer hint */}
-          <div className="px-5 py-2.5 border-t border-white/5 bg-white/[0.02] flex items-center gap-4 text-[10px] text-zinc-600">
+          <div className="px-5 py-2.5 border-t border-zinc-800/80 bg-zinc-900/20 flex items-center gap-4 text-[10px] text-zinc-600">
             <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 rounded bg-white/5 border border-white/5 text-[9px] font-bold">↑↓</kbd>
+              <kbd className="px-1.5 py-0.5 rounded bg-zinc-900/60 border border-zinc-800/80 text-[9px] font-bold">↑↓</kbd>
               Navigate
             </span>
             <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 rounded bg-white/5 border border-white/5 text-[9px] font-bold">↵</kbd>
+              <kbd className="px-1.5 py-0.5 rounded bg-zinc-900/60 border border-zinc-800/80 text-[9px] font-bold">↵</kbd>
               Select
             </span>
             <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 rounded bg-white/5 border border-white/5 text-[9px] font-bold">Esc</kbd>
+              <kbd className="px-1.5 py-0.5 rounded bg-zinc-900/60 border border-zinc-800/80 text-[9px] font-bold">Esc</kbd>
               Close
             </span>
           </div>
@@ -235,3 +235,4 @@ export function Omnibar({ isOpen, onClose, actions }: OmnibarProps) {
     </>
   );
 }
+

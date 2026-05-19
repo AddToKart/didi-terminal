@@ -244,15 +244,15 @@ export function EnvManager({ currentProject, isOpen, onClose }: EnvManagerProps)
   return (
     <>
       <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-md z-[100] animate-in fade-in duration-500"
+        className="fixed inset-0 bg-black/75 z-[100] animate-in fade-in duration-300"
         onClick={onClose}
       />
 
       <div className="fixed inset-0 flex items-center justify-center z-[101] p-4 pointer-events-none">
-        <div className="bg-[#0b0b0d]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden w-full max-w-4xl h-[650px] flex flex-col pointer-events-auto animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
+        <div className="bg-zinc-950 border border-zinc-800 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.7)] overflow-hidden w-full max-w-4xl h-[650px] flex flex-col pointer-events-auto animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
           
           {/* ── Header ── */}
-          <div className="p-5 border-b border-white/5 bg-zinc-900/40 shrink-0">
+          <div className="p-5 border-b border-zinc-800 bg-zinc-900/15 shrink-0">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center">
                 <div className="flex items-center gap-3 w-[260px] shrink-0">
@@ -274,7 +274,7 @@ export function EnvManager({ currentProject, isOpen, onClose }: EnvManagerProps)
                   </div>
                 </div>
 
-                <div className="h-6 w-px bg-white/10 mx-4 shrink-0" />
+                <div className="h-6 w-px bg-zinc-800 mx-4 shrink-0" />
 
                 {/* ── Workspace Selector ── */}
                 <div className="shrink-0">
@@ -286,13 +286,13 @@ export function EnvManager({ currentProject, isOpen, onClose }: EnvManagerProps)
                       fetchEnv(configsRef.current, v);
                     }}
                   >
-                    <SelectTrigger className="w-[220px] bg-black/40 border-white/10 text-xs font-bold text-blue-400 focus:ring-1 focus:ring-blue-500/50 shadow-inner h-9">
+                    <SelectTrigger className="w-[220px] bg-zinc-900 border-zinc-800 text-xs font-bold text-blue-400 focus:ring-1 focus:ring-blue-500/50 shadow-inner h-9">
                       <SelectValue placeholder="Select Workspace..." />
                     </SelectTrigger>
-                    <SelectContent position="popper" sideOffset={4} className="bg-zinc-950 border-white/10 z-[200]">
+                    <SelectContent position="popper" sideOffset={4} className="bg-zinc-950 border-zinc-800 z-[200]">
                       <SelectItem
                         value="global"
-                        className="text-xs font-bold text-white cursor-pointer focus:bg-white/10"
+                        className="text-xs font-bold text-white cursor-pointer focus:bg-zinc-900"
                       >
                         🌍 Global (All Workspaces)
                       </SelectItem>
@@ -300,12 +300,12 @@ export function EnvManager({ currentProject, isOpen, onClose }: EnvManagerProps)
                         <SelectItem
                           key={cfg.path}
                           value={cfg.path}
-                          className="text-xs font-medium focus:bg-white/10 focus:text-white cursor-pointer"
+                          className="text-xs font-medium focus:bg-zinc-900 focus:text-white cursor-pointer"
                         >
                           <span className="flex items-center gap-2">
                             <Badge
                               variant="outline"
-                              className="text-[9px] uppercase px-1 border-white/10 text-zinc-500"
+                              className="text-[9px] uppercase px-1 border-zinc-800 text-zinc-500"
                             >
                               ENV
                             </Badge>
@@ -322,7 +322,7 @@ export function EnvManager({ currentProject, isOpen, onClose }: EnvManagerProps)
                 <button
                   onClick={() => fetchEnv(configsRef.current, activeConfigPath)}
                   disabled={loading}
-                  className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95 disabled:opacity-50"
+                  className="p-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95 disabled:opacity-50"
                   title="Reload from disk"
                 >
                   <RefreshCw
@@ -333,15 +333,15 @@ export function EnvManager({ currentProject, isOpen, onClose }: EnvManagerProps)
                 <button
                   onClick={handleSave}
                   disabled={!hasChanges || saving}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 disabled:bg-white/10 disabled:text-zinc-500 text-white rounded-lg transition-all text-xs font-bold shadow-lg shadow-blue-500/20 active:scale-95"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 disabled:bg-zinc-900 disabled:text-zinc-500 text-white rounded-lg transition-all text-xs font-bold shadow-lg shadow-blue-500/20 active:scale-95"
                 >
                   <Save size={14} />
                   {saving ? "Saving..." : "Save"}
                 </button>
-                <div className="w-px h-6 bg-white/10 mx-1" />
+                <div className="w-px h-6 bg-zinc-800 mx-1" />
                 <button
                   onClick={onClose}
-                  className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95"
+                  className="p-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95"
                 >
                   <X size={14} />
                 </button>
@@ -350,7 +350,7 @@ export function EnvManager({ currentProject, isOpen, onClose }: EnvManagerProps)
           </div>
 
           {/* ── Column headers ── */}
-          <div className="px-6 py-2 bg-black/40 border-b border-white/5 flex items-center text-[10px] font-bold text-zinc-500 uppercase tracking-widest shrink-0">
+          <div className="px-6 py-2 bg-zinc-900/40 border-b border-zinc-800 flex items-center text-[10px] font-bold text-zinc-500 uppercase tracking-widest shrink-0">
             {activeConfigPath === "global" && (
               <div className="w-28 shrink-0">Workspace</div>
             )}
@@ -374,7 +374,7 @@ export function EnvManager({ currentProject, isOpen, onClose }: EnvManagerProps)
                 <p className="text-xs text-zinc-500 mb-4">{error}</p>
                 <button
                   onClick={addVar}
-                  className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-bold text-white transition-colors"
+                  className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg text-xs font-bold text-white transition-colors"
                 >
                   Create New Variable
                 </button>
@@ -400,15 +400,15 @@ export function EnvManager({ currentProject, isOpen, onClose }: EnvManagerProps)
                             if (cfg) updateVar(index, "config", cfg);
                           }}
                         >
-                          <SelectTrigger className="w-full bg-black/40 border-white/5 text-[10px] font-bold text-zinc-400 h-9">
+                          <SelectTrigger className="w-full bg-zinc-900 border-zinc-800 text-[10px] font-bold text-zinc-400 h-9">
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent position="popper" sideOffset={4} className="bg-zinc-950 border-white/10 z-[200]">
+                          <SelectContent position="popper" sideOffset={4} className="bg-zinc-950 border-zinc-800 z-[200]">
                             {configs.map((cfg, idx) => (
                               <SelectItem
                                 key={idx}
                                 value={String(idx)}
-                                className="text-[10px] font-medium focus:bg-white/10 focus:text-white cursor-pointer"
+                                className="text-[10px] font-medium focus:bg-zinc-900 focus:text-white cursor-pointer"
                               >
                                 {cfg.name}
                               </SelectItem>
@@ -423,7 +423,7 @@ export function EnvManager({ currentProject, isOpen, onClose }: EnvManagerProps)
                       placeholder="KEY_NAME"
                       value={env.key}
                       onChange={(e) => updateVar(index, "key", e.target.value)}
-                      className="flex-[0.4] min-w-0 bg-black/40 border border-white/5 focus:border-blue-500/50 rounded-lg px-3 py-2 text-xs font-mono font-bold text-blue-400 placeholder:text-zinc-700 outline-none transition-all"
+                      className="flex-[0.4] min-w-0 bg-zinc-950 border border-zinc-800 focus:border-blue-500/50 rounded-lg px-3 py-2 text-xs font-mono font-bold text-blue-400 placeholder:text-zinc-700 outline-none transition-all"
                     />
 
                     <div className="flex-[0.6] min-w-0 relative flex items-center">
@@ -438,7 +438,7 @@ export function EnvManager({ currentProject, isOpen, onClose }: EnvManagerProps)
                         onChange={(e) =>
                           updateVar(index, "value", e.target.value)
                         }
-                        className="w-full bg-black/40 border border-white/5 focus:border-zinc-500 rounded-lg pl-3 pr-10 py-2 text-xs font-mono text-zinc-300 placeholder:text-zinc-700 outline-none transition-all"
+                        className="w-full bg-zinc-955 border border-zinc-800 focus:border-zinc-500 rounded-lg pl-3 pr-10 py-2 text-xs font-mono text-zinc-300 placeholder:text-zinc-700 outline-none transition-all"
                       />
                       <button
                         onClick={() => toggleVisibility(env.key)}
@@ -455,7 +455,7 @@ export function EnvManager({ currentProject, isOpen, onClose }: EnvManagerProps)
                     <div className="w-16 flex items-center justify-end shrink-0">
                       <button
                         onClick={() => removeVar(index)}
-                        className="p-2 text-zinc-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors active:scale-95"
+                        className="p-2 text-zinc-650 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors active:scale-95"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -465,7 +465,7 @@ export function EnvManager({ currentProject, isOpen, onClose }: EnvManagerProps)
 
                 <button
                   onClick={addVar}
-                  className="w-full flex items-center justify-center gap-2 py-3 border border-dashed border-white/10 hover:border-white/20 hover:bg-white/5 rounded-lg text-xs font-bold text-zinc-500 hover:text-zinc-300 transition-all mt-4 group"
+                  className="w-full flex items-center justify-center gap-2 py-3 border border-dashed border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900/50 rounded-lg text-xs font-bold text-zinc-500 hover:text-zinc-300 transition-all mt-4 group"
                 >
                   <Plus
                     size={14}

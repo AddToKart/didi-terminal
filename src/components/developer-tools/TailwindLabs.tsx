@@ -243,12 +243,12 @@ export function TailwindLabs({ isOpen, onClose }: TailwindLabsProps) {
 
   return (
     <div className="fixed inset-0 z-[100]">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/80" onClick={onClose} />
       <div className="absolute inset-0 flex items-center justify-center p-0 sm:p-3">
-        <div className={`bg-[#0b0b0d]/95 backdrop-blur-xl border border-white/10 rounded-xl sm:rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] overflow-hidden flex flex-col ${isFullscreen ? "w-full h-full sm:m-0" : "w-full max-w-6xl h-full sm:h-[88vh]"}`}>
+        <div className={`bg-[#0b0b0d] border border-zinc-800 rounded-xl sm:rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col ${isFullscreen ? "w-full h-full sm:m-0" : "w-full max-w-6xl h-full sm:h-[88vh]"}`}>
 
           {/* Header */}
-          <div className="px-5 pt-5 pb-3 border-b border-white/5 bg-zinc-900/40 shrink-0 overflow-x-auto">
+          <div className="px-5 py-4 border-b border-zinc-800 bg-zinc-950 shrink-0 overflow-x-auto">
             <div className="flex items-center justify-between mb-4 min-w-fit">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-gradient-to-br from-sky-500/20 to-blue-500/20 rounded-xl text-sky-400 border border-sky-500/20 shadow-sm shrink-0">
@@ -260,17 +260,17 @@ export function TailwindLabs({ isOpen, onClose }: TailwindLabsProps) {
                 </div>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
-                <button onClick={() => setIsFullscreen(!isFullscreen)} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95" title={isFullscreen ? "Exit" : "Fullscreen"}>
+                <button onClick={() => setIsFullscreen(!isFullscreen)} className="p-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95" title={isFullscreen ? "Exit" : "Fullscreen"}>
                   {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
                 </button>
-                <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95"><X size={14} /></button>
+                <button onClick={onClose} className="p-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95"><X size={14} /></button>
               </div>
             </div>
 
-            <div className="flex items-center gap-1 bg-black/30 rounded-lg p-0.5 border border-white/5 w-fit">
+            <div className="flex items-center gap-1 bg-black/60 rounded-lg p-0.5 border border-zinc-800 w-fit">
               {tabs.map(([key, label, Icon]) => (
                 <button key={key} onClick={() => { setTab(key); setQuery(""); }}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${tab === key ? 'bg-blue-500/20 text-blue-400 shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}>
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-bold transition-all whitespace-nowrap ${tab === key ? 'bg-blue-500/20 text-blue-400 shadow-sm border border-blue-500/30' : 'text-zinc-550 hover:text-zinc-300'}`}>
                   <Icon size={13} /> {label}
                 </button>
               ))}
@@ -279,13 +279,13 @@ export function TailwindLabs({ isOpen, onClose }: TailwindLabsProps) {
             {tab === "classes" && (
               <div className="relative mt-3 group">
                 <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-zinc-600 group-focus-within:text-blue-400 transition-colors"><Search size={14} /></div>
-                <input type="text" placeholder="Search classes..." value={query} onChange={e => setQuery(e.target.value)} className="w-full bg-black/40 border border-white/5 rounded-lg py-2 pl-9 pr-4 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/40 transition-all shadow-inner" />
+                <input type="text" placeholder="Search classes..." value={query} onChange={e => setQuery(e.target.value)} className="w-full bg-black/60 border border-zinc-800 rounded-lg py-2 pl-9 pr-4 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/40 transition-all shadow-inner" />
               </div>
             )}
           </div>
 
           {/* Body */}
-          <div className="flex-1 overflow-y-auto custom-scrollbar">
+          <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#09090b]">
 
             {/* === COLORS TAB === */}
             {tab === "colors" && (
@@ -295,7 +295,7 @@ export function TailwindLabs({ isOpen, onClose }: TailwindLabsProps) {
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-bold text-zinc-300">{name}</span>
                       {selectedColor === name && (
-                        <button onClick={() => setSelectedColor(null)} className="text-[9px] text-zinc-600 hover:text-zinc-400">✕ Clear</button>
+                        <button onClick={() => setSelectedColor(null)} className="text-[9px] text-zinc-650 hover:text-zinc-400">✕ Clear</button>
                       )}
                     </div>
                     <div className="flex gap-1 rounded-xl overflow-hidden h-10">
@@ -315,12 +315,12 @@ export function TailwindLabs({ isOpen, onClose }: TailwindLabsProps) {
                     <div className="flex gap-1 mt-1 flex-wrap">
                       {(["bg", "text", "border"] as const).map(prefix => (
                         <button key={prefix} onClick={() => handleCopy(`${prefix}-${name.toLowerCase()}-500`, `prop-${name}-${prefix}`)}
-                          className="text-[9px] px-2 py-0.5 rounded bg-white/5 border border-white/5 text-zinc-500 hover:text-zinc-300 hover:bg-white/10 transition-all font-mono">
+                          className="text-[9px] px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-all font-mono">
                           {`${prefix}-${name.toLowerCase()}-500`}
                         </button>
                       ))}
                       <button onClick={() => setSelectedColor(selectedColor === name ? null : name)}
-                        className="text-[9px] px-2 py-0.5 rounded bg-white/5 border border-white/5 text-zinc-600 hover:text-zinc-400 transition-all">
+                        className="text-[9px] px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-zinc-350 hover:bg-zinc-800 transition-all">
                         All shades
                       </button>
                     </div>
@@ -330,7 +330,7 @@ export function TailwindLabs({ isOpen, onClose }: TailwindLabsProps) {
                           const hex = COLORS[name][shade];
                           return (
                             <button key={shade} onClick={() => handleCopy(hex, `hex-${name}-${shade}`)} title={`${name}-${shade}: ${hex}`}
-                              className="flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-mono bg-white/5 border border-white/5 hover:bg-white/10 transition-all">
+                              className="flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-mono bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 transition-all">
                               <span className="w-2.5 h-2.5 rounded" style={{ backgroundColor: hex }} />
                               {shade} <span className="text-zinc-600">{hex}</span>
                             </button>
@@ -342,40 +342,40 @@ export function TailwindLabs({ isOpen, onClose }: TailwindLabsProps) {
                 ))}
 
                 {/* Gradient Preview */}
-                <div className="mt-6 pt-4 border-t border-white/5">
+                <div className="mt-6 pt-4 border-t border-zinc-800">
                   <div className="text-xs font-bold text-zinc-300 mb-3">Gradient Generator</div>
                   <div className="flex items-center gap-3 flex-wrap">
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] text-zinc-500">From</span>
                       <select value={gradientFrom} onChange={e => setGradientFrom(e.target.value)}
-                        className="bg-black/40 border border-white/10 rounded px-2 py-1.5 text-xs text-zinc-300 font-mono outline-none focus:border-blue-500/40">
+                        className="bg-black/60 border border-zinc-800 rounded px-2 py-1.5 text-xs text-zinc-300 font-mono outline-none focus:border-blue-500/40">
                         {COLOR_NAMES.map(c => <option key={c} value={c.toLowerCase()}>{c}</option>)}
                       </select>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] text-zinc-500">To</span>
                       <select value={gradientTo} onChange={e => setGradientTo(e.target.value)}
-                        className="bg-black/40 border border-white/10 rounded px-2 py-1.5 text-xs text-zinc-300 font-mono outline-none focus:border-blue-500/40">
+                        className="bg-black/60 border border-zinc-800 rounded px-2 py-1.5 text-xs text-zinc-300 font-mono outline-none focus:border-blue-500/40">
                         {COLOR_NAMES.map(c => <option key={c} value={c.toLowerCase()}>{c}</option>)}
                       </select>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] text-zinc-500">Shade</span>
                       <select value={gradientShade} onChange={e => setGradientShade(e.target.value)}
-                        className="bg-black/40 border border-white/10 rounded px-2 py-1.5 text-xs text-zinc-300 font-mono outline-none focus:border-blue-500/40">
+                        className="bg-black/60 border border-zinc-800 rounded px-2 py-1.5 text-xs text-zinc-300 font-mono outline-none focus:border-blue-500/40">
                         {["50", "100", "200", "300", "400", "500", "600", "700", "800", "900", "950"].map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
                     </div>
                   </div>
                   <div className="mt-3 flex gap-3 items-center flex-wrap">
-                    <div className="h-16 w-48 rounded-xl shadow-inner" style={{ background: `linear-gradient(to right, ${COLORS[gradientFrom.charAt(0).toUpperCase() + gradientFrom.slice(1)]?.[gradientShade] || '#3b82f6'}, ${COLORS[gradientTo.charAt(0).toUpperCase() + gradientTo.slice(1)]?.[gradientShade] || '#8b5cf6'})` }} />
+                    <div className="h-16 w-48 rounded-xl shadow-inner border border-zinc-800" style={{ background: `linear-gradient(to right, ${COLORS[gradientFrom.charAt(0).toUpperCase() + gradientFrom.slice(1)]?.[gradientShade] || '#3b82f6'}, ${COLORS[gradientTo.charAt(0).toUpperCase() + gradientTo.slice(1)]?.[gradientShade] || '#8b5cf6'})` }} />
                     <div className="flex flex-col gap-1">
                       <button onClick={() => handleCopy(`from-${gradientFrom}-${gradientShade}`, "grad-from")}
-                        className="text-[9px] px-2.5 py-1 rounded bg-white/5 border border-white/5 text-zinc-400 hover:text-zinc-200 hover:bg-white/10 transition-all font-mono text-left">
+                        className="text-[9px] px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-all font-mono text-left">
                         from-{gradientFrom}-{gradientShade}
                       </button>
                       <button onClick={() => handleCopy(`to-${gradientTo}-${gradientShade}`, "grad-to")}
-                        className="text-[9px] px-2.5 py-1 rounded bg-white/5 border border-white/5 text-zinc-400 hover:text-zinc-200 hover:bg-white/10 transition-all font-mono text-left">
+                        className="text-[9px] px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-all font-mono text-left">
                         to-{gradientTo}-{gradientShade}
                       </button>
                       <button onClick={() => handleCopy(`bg-gradient-to-r from-${gradientFrom}-${gradientShade} to-${gradientTo}-${gradientShade}`, "grad-full")}
@@ -399,11 +399,11 @@ export function TailwindLabs({ isOpen, onClose }: TailwindLabsProps) {
                       const isCopied = copied === `fs-${f.cls}`;
                       return (
                         <button key={f.cls} onClick={() => handleCopy(f.cls, `fs-${f.cls}`)}
-                          className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all group ${isCopied ? 'bg-emerald-500/5 border border-emerald-500/20' : 'bg-white/[0.02] border border-white/5 hover:bg-white/[0.04]'}`}>
+                          className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all group ${isCopied ? 'bg-emerald-500/5 border border-emerald-500/20' : 'bg-zinc-950/40 border border-zinc-800 hover:bg-zinc-900/50'}`}>
                           <span style={{ fontSize: f.size }} className="font-bold text-white truncate flex-1">Aa</span>
                           <div className="text-right shrink-0">
                             <div className={`text-xs font-mono font-bold ${isCopied ? 'text-emerald-400' : 'text-sky-400'}`}>{f.cls}</div>
-                            <div className="text-[9px] text-zinc-600 font-mono">{f.px}px · {f.size} · lh: {f.line}</div>
+                            <div className="text-[9px] text-zinc-650 font-mono">{f.px}px · {f.size} · lh: {f.line}</div>
                           </div>
                           {isCopied && <Check size={14} className="text-emerald-400 shrink-0" />}
                         </button>
@@ -413,18 +413,18 @@ export function TailwindLabs({ isOpen, onClose }: TailwindLabsProps) {
                 </div>
 
                 {/* Font Families */}
-                <div className="pt-2 border-t border-white/5">
+                <div className="pt-2 border-t border-zinc-800">
                   <div className="text-xs font-bold text-zinc-300 mb-3">Font Families</div>
                   <div className="space-y-2">
                     {FONT_FAMILIES.map(f => {
                       const isCopied = copied === `ff-${f.cls}`;
                       return (
                         <button key={f.cls} onClick={() => handleCopy(f.cls, `ff-${f.cls}`)}
-                          className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all group ${isCopied ? 'bg-emerald-500/5 border border-emerald-500/20' : 'bg-white/[0.02] border border-white/5 hover:bg-white/[0.04]'}`}>
+                          className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all group ${isCopied ? 'bg-emerald-500/5 border border-emerald-500/20' : 'bg-zinc-950/40 border border-zinc-800 hover:bg-zinc-900/50'}`}>
                           <span className={`flex-1 text-sm ${f.cls} ${isCopied ? 'text-emerald-400' : 'text-zinc-300'}`}>{f.sample}</span>
                           <div className="text-right shrink-0">
                             <div className={`text-xs font-mono font-bold ${isCopied ? 'text-emerald-400' : 'text-sky-400'}`}>{f.cls}</div>
-                            <div className="text-[9px] text-zinc-600">{f.name}</div>
+                            <div className="text-[9px] text-zinc-650">{f.name}</div>
                           </div>
                           {isCopied && <Check size={14} className="text-emerald-400 shrink-0" />}
                         </button>
@@ -434,7 +434,7 @@ export function TailwindLabs({ isOpen, onClose }: TailwindLabsProps) {
                 </div>
 
                 {/* Line Height & Letter Spacing */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-white/5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-zinc-800">
                   <div>
                     <div className="text-xs font-bold text-zinc-300 mb-3">Line Height</div>
                     <div className="space-y-1">
@@ -442,7 +442,7 @@ export function TailwindLabs({ isOpen, onClose }: TailwindLabsProps) {
                         const isCopied = copied === `lh-${l.cls}`;
                         return (
                           <button key={l.cls} onClick={() => handleCopy(l.cls, `lh-${l.cls}`)}
-                            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/[0.02] transition-all group text-left">
+                            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-zinc-900/50 transition-all group text-left">
                             <span className={`text-xs flex-1 ${l.cls} ${isCopied ? 'text-emerald-400' : 'text-zinc-400'}`}>The quick brown fox</span>
                             <span className={`text-[10px] font-mono ${isCopied ? 'text-emerald-400' : 'text-zinc-500'}`}>{l.cls}</span>
                             {isCopied && <Check size={10} className="text-emerald-400 shrink-0" />}
@@ -458,7 +458,7 @@ export function TailwindLabs({ isOpen, onClose }: TailwindLabsProps) {
                         const isCopied = copied === `tr-${t.cls}`;
                         return (
                           <button key={t.cls} onClick={() => handleCopy(t.cls, `tr-${t.cls}`)}
-                            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/[0.02] transition-all group text-left">
+                            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-zinc-900/50 transition-all group text-left">
                             <span className={`text-xs flex-1 ${t.cls} ${isCopied ? 'text-emerald-400' : 'text-zinc-400'}`}>Tracking</span>
                             <span className={`text-[10px] font-mono ${isCopied ? 'text-emerald-400' : 'text-zinc-500'}`}>{t.cls}</span>
                             {isCopied && <Check size={10} className="text-emerald-400 shrink-0" />}
@@ -483,11 +483,11 @@ export function TailwindLabs({ isOpen, onClose }: TailwindLabsProps) {
                       const isCopied = copied === `sh-${s.cls}`;
                       return (
                         <button key={s.cls} onClick={() => handleCopy(s.cls, `sh-${s.cls}`)}
-                          className={`flex flex-col items-center gap-4 p-2 rounded-2xl transition-all group ${isCopied ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-white/5 border border-white/5 hover:bg-white/[0.08]'}`}>
-                          <div className="w-full aspect-[4/3] rounded-xl bg-zinc-100 flex items-center justify-center overflow-hidden">
+                          className={`flex flex-col items-center gap-4 p-2 rounded-2xl transition-all group ${isCopied ? 'bg-emerald-500/10 border border-emerald-500/20 shadow-none' : 'bg-zinc-950/40 border border-zinc-800 hover:bg-zinc-900/50'}`}>
+                          <div className="w-full aspect-[4/3] rounded-xl bg-zinc-900 flex items-center justify-center overflow-hidden border border-zinc-800">
                             <div 
-                              className="w-14 h-14 bg-white rounded-xl transition-transform group-hover:scale-110 duration-500" 
-                              style={{ boxShadow: s.css }} 
+                              className="w-14 h-14 bg-zinc-950 rounded-xl transition-transform group-hover:scale-110 duration-500 border border-zinc-800" 
+                              style={{ boxShadow: s.css.replace(/rgb\(0 0 0/g, 'rgba(0,0,0') }} 
                             />
                           </div>
                           <div className="text-center pb-2">
@@ -502,9 +502,9 @@ export function TailwindLabs({ isOpen, onClose }: TailwindLabsProps) {
                 </div>
 
                 {/* Opacity */}
-                <div className="pt-2 border-t border-white/5">
+                <div className="pt-2 border-t border-zinc-800">
                   <div className="text-xs font-bold text-zinc-300 mb-3">Opacity Scale</div>
-                  <div className="flex gap-0.5 rounded-xl overflow-hidden h-14">
+                  <div className="flex gap-0.5 rounded-xl overflow-hidden h-14 border border-zinc-800 bg-black">
                     {OPACITIES.map(op => (
                       <button key={op} onClick={() => handleCopy(`opacity-${op}`, `op-${op}`)}
                         title={`opacity-${op}`}
@@ -524,14 +524,14 @@ export function TailwindLabs({ isOpen, onClose }: TailwindLabsProps) {
                 </div>
 
                 {/* Blur */}
-                <div className="pt-2 border-t border-white/5">
+                <div className="pt-2 border-t border-zinc-800">
                   <div className="text-xs font-bold text-zinc-300 mb-3">Blur</div>
                   <div className="flex gap-2 flex-wrap">
                     {BLURS.map(b => {
                       const isCopied = copied === `bl-${b.cls}`;
                       return (
                         <button key={b.cls} onClick={() => handleCopy(b.cls, `bl-${b.cls}`)}
-                          className={`flex flex-col items-center gap-2 px-3 py-3 rounded-xl transition-all ${isCopied ? 'bg-emerald-500/5 border border-emerald-500/20' : 'bg-white/[0.02] border border-white/5 hover:bg-white/[0.04]'}`}>
+                          className={`flex flex-col items-center gap-2 px-3 py-3 rounded-xl transition-all ${isCopied ? 'bg-emerald-500/5 border border-emerald-500/20' : 'bg-zinc-950/40 border border-zinc-800 hover:bg-zinc-900/50'}`}>
                           <span className="text-lg font-bold text-white" style={{ filter: `blur(${b.value})` }}>A</span>
                           <div className="text-center">
                             <div className={`text-[9px] font-mono font-bold ${isCopied ? 'text-emerald-400' : 'text-zinc-400'}`}>{b.cls}</div>
@@ -545,18 +545,18 @@ export function TailwindLabs({ isOpen, onClose }: TailwindLabsProps) {
                 </div>
 
                 {/* Border Radius */}
-                <div className="pt-2 border-t border-white/5">
+                <div className="pt-2 border-t border-zinc-800">
                   <div className="text-xs font-bold text-zinc-300 mb-3">Border Radius</div>
                   <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
                     {RADIUS.map(r => {
                       const isCopied = copied === `br-${r.cls}`;
                       return (
                         <button key={r.cls} onClick={() => handleCopy(r.cls, `br-${r.cls}`)}
-                          className={`flex flex-col items-center gap-2 px-3 py-4 rounded-xl transition-all ${isCopied ? 'bg-emerald-500/5 border border-emerald-500/20' : 'bg-white/[0.02] border border-white/5 hover:bg-white/[0.04]'}`}>
+                          className={`flex flex-col items-center gap-2 px-3 py-4 rounded-xl transition-all ${isCopied ? 'bg-emerald-500/5 border border-emerald-500/20' : 'bg-zinc-950/40 border border-zinc-800 hover:bg-zinc-900/50'}`}>
                           <div className={`w-10 h-10 bg-blue-500/30 ${r.cls}`} />
                           <div className="text-center">
                             <div className={`text-[9px] font-mono font-bold ${isCopied ? 'text-emerald-400' : 'text-zinc-400'}`}>{r.cls}</div>
-                            <div className="text-[7px] text-zinc-600">{r.value}</div>
+                            <div className="text-[7px] text-zinc-650">{r.value}</div>
                           </div>
                           {isCopied && <Check size={10} className="text-emerald-400" />}
                         </button>
@@ -574,11 +574,11 @@ export function TailwindLabs({ isOpen, onClose }: TailwindLabsProps) {
                   <div className="flex items-center gap-2 text-[10px] text-zinc-600"><Ruler size={12} /> Tailwind spacing scale</div>
                   <div className="flex gap-2 text-[9px] text-zinc-600">
                     {BREAKPOINTS.map(bp => (
-                      <span key={bp.prefix} className="px-1.5 py-0.5 rounded bg-white/5 border border-white/5">{bp.prefix}: {bp.min}</span>
+                      <span key={bp.prefix} className="px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-800">{bp.prefix}: {bp.min}</span>
                     ))}
                   </div>
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 font-mono">
                   {SPACING.map(value => {
                     const cls = value === 0 ? "p-0" : value % 1 === 0 ? `p-${value}` : `p-${String(value).replace(".", "/")}`;
                     const px = value * 4;
@@ -587,8 +587,8 @@ export function TailwindLabs({ isOpen, onClose }: TailwindLabsProps) {
                     const isCopied = copied === `sp-${value}`;
                     return (
                       <button key={value} onClick={() => handleCopy(cls, `sp-${value}`)}
-                        className={`w-full flex items-center gap-4 py-1.5 px-3 rounded-lg transition-all group ${isCopied ? 'bg-emerald-500/5' : 'hover:bg-white/[0.02]'}`}>
-                        <span className="w-20 text-[11px] font-mono font-bold text-right shrink-0 text-zinc-400">{cls}</span>
+                        className={`w-full flex items-center gap-4 py-1.5 px-3 rounded-lg transition-all group ${isCopied ? 'bg-emerald-500/5' : 'hover:bg-zinc-900/50'}`}>
+                        <span className="w-20 text-[11px] font-mono font-bold text-right shrink-0 text-zinc-450">{cls}</span>
                         <div className="flex-1 flex items-center h-4">
                           {value > 0 ? (
                             <div className={`h-3 rounded transition-all ${isCopied ? 'bg-emerald-500/40' : 'bg-blue-500/30 group-hover:bg-blue-500/40'}`}
@@ -598,7 +598,7 @@ export function TailwindLabs({ isOpen, onClose }: TailwindLabsProps) {
                           )}
                           {value === 0 && <span className="text-[10px] text-zinc-600 ml-2">0 — no spacing</span>}
                         </div>
-                        <span className="w-24 text-[9px] font-mono text-right shrink-0 text-zinc-600">{px}px · {rem}rem</span>
+                        <span className="w-24 text-[9px] font-mono text-right shrink-0 text-zinc-650">{px}px · {rem}rem</span>
                         {isCopied && <Check size={12} className="text-emerald-400 shrink-0" />}
                       </button>
                     );
@@ -609,17 +609,17 @@ export function TailwindLabs({ isOpen, onClose }: TailwindLabsProps) {
 
             {/* === CLASSES TAB === */}
             {tab === "classes" && (
-              <div className="divide-y divide-white/[0.03]">
+              <div className="divide-y divide-zinc-800/50 bg-[#09090b]">
                 {groups.map(([group, items]) => (
                   <div key={group}>
-                    <div className="px-6 py-2 text-[9px] font-bold text-zinc-600 uppercase tracking-widest bg-black/20 sticky top-0 z-10 backdrop-blur-sm">
+                    <div className="px-6 py-2 text-[9px] font-bold text-zinc-600 uppercase tracking-widest bg-zinc-950 sticky top-0 z-10 border-b border-zinc-800/40">
                       {group} ({items.length})
                     </div>
                     {items.map(item => {
                       const isCopied = copied === `cl-${item.class}`;
                       return (
                         <button key={item.class} onClick={() => handleCopy(item.class, `cl-${item.class}`)}
-                          className={`w-full flex items-start gap-4 px-6 py-3 transition-all text-left group ${isCopied ? 'bg-emerald-500/5' : 'hover:bg-white/[0.02]'}`}>
+                          className={`w-full flex items-start gap-4 px-6 py-3 transition-all text-left group ${isCopied ? 'bg-emerald-500/5' : 'hover:bg-zinc-900/50'}`}>
                           <div className="flex-1 min-w-0">
                             <code className={`text-xs font-mono font-bold ${isCopied ? 'text-emerald-400' : 'text-sky-400'}`}>{item.class}</code>
                             <div className="text-[10px] text-zinc-600 mt-0.5 font-mono">{item.css}</div>
@@ -627,7 +627,7 @@ export function TailwindLabs({ isOpen, onClose }: TailwindLabsProps) {
                           {isCopied ? (
                             <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-bold shrink-0"><Check size={12} />Copied</span>
                           ) : (
-                            <Copy size={13} className="text-zinc-600 opacity-0 group-hover:opacity-100 transition-all shrink-0 mt-0.5" />
+                            <Copy size={13} className="text-zinc-650 opacity-0 group-hover:opacity-100 transition-all shrink-0 mt-0.5" />
                           )}
                         </button>
                       );
@@ -639,8 +639,8 @@ export function TailwindLabs({ isOpen, onClose }: TailwindLabsProps) {
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-2.5 border-t border-white/5 bg-white/[0.02] flex items-center justify-between text-[10px] text-zinc-600 shrink-0">
-            <span className="flex items-center gap-1.5"><kbd className="px-1.5 py-0.5 rounded bg-white/5 border border-white/5 text-[9px] font-mono font-bold">copy</kbd> Click to copy</span>
+          <div className="px-6 py-2.5 border-t border-zinc-800 bg-zinc-900/30 flex items-center justify-between text-[10px] text-zinc-600 shrink-0">
+            <span className="flex items-center gap-1.5"><kbd className="px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-[9px] font-mono font-bold text-zinc-400">copy</kbd> Click to copy</span>
             <span className="font-mono text-zinc-500">
               {tab === "colors" && `${COLOR_NAMES.length} colors`}
               {tab === "type" && `${FONT_SIZES.length + FONT_FAMILIES.length} typography`}

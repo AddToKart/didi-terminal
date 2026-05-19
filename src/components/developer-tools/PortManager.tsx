@@ -76,16 +76,16 @@ export function PortManager({ isOpen, onClose, onPortsUpdate }: PortManagerProps
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-black/60 backdrop-blur-md z-[100] animate-in fade-in duration-500" 
+        className="fixed inset-0 bg-black/75 z-[100] animate-in fade-in duration-300" 
         onClick={onClose}
       />
 
       {/* Modal Container */}
       <div className="fixed inset-0 flex items-center justify-center z-[101] p-4 pointer-events-none">
-        <div className="bg-[#0b0b0d]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden w-full max-w-2xl h-[650px] flex flex-col pointer-events-auto animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
+        <div className="bg-zinc-950 border border-zinc-800 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.7)] overflow-hidden w-full max-w-2xl h-[650px] flex flex-col pointer-events-auto animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
           
           {/* Header Section */}
-          <div className="p-5 border-b border-white/5 bg-zinc-900/40">
+          <div className="p-5 border-b border-zinc-800 bg-zinc-900/20">
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-400 border border-emerald-500/20">
@@ -106,14 +106,14 @@ export function PortManager({ isOpen, onClose, onPortsUpdate }: PortManagerProps
                 <button 
                   onClick={fetchPorts}
                   disabled={loading}
-                  className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95 disabled:opacity-50"
+                  className="p-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95 disabled:opacity-50"
                   title="Refresh"
                 >
                   <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
                 </button>
                 <button 
                   onClick={onClose}
-                  className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95"
+                  className="p-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95"
                 >
                   <X size={14} />
                 </button>
@@ -128,7 +128,7 @@ export function PortManager({ isOpen, onClose, onPortsUpdate }: PortManagerProps
               <input 
                 type="text"
                 placeholder="Filter by port, process or PID..."
-                className="w-full bg-black/40 border border-white/5 rounded-lg py-2.5 pl-9 pr-4 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500/30 transition-all shadow-inner"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg py-2.5 pl-9 pr-4 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500/50 transition-all shadow-inner"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 autoFocus
@@ -137,7 +137,7 @@ export function PortManager({ isOpen, onClose, onPortsUpdate }: PortManagerProps
           </div>
 
           {/* Column Headers */}
-          <div className="px-6 py-2 bg-black/40 border-b border-white/5 flex items-center text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+          <div className="px-6 py-2 bg-zinc-900/40 border-b border-zinc-800 flex items-center text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
             <div className="w-20">Port</div>
             <div className="flex-1">Process</div>
             <div className="w-24">PID</div>
@@ -156,7 +156,7 @@ export function PortManager({ isOpen, onClose, onPortsUpdate }: PortManagerProps
                 <p className="text-[11px] text-zinc-500 max-w-xs">{error}</p>
                 <button 
                   onClick={fetchPorts}
-                  className="mt-4 px-4 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs transition-colors"
+                  className="mt-4 px-4 py-1.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-850 rounded-lg text-xs transition-colors text-zinc-300"
                 >
                   Reconnect
                 </button>
@@ -168,11 +168,11 @@ export function PortManager({ isOpen, onClose, onPortsUpdate }: PortManagerProps
                 <p className="text-[11px] text-zinc-500">Search criteria yielded no matches</p>
               </div>
             ) : (
-              <div className="divide-y divide-white/[0.03]">
+              <div className="divide-y divide-zinc-900">
                 {filteredPorts.map((port, index) => (
                   <div 
                     key={`${port.port}-${port.pid}`}
-                    className="group flex items-center px-6 py-3.5 hover:bg-white/[0.02] transition-colors animate-in fade-in slide-in-from-top-1 duration-300"
+                    className="group flex items-center px-6 py-3.5 hover:bg-zinc-900/40 transition-colors animate-in fade-in slide-in-from-top-1 duration-300"
                     style={{ animationDelay: `${index * 30}ms` }}
                   >
                     <div className="w-20">
@@ -191,7 +191,7 @@ export function PortManager({ isOpen, onClose, onPortsUpdate }: PortManagerProps
                     </div>
 
                     <div className="w-24">
-                      <span className="text-[10px] font-mono text-zinc-500 px-1.5 py-0.5 rounded bg-white/5 border border-white/5">
+                      <span className="text-[10px] font-mono text-zinc-400 px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-800">
                         {port.pid}
                       </span>
                     </div>
@@ -208,14 +208,14 @@ export function PortManager({ isOpen, onClose, onPortsUpdate }: PortManagerProps
                     <div className="w-20 flex items-center justify-end gap-1">
                       <button 
                         onClick={() => window.open(`http://localhost:${port.port}`)}
-                        className="p-1.5 hover:bg-emerald-500/10 text-zinc-600 hover:text-emerald-400 rounded-md transition-all active:scale-90"
+                        className="p-1.5 hover:bg-emerald-500/10 text-zinc-650 hover:text-emerald-400 rounded-md transition-all active:scale-90"
                         title="Open in Browser"
                       >
                         <ExternalLink size={14} />
                       </button>
                       <button 
                         onClick={() => handleKill(port.pid)}
-                        className="p-1.5 hover:bg-red-500/10 text-zinc-600 hover:text-red-400 rounded-md transition-all active:scale-90"
+                        className="p-1.5 hover:bg-red-500/10 text-zinc-655 hover:text-red-400 rounded-md transition-all active:scale-90"
                         title="Kill Process"
                       >
                         <Trash2 size={14} />

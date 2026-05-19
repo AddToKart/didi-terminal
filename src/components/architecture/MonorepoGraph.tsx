@@ -36,14 +36,14 @@ function ProjectNode({ data }: NodeProps) {
                  type === 'rust' ? Box : 
                  type === 'python' ? FileCode : Folder;
 
-    const colorClass = type === 'node' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/5' :
-                       type === 'rust' ? 'text-orange-400 border-orange-500/30 bg-orange-500/5' :
-                       type === 'python' ? 'text-blue-400 border-blue-500/30 bg-blue-500/5' :
-                       'text-zinc-400 border-zinc-500/30 bg-zinc-500/5';
+    const colorClass = type === 'node' ? 'text-emerald-400 border-emerald-500/30 bg-[#070e0a]' :
+                       type === 'rust' ? 'text-orange-400 border-orange-500/30 bg-[#120a05]' :
+                       type === 'python' ? 'text-blue-400 border-blue-500/30 bg-[#060a12]' :
+                       'text-zinc-400 border-zinc-800 bg-[#0a0a0c]';
 
     return (
         <div 
-            className={`px-4 py-3 rounded-xl border backdrop-blur-md min-w-[180px] shadow-lg transition-all hover:scale-105 hover:border-brand-accent/50 group cursor-pointer ${colorClass}`}
+            className={`px-4 py-3 rounded-xl border min-w-[180px] shadow-lg transition-all hover:scale-105 hover:border-brand-accent/50 group cursor-pointer ${colorClass}`}
             onClick={() => onClick(path, name)}
         >
             <Handle type="target" position={Position.Top} className="!bg-zinc-600 !w-1 !h-1 border-none" />
@@ -129,7 +129,7 @@ export function MonorepoGraph({ currentProject, onClose, onOpenInTerminal }: Pro
     }, [fetchGraph]);
 
     return (
-        <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-md flex flex-col p-6 animate-in fade-in duration-300">
+        <div className="absolute inset-0 z-50 bg-black/85 flex flex-col p-6 animate-in fade-in duration-300">
             <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center gap-4">
                     <div className="p-2.5 bg-brand-accent/10 rounded-xl border border-brand-accent/20">
@@ -145,18 +145,18 @@ export function MonorepoGraph({ currentProject, onClose, onOpenInTerminal }: Pro
                     <button 
                         onClick={fetchGraph}
                         disabled={loading}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-900 border border-white/5 text-xs font-bold text-zinc-300 hover:bg-zinc-800 transition-all disabled:opacity-50"
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#0c0c0f] border border-zinc-800 text-xs font-bold text-zinc-300 hover:bg-[#121215] transition-all disabled:opacity-50"
                     >
                         <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
                         Refresh
                     </button>
-                    <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200 p-2.5 border border-white/5 rounded-xl bg-zinc-900 transition-colors">
+                    <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200 p-2.5 border border-zinc-800 rounded-xl bg-[#0c0c0f] transition-colors">
                         <X size={20} />
                     </button>
                 </div>
             </div>
 
-            <div className="flex-1 border border-white/5 rounded-2xl bg-zinc-950/50 overflow-hidden relative shadow-2xl ring-1 ring-white/5">
+            <div className="flex-1 border border-zinc-800 rounded-2xl bg-[#030304] overflow-hidden relative shadow-2xl">
                 <ReactFlow 
                     nodes={nodes} 
                     edges={edges} 
@@ -168,10 +168,10 @@ export function MonorepoGraph({ currentProject, onClose, onOpenInTerminal }: Pro
                     maxZoom={2}
                 >
                     <Background color="#27272a" gap={32} size={1} />
-                    <Controls className="bg-zinc-900 border-white/10 fill-white !rounded-xl overflow-hidden" />
+                    <Controls className="!bg-[#0c0c0f] !border !border-zinc-800 fill-white !rounded-xl overflow-hidden" />
                     
-                    <Panel position="bottom-right" className="bg-black/60 backdrop-blur-md border border-white/10 p-3 rounded-xl flex flex-col gap-2 shadow-2xl">
-                        <div className="text-[10px] uppercase tracking-widest font-bold text-zinc-500 border-b border-white/5 pb-2 mb-1">Legend</div>
+                    <Panel position="bottom-right" className="bg-[#0a0a0c] border border-zinc-800 p-3 rounded-xl flex flex-col gap-2 shadow-2xl">
+                        <div className="text-[10px] uppercase tracking-widest font-bold text-zinc-500 border-b border-zinc-800 pb-2 mb-1">Legend</div>
                         <div className="flex items-center gap-2 text-xs text-emerald-400"><Package size={14}/> Node.js / TS</div>
                         <div className="flex items-center gap-2 text-xs text-orange-400"><Box size={14}/> Rust / Cargo</div>
                         <div className="flex items-center gap-2 text-xs text-blue-400"><FileCode size={14}/> Python</div>

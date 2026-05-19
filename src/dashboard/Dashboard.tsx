@@ -143,13 +143,13 @@ export function Dashboard() {
                     </div>
 
                     <div className="grid grid-cols-2 gap-4 relative z-10">
-                      <div className="bg-black/20 rounded-2xl p-3 border border-white/5">
+                      <div className="bg-[#0a0a0c] rounded-2xl p-3 border border-zinc-800">
                         <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1 flex items-center gap-1.5">
                             <Cpu size={10} /> Intelligence
                         </p>
                         <p className="text-lg font-mono font-bold text-white">0.0%</p>
                       </div>
-                      <div className="bg-black/20 rounded-2xl p-3 border border-white/5">
+                      <div className="bg-[#0a0a0c] rounded-2xl p-3 border border-zinc-800">
                         <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1 flex items-center gap-1.5">
                             <Database size={10} /> Neural
                         </p>
@@ -191,7 +191,7 @@ export function Dashboard() {
                     </p>
                     <span className="text-[9px] font-mono text-zinc-600 group-hover:text-zinc-400 transition-colors">{h.time}</span>
                   </div>
-                  <p className="text-xs text-zinc-400 line-clamp-2 leading-relaxed bg-zinc-800/30 p-2 rounded-lg border border-white/5 italic">
+                  <p className="text-xs text-zinc-400 line-clamp-2 leading-relaxed bg-zinc-950/60 p-2 rounded-lg border border-zinc-800/80 italic">
                     "{h.payload}"
                   </p>
                 </div>

@@ -184,7 +184,7 @@ function SyntaxHighlightedRaw({ text, ext }: { text: string; ext: string }) {
     <div className="h-full overflow-y-auto custom-scrollbar">
       <div className="py-5 px-6 text-xs font-mono leading-relaxed whitespace-pre-wrap break-all">
         {tokenized.map((tokens, i) => (
-          <div key={i} className="hover:bg-white/[0.02] -mx-6 px-6 transition-colors">
+          <div key={i} className="hover:bg-zinc-900/20 -mx-6 px-6 transition-colors">
             {tokens.map((t, ti) => (
               <span key={ti} className={t.className}>{t.text}</span>
             ))}
@@ -198,10 +198,10 @@ function SyntaxHighlightedRaw({ text, ext }: { text: string; ext: string }) {
 function SectionCard({ title, children, defaultOpen = true }: { title: React.ReactNode; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="border border-white/5 rounded-xl bg-black/20 overflow-hidden">
+    <div className="border border-zinc-800/80 rounded-xl bg-[#0a0a0c] overflow-hidden">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-zinc-300 hover:bg-white/[0.02] transition-colors text-left"
+        className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-zinc-300 hover:bg-zinc-900/20 transition-colors text-left"
       >
         <ChevronRight size={12} className={`transition-transform ${open ? "rotate-90" : ""} text-zinc-600`} />
         {title}
@@ -219,7 +219,7 @@ function ValueBadge({ value, type }: { value: string; type: string }) {
     null: "text-zinc-500 bg-zinc-500/10 border-zinc-500/20",
   };
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-mono font-bold border ${colorMap[type] || "text-zinc-400 bg-white/5 border-white/10"}`}>
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-mono font-bold border ${colorMap[type] || "text-zinc-400 bg-zinc-900/60 border-zinc-800"}`}>
       {value}
     </span>
   );
@@ -235,7 +235,7 @@ function Chip({ label }: { label: string }) {
 
 function KeyValueRow({ label, value, type }: { label: string; value: string; type: string }) {
   return (
-    <div className="flex items-center gap-3 py-1.5 px-3 rounded-lg hover:bg-white/[0.02] transition-colors group">
+    <div className="flex items-center gap-3 py-1.5 px-3 rounded-lg hover:bg-zinc-900/20 transition-colors group">
       <span className="text-[11px] font-medium text-zinc-500 min-w-[120px] truncate">{label}</span>
       <ValueBadge value={value} type={type} />
     </div>
@@ -244,10 +244,10 @@ function KeyValueRow({ label, value, type }: { label: string; value: string; typ
 
 function TableView({ data, columns }: { data: Record<string, unknown>[]; columns: string[] }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-white/5">
+    <div className="overflow-x-auto rounded-lg border border-zinc-800/80">
       <table className="w-full text-left text-[11px]">
         <thead>
-          <tr className="bg-black/40 border-b border-white/5">
+          <tr className="bg-[#08080a] border-b border-zinc-800/80">
             {columns.map(col => (
               <th key={col} className="px-3 py-2 font-bold text-zinc-500 uppercase tracking-wider">{col}</th>
             ))}
@@ -255,7 +255,7 @@ function TableView({ data, columns }: { data: Record<string, unknown>[]; columns
         </thead>
         <tbody className="divide-y divide-white/[0.03]">
           {data.map((row, i) => (
-            <tr key={i} className="hover:bg-white/[0.02] transition-colors">
+            <tr key={i} className="hover:bg-zinc-900/20 transition-colors">
               {columns.map(col => (
                 <td key={col} className="px-3 py-2 text-zinc-300 font-mono">
                   {renderCell(row[col])}
@@ -345,22 +345,22 @@ function PrettyView({ text, ext }: { text: string; ext: string }) {
       <div className="p-6 space-y-4">
 
         {/* Summary */}
-        <div className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl bg-white/[0.02] border border-white/5">
+        <div className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl bg-zinc-900/20 border border-zinc-800/80">
           <div className="flex items-center gap-2 text-xs">
             <span className="text-zinc-500">Keys</span>
             <span className="font-bold text-white">{entries.length}</span>
           </div>
-          <div className="w-px h-4 bg-white/10" />
+          <div className="w-px h-4 bg-zinc-800/80" />
           <div className="flex items-center gap-2 text-xs">
             <span className="text-zinc-500">Size</span>
             <span className="font-bold text-white">{new Intl.NumberFormat().format(text.length)} B</span>
           </div>
-          <div className="w-px h-4 bg-white/10" />
+          <div className="w-px h-4 bg-zinc-800/80" />
           <div className="flex items-center gap-2 text-xs">
             <span className="text-zinc-500">Lines</span>
             <span className="font-bold text-white">{text.split("\n").length}</span>
           </div>
-          <div className="w-px h-4 bg-white/10" />
+          <div className="w-px h-4 bg-zinc-800/80" />
           <div className="flex items-center gap-2 text-xs">
             <span className="text-zinc-500">Format</span>
             <span className="font-bold text-emerald-400">JSON ✓</span>
@@ -389,7 +389,7 @@ function PrettyView({ text, ext }: { text: string; ext: string }) {
               {t === "object" && Object.keys(value as Record<string, unknown>).length > 0 && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1">
                   {Object.entries(value as Record<string, unknown>).map(([k, v]) => (
-                    <div key={k} className="flex items-start gap-2 p-2 rounded-lg hover:bg-white/[0.02]">
+                    <div key={k} className="flex items-start gap-2 p-2 rounded-lg hover:bg-zinc-900/20">
                       <span className="text-[10px] font-medium text-blue-400 shrink-0 min-w-[80px] truncate">{k}</span>
                       <div className="flex-1 min-w-0">{renderValue(v)}</div>
                     </div>
@@ -768,7 +768,7 @@ export function ConfigEditor({ currentProject, isOpen, onClose }: ConfigEditorPr
             {depth > 0 && <span className="text-zinc-700">{comma ? "," : ""}</span>}
             <button
               onClick={() => toggleExpand(path)}
-              className="p-0.5 hover:bg-white/5 rounded text-zinc-500"
+              className="p-0.5 hover:bg-zinc-800 rounded text-zinc-500"
             >
               <ChevronRight size={10} className={`transition-transform ${isExpanded ? "rotate-90" : ""}`} />
             </button>
@@ -776,7 +776,7 @@ export function ConfigEditor({ currentProject, isOpen, onClose }: ConfigEditorPr
             <span className="text-[11px] text-zinc-600">{isEmpty ? "{}" : isExpanded ? "{" : `{…} (${entries.length})`}</span>
           </div>
           {isExpanded && !isEmpty && (
-            <div className="ml-5 border-l border-white/5 pl-3">
+            <div className="ml-5 border-l border-zinc-800/80 pl-3">
               {entries.map(([k, v]) => (
                 <div key={`${path}.${k}`} className="flex items-center gap-1 py-0.5 group">
                   {renderTree(v, path ? `${path}.${k}` : k, depth + 1)}
@@ -815,7 +815,7 @@ export function ConfigEditor({ currentProject, isOpen, onClose }: ConfigEditorPr
           <div className="flex items-center gap-1">
             <button
               onClick={() => toggleExpand(path)}
-              className="p-0.5 hover:bg-white/5 rounded text-zinc-500"
+              className="p-0.5 hover:bg-zinc-800 rounded text-zinc-500"
             >
               <ChevronRight size={10} className={`transition-transform ${isExpanded ? "rotate-90" : ""}`} />
             </button>
@@ -823,7 +823,7 @@ export function ConfigEditor({ currentProject, isOpen, onClose }: ConfigEditorPr
             <span className="text-[11px] text-zinc-600">{isEmpty ? "[]" : isExpanded ? "[" : `[…] (${arr.length})`}</span>
           </div>
           {isExpanded && !isEmpty && (
-            <div className="ml-5 border-l border-white/5 pl-3">
+            <div className="ml-5 border-l border-zinc-800/80 pl-3">
               {arr.map((item, i) => (
                 <div key={`${path}.${i}`} className="flex items-center gap-1 py-0.5 group">
                   {renderTree(item, `${path}.${i}`, depth + 1)}
@@ -895,7 +895,7 @@ export function ConfigEditor({ currentProject, isOpen, onClose }: ConfigEditorPr
 
       return (
         <span
-          className={`text-xs font-mono ${color} cursor-text hover:bg-white/5 px-1 rounded transition-colors`}
+          className={`text-xs font-mono ${color} cursor-text hover:bg-zinc-800 px-1 rounded transition-colors`}
           onClick={() => {
             setEditingPath(fullPath);
             setEditValue(t === "null" ? "" : String(obj));
@@ -925,15 +925,15 @@ export function ConfigEditor({ currentProject, isOpen, onClose }: ConfigEditorPr
   return (
     <>
       <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-md z-[100] animate-in fade-in duration-500"
+        className="fixed inset-0 bg-black/75 z-[100] animate-in fade-in duration-500"
         onClick={onClose}
       />
 
       <div className="fixed inset-0 flex items-center justify-center z-[101] p-2 pointer-events-none">
-        <div className={`bg-[#0b0b0d]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col pointer-events-auto animate-in zoom-in-95 slide-in-from-bottom-4 duration-300 ${isFullscreen ? "w-full h-full" : "w-full max-w-7xl h-[85vh]"}`}>
+        <div className={`bg-zinc-950 border border-zinc-800 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col pointer-events-auto animate-in zoom-in-95 slide-in-from-bottom-4 duration-300 ${isFullscreen ? "w-full h-full" : "w-full max-w-7xl h-[85vh]"}`}>
 
           {/* Header */}
-          <div className="px-5 py-4 border-b border-white/5 bg-zinc-900/40 shrink-0">
+          <div className="px-5 py-4 border-b border-zinc-800 bg-zinc-900/10 shrink-0">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-3">
                 <div className={`p-2 rounded-lg border ${getFileIconColor(ext).replace("text-", "border-").replace(/-400/, "-500/20").replace(/(text-)/, "bg-$1/10")}`}>
@@ -949,7 +949,7 @@ export function ConfigEditor({ currentProject, isOpen, onClose }: ConfigEditorPr
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => setIsFullscreen(!isFullscreen)}
-                  className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95"
+                  className="p-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95"
                   title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
                 >
                   {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
@@ -957,12 +957,12 @@ export function ConfigEditor({ currentProject, isOpen, onClose }: ConfigEditorPr
                 <button
                   onClick={handleRefresh}
                   disabled={loading}
-                  className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95 disabled:opacity-50"
+                  className="p-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95 disabled:opacity-50"
                   title="Refresh"
                 >
                   <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
                 </button>
-                <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95">
+                <button onClick={onClose} className="p-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95">
                   <X size={14} />
                 </button>
               </div>
@@ -971,7 +971,7 @@ export function ConfigEditor({ currentProject, isOpen, onClose }: ConfigEditorPr
               {selectedFile && (
                 <button
                   onClick={() => setSidebarOpen(!sidebarOpen)}
-                  className={`p-1.5 rounded text-xs font-bold transition-all flex items-center gap-1.5 ${sidebarOpen ? 'bg-zinc-800/60 text-zinc-300' : 'bg-white/5 text-zinc-500 hover:text-zinc-300'}`}
+                  className={`p-1.5 rounded text-xs font-bold transition-all flex items-center gap-1.5 ${sidebarOpen ? 'bg-zinc-800 text-zinc-300' : 'bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-zinc-300'}`}
                   title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
                 >
                   <Folder size={14} />
@@ -984,7 +984,7 @@ export function ConfigEditor({ currentProject, isOpen, onClose }: ConfigEditorPr
                 <input
                   type="text"
                   placeholder="Filter config files..."
-                  className="w-full bg-black/40 border border-white/5 rounded-lg py-2 pl-9 pr-4 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/30 transition-all shadow-inner"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-lg py-2 pl-9 pr-4 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/30 transition-all shadow-inner"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   autoFocus
@@ -997,11 +997,11 @@ export function ConfigEditor({ currentProject, isOpen, onClose }: ConfigEditorPr
           <div className="flex-1 flex min-h-0">
             {/* Sidebar */}
             {sidebarOpen && (
-              <div className="w-64 border-r border-white/5 bg-black/20 flex flex-col shrink-0 animate-in fade-in slide-in-from-left-2 duration-200">
-                <div className="px-4 py-3 border-b border-white/5">
+              <div className="w-64 border-r border-zinc-800 bg-zinc-950 flex flex-col shrink-0 animate-in fade-in slide-in-from-left-2 duration-200">
+                <div className="px-4 py-3 border-b border-zinc-800/80">
                   <div className="flex items-center gap-2">
                     {dirHistory.length > 0 && (
-                      <button onClick={handleGoBack} className="p-1 hover:bg-white/10 rounded text-zinc-400 hover:text-white transition-colors" title="Go back">
+                      <button onClick={handleGoBack} className="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white transition-colors" title="Go back">
                         <ChevronRight size={14} className="rotate-180" />
                       </button>
                     )}
@@ -1025,7 +1025,7 @@ export function ConfigEditor({ currentProject, isOpen, onClose }: ConfigEditorPr
                           <div className="px-4 py-1.5 text-[9px] font-bold text-zinc-600 uppercase tracking-widest">Directories</div>
                           {filteredDirs.map(e => (
                             <button key={e.path} onClick={() => handleSelectEntry(e)}
-                              className="w-full flex items-center gap-2.5 px-4 py-2 text-xs transition-all text-left text-zinc-400 hover:text-white hover:bg-white/[0.03]">
+                              className="w-full flex items-center gap-2.5 px-4 py-2 text-xs transition-all text-left text-zinc-400 hover:text-white hover:bg-zinc-900">
                               <Folder size={14} className="text-zinc-600 shrink-0" />
                               <span className="truncate">{e.name}</span>
                             </button>
@@ -1040,7 +1040,7 @@ export function ConfigEditor({ currentProject, isOpen, onClose }: ConfigEditorPr
                             const iconColor = getFileIconColor(e.extension);
                             return (
                               <button key={e.path} onClick={() => handleSelectEntry(e)}
-                                className={`w-full flex items-center gap-2.5 px-4 py-2 text-xs transition-all text-left ${isActive ? 'bg-blue-500/10 text-blue-400 border-l-2 border-blue-500' : 'text-zinc-400 hover:text-white hover:bg-white/[0.03] border-l-2 border-transparent'}`}>
+                                className={`w-full flex items-center gap-2.5 px-4 py-2 text-xs transition-all text-left ${isActive ? 'bg-zinc-900 text-blue-400 border-l-2 border-blue-500' : 'text-zinc-400 hover:text-white hover:bg-zinc-900 border-l-2 border-transparent'}`}>
                                 <FileCode size={14} className={`${iconColor} shrink-0`} />
                                 <span className="truncate flex-1">{e.name}</span>
                                 <span className="text-[9px] text-zinc-600 font-mono">{getFileLabel(e.extension)}</span>
@@ -1056,7 +1056,7 @@ export function ConfigEditor({ currentProject, isOpen, onClose }: ConfigEditorPr
                             const isActive = selectedFile?.path === e.path;
                             return (
                               <button key={e.path} onClick={() => handleSelectEntry(e)}
-                                className={`w-full flex items-center gap-2.5 px-4 py-2 text-xs transition-all text-left ${isActive ? 'bg-blue-500/10 text-blue-400 border-l-2 border-blue-500' : 'text-zinc-400 hover:text-white hover:bg-white/[0.03] border-l-2 border-transparent'}`}>
+                                className={`w-full flex items-center gap-2.5 px-4 py-2 text-xs transition-all text-left ${isActive ? 'bg-zinc-900 text-blue-400 border-l-2 border-blue-500' : 'text-zinc-400 hover:text-white hover:bg-zinc-900 border-l-2 border-transparent'}`}>
                                 <File size={14} className="text-zinc-600 shrink-0" />
                                 <span className="truncate">{e.name}</span>
                               </button>
@@ -1081,7 +1081,7 @@ export function ConfigEditor({ currentProject, isOpen, onClose }: ConfigEditorPr
               {selectedFile ? (
                 <>
                   {/* Toolbar */}
-                  <div className="flex items-center justify-between px-6 py-2.5 border-b border-white/5 bg-zinc-900/30 shrink-0">
+                  <div className="flex items-center justify-between px-6 py-2.5 border-b border-zinc-800 bg-zinc-900/10 shrink-0">
                     <div className="flex items-center gap-2 min-w-0">
                       <FileCode size={14} className={`${getFileIconColor(selectedFile.extension)} shrink-0`} />
                       <span className="text-xs font-bold text-zinc-300 truncate">{selectedFile.name}</span>
@@ -1096,10 +1096,10 @@ export function ConfigEditor({ currentProject, isOpen, onClose }: ConfigEditorPr
                     <div className="flex items-center gap-1.5">
                       {!isEditing ? (
                         <>
-                          <div className="flex items-center gap-0.5 bg-black/30 rounded-lg p-0.5 border border-white/5">
+                          <div className="flex items-center gap-0.5 bg-zinc-950 rounded-lg p-0.5 border border-zinc-800">
                             <button
                               onClick={() => setViewMode("pretty")}
-                              className={`px-2.5 py-1 rounded text-[10px] font-bold transition-all ${viewMode === "pretty" ? 'bg-blue-500/20 text-blue-400 shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+                              className={`px-2.5 py-1 rounded text-[10px] font-bold transition-all ${viewMode === "pretty" ? 'bg-zinc-800 text-blue-400 shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
                               title="Syntax-highlighted preview"
                             >
                               Preview
@@ -1107,7 +1107,7 @@ export function ConfigEditor({ currentProject, isOpen, onClose }: ConfigEditorPr
                             {isJson && (
                               <button
                                 onClick={() => setViewMode("tree")}
-                                className={`px-2.5 py-1 rounded text-[10px] font-bold transition-all ${viewMode === "tree" ? 'bg-blue-500/20 text-blue-400 shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                className={`px-2.5 py-1 rounded text-[10px] font-bold transition-all ${viewMode === "tree" ? 'bg-zinc-800 text-blue-400 shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
                                 title="Collapsible tree view"
                               >
                                 Tree
@@ -1115,7 +1115,7 @@ export function ConfigEditor({ currentProject, isOpen, onClose }: ConfigEditorPr
                             )}
                             <button
                               onClick={() => setViewMode("raw")}
-                              className={`px-2.5 py-1 rounded text-[10px] font-bold transition-all ${viewMode === "raw" ? 'bg-blue-500/20 text-blue-400 shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+                              className={`px-2.5 py-1 rounded text-[10px] font-bold transition-all ${viewMode === "raw" ? 'bg-zinc-800 text-blue-400 shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
                               title="Raw text"
                             >
                               Raw
@@ -1123,14 +1123,14 @@ export function ConfigEditor({ currentProject, isOpen, onClose }: ConfigEditorPr
                           </div>
                           <button
                             onClick={handleCopyContent}
-                            className="p-1.5 bg-white/5 hover:bg-white/10 rounded text-zinc-400 hover:text-white transition-all"
+                            className="p-1.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded text-zinc-400 hover:text-white transition-all"
                             title="Copy content"
                           >
                             {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
                           </button>
                           <button
                             onClick={() => { setIsEditing(true); setViewMode("raw"); }}
-                            className="p-1.5 bg-white/5 hover:bg-white/10 rounded text-zinc-400 hover:text-white transition-all"
+                            className="p-1.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded text-zinc-400 hover:text-white transition-all"
                             title="Edit"
                           >
                             <Edit3 size={14} />
@@ -1141,14 +1141,14 @@ export function ConfigEditor({ currentProject, isOpen, onClose }: ConfigEditorPr
                           <button
                             onClick={handleSave}
                             disabled={saving || (isJson && !isParseable)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 disabled:bg-white/10 disabled:text-zinc-500 text-white rounded-lg transition-all text-xs font-bold shadow-lg shadow-blue-500/20 active:scale-95"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 disabled:bg-zinc-800 disabled:text-zinc-500 text-white rounded-lg transition-all text-xs font-bold shadow-lg shadow-blue-500/20 active:scale-95"
                           >
                             <Save size={14} />
                             {saving ? "Saving..." : "Save"}
                           </button>
                           <button
                             onClick={() => { setEditContent(rawContent); setIsEditing(false); setViewMode("pretty"); }}
-                            className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white rounded-lg text-xs font-bold transition-all"
+                            className="px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-white rounded-lg text-xs font-bold transition-all"
                           >
                             Cancel
                           </button>
@@ -1173,13 +1173,13 @@ export function ConfigEditor({ currentProject, isOpen, onClose }: ConfigEditorPr
                         <div className="p-3 bg-red-500/10 rounded-lg text-red-500 mb-3 border border-red-500/20"><X size={24} /></div>
                         <p className="text-sm font-bold text-white mb-1">Read Error</p>
                         <p className="text-[11px] text-zinc-500">{error}</p>
-                        <button onClick={() => loadFileContent(selectedFile.path)} className="mt-4 px-4 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs transition-colors">Retry</button>
+                        <button onClick={() => loadFileContent(selectedFile.path)} className="mt-4 px-4 py-1.5 bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-800 rounded-lg text-xs transition-colors">Retry</button>
                       </div>
                     ) : isEditing ? (
                       <textarea
                         value={editContent}
                         onChange={(e) => setEditContent(e.target.value)}
-                        className="w-full h-full bg-black/30 text-xs font-mono text-zinc-300 p-6 resize-none outline-none border-none focus:ring-0 leading-relaxed"
+                        className="w-full h-full bg-zinc-950 text-xs font-mono text-zinc-300 p-6 resize-none outline-none border-none focus:ring-0 leading-relaxed"
                         spellCheck={false}
                         autoFocus
                       />
@@ -1191,7 +1191,7 @@ export function ConfigEditor({ currentProject, isOpen, onClose }: ConfigEditorPr
                       <div className="p-6 font-mono">
                         <div className="text-[11px] leading-relaxed text-zinc-300">
                           {"{"}
-                          <div className="ml-4 border-l border-white/5 pl-4">
+                          <div className="ml-4 border-l border-zinc-800/80 pl-4">
                             {parsed && Object.entries(parsed).map(([k, v]) => (
                               <div key={k} className="flex items-start gap-1 py-0.5 group">
                                 {renderTree(v, k, 1)}
@@ -1224,7 +1224,7 @@ export function ConfigEditor({ currentProject, isOpen, onClose }: ConfigEditorPr
                 </>
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center text-zinc-500 gap-4 animate-in fade-in">
-                  <div className="p-6 rounded-full bg-white/[0.02] border border-white/5">
+                  <div className="p-6 rounded-full bg-zinc-900/40 border border-zinc-800">
                     <FileCode size={48} className="opacity-20" />
                   </div>
                   <div className="text-center">
@@ -1237,7 +1237,7 @@ export function ConfigEditor({ currentProject, isOpen, onClose }: ConfigEditorPr
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-2 border-t border-white/5 bg-white/[0.02] flex items-center justify-between text-[10px] text-zinc-600 font-bold uppercase tracking-widest shrink-0">
+          <div className="px-6 py-2 border-t border-zinc-800 bg-zinc-950 flex items-center justify-between text-[10px] text-zinc-600 font-bold uppercase tracking-widest shrink-0">
             <div className="flex items-center gap-4">
               <span className="text-blue-400">Config</span>
               {selectedFile && (
@@ -1261,3 +1261,4 @@ export function ConfigEditor({ currentProject, isOpen, onClose }: ConfigEditorPr
     </>
   );
 }
+

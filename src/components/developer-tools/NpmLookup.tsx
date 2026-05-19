@@ -67,23 +67,23 @@ export function NpmLookup({ isOpen, onClose }: NpmLookupProps) {
 
   return (
     <div className="fixed inset-0 z-[100]">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/75" onClick={onClose} />
       <div className="absolute inset-0 flex items-center justify-center p-0 sm:p-3">
-        <div className="bg-[#0b0b0d]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] overflow-hidden flex flex-col w-full max-w-lg h-auto max-h-[80vh] sm:rounded-xl">
+        <div className="bg-zinc-950 border border-zinc-800 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] overflow-hidden flex flex-col w-full max-w-lg h-auto max-h-[80vh] sm:rounded-xl">
 
-          <div className="px-5 pt-5 pb-3 border-b border-white/5 bg-zinc-900/40 shrink-0">
+          <div className="px-5 pt-5 pb-3 border-b border-zinc-800 bg-zinc-900/10 shrink-0">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-red-500/10 rounded-xl text-red-400 border border-red-500/20"><Package size={18} /></div>
                 <div><h3 className="text-sm font-bold text-white">npm Lookup</h3><p className="text-[10px] text-zinc-500 uppercase tracking-wider mt-0.5">Package registry search</p></div>
               </div>
-              <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all"><X size={14} /></button>
+              <button onClick={onClose} className="p-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-all"><X size={14} /></button>
             </div>
             <form onSubmit={(e) => { e.preventDefault(); handleSearch(); }} className="flex gap-2">
               <div className="relative flex-1 group">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-red-400" />
                 <input type="text" placeholder="Search npm packages..." value={query} onChange={e => setQuery(e.target.value)}
-                  className="w-full bg-black/40 border border-white/5 rounded-lg py-2 pl-9 pr-4 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-red-500/40" />
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-lg py-2 pl-9 pr-4 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-red-500/40" />
               </div>
               <button type="submit" disabled={loading || !query.trim()}
                 className="px-4 py-2 bg-red-500/20 border border-red-500/30 text-red-400 rounded-lg text-xs font-bold hover:bg-red-500/30 disabled:opacity-50 transition-all flex items-center gap-1.5">
@@ -109,15 +109,15 @@ export function NpmLookup({ isOpen, onClose }: NpmLookupProps) {
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <button onClick={() => handleCopy(pkg.version, "ver")} className="p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-all text-left group">
+                  <button onClick={() => handleCopy(pkg.version, "ver")} className="p-3 rounded-xl bg-zinc-900/40 border border-zinc-800 hover:bg-zinc-900 transition-all text-left group">
                     <div className="flex items-center gap-1.5 text-[9px] text-zinc-600 uppercase tracking-wider"><Download size={10} /> Latest</div>
                     <div className="text-sm font-bold text-emerald-400 font-mono mt-0.5">{pkg.version}</div>
                     {copied === "ver" && <Check size={10} className="text-emerald-400 mt-0.5" />}
                   </button>
-                  <button onClick={() => handleCopy(pkg.license, "lic")} className="p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-all text-left group">
+                  <button onClick={() => handleCopy(pkg.license, "lic")} className="p-3 rounded-xl bg-zinc-900/40 border border-zinc-800 hover:bg-zinc-900 transition-all text-left group">
                     <div className="flex items-center gap-1.5 text-[9px] text-zinc-600 uppercase tracking-wider"><Hash size={10} /> License</div>
                     <div className="text-sm font-bold text-blue-400 font-mono mt-0.5">{pkg.license}</div>
-                    {copied === "lic" && <Check size={10} className="text-emerald-400 mt-0.5" />}
+                    {copied === "lic" && <Check size={10} className="text-emerald-400" />}
                   </button>
                 </div>
 
@@ -131,7 +131,7 @@ export function NpmLookup({ isOpen, onClose }: NpmLookupProps) {
                   <div>
                     <div className="text-[9px] text-zinc-600 uppercase tracking-wider mb-2">Keywords</div>
                     <div className="flex flex-wrap gap-1.5">
-                      {pkg.keywords.map(k => <span key={k} className="px-2 py-0.5 rounded-full text-[9px] bg-white/5 border border-white/5 text-zinc-500">{k}</span>)}
+                      {pkg.keywords.map(k => <span key={k} className="px-2 py-0.5 rounded-full text-[9px] bg-zinc-900 border border-zinc-800 text-zinc-500">{k}</span>)}
                     </div>
                   </div>
                 )}

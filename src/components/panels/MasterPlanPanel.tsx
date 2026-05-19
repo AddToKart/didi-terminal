@@ -415,7 +415,7 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
   };
 
   return (
-    <div className="absolute inset-0 z-50 bg-app-panel/90 backdrop-blur-md flex items-center justify-center p-6">
+    <div className="absolute inset-0 z-50 bg-black/85 flex items-center justify-center p-6">
 
       {/* Floating ghost card rendered outside any overflow:hidden ancestor */}
       {dragState && createPortal(
@@ -439,7 +439,7 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
       )}
 
       {selectedTask && createPortal(
-        <div className="fixed inset-0 z-[100000] bg-app-panel/90 backdrop-blur-sm flex items-center justify-center p-6">
+        <div className="fixed inset-0 z-[100000] bg-black/85 flex items-center justify-center p-6">
           <div className="w-full max-w-2xl max-h-[85vh] bg-app-panel border border-zinc-800/50 shadow-2xl overflow-hidden flex flex-col rounded-xl">
             <div className="px-6 py-5 border-b border-zinc-800/50 bg-zinc-900/50 flex items-start justify-between gap-4">
               <div className="min-w-0">

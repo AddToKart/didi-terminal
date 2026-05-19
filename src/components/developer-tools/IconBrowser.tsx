@@ -55,18 +55,18 @@ export function IconBrowser({ isOpen, onClose }: IconBrowserProps) {
   return (
     <div className="fixed inset-0 z-[100]">
       <div
-        className="absolute inset-0 bg-black/70 backdrop-blur-md transition-opacity duration-300"
+        className="absolute inset-0 bg-black/85 transition-opacity duration-300"
         onClick={onClose}
       />
 
       <div className="absolute inset-0 flex items-center justify-center p-0 sm:p-3">
-        <div className={`bg-[#0b0b0d]/95 backdrop-blur-xl border border-white/10 rounded-xl sm:rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] overflow-hidden flex flex-col ${isFullscreen ? "w-full h-full sm:m-0" : "w-full max-w-6xl h-full sm:h-[88vh]"}`}>
+        <div className={`bg-[#08080a] border border-zinc-800 rounded-xl sm:rounded-xl shadow-[0_25px_70px_rgba(0,0,0,0.9)] overflow-hidden flex flex-col ${isFullscreen ? "w-full h-full sm:m-0" : "w-full max-w-6xl h-full sm:h-[88vh]"}`}>
 
           {/* Header */}
-          <div className="px-5 pt-5 pb-3 border-b border-white/5 bg-zinc-900/40 shrink-0">
+          <div className="px-5 pt-5 pb-3 border-b border-zinc-800 bg-[#0c0c0f] shrink-0">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-xl text-indigo-400 border border-indigo-500/20 shadow-sm">
+                <div className="p-2 bg-indigo-500/10 rounded-xl text-indigo-400 border border-indigo-500/20 shadow-sm">
                   <Palette size={20} />
                 </div>
                 <div>
@@ -79,21 +79,21 @@ export function IconBrowser({ isOpen, onClose }: IconBrowserProps) {
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => setIsFullscreen(!isFullscreen)}
-                  className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95"
+                  className="p-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95"
                   title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
                 >
                   {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
                 </button>
                 <button
                   onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
-                  className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95"
+                  className="p-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95"
                   title={viewMode === "grid" ? "List view" : "Grid view"}
                 >
                   {viewMode === "grid" ? <List size={14} /> : <Grid3X3 size={14} />}
                 </button>
                 <button
                   onClick={onClose}
-                  className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95"
+                  className="p-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-all active:scale-95"
                 >
                   <X size={14} />
                 </button>
@@ -108,7 +108,7 @@ export function IconBrowser({ isOpen, onClose }: IconBrowserProps) {
                 <input
                   type="text"
                   placeholder="Search icons..."
-                  className="w-full bg-black/40 border border-white/5 rounded-lg py-2.5 pl-9 pr-4 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-indigo-500/40 transition-all shadow-inner"
+                  className="w-full bg-[#0a0a0c] border border-zinc-800 rounded-lg py-2.5 pl-9 pr-4 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-indigo-500/40 transition-all shadow-inner"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   autoFocus
@@ -125,7 +125,7 @@ export function IconBrowser({ isOpen, onClose }: IconBrowserProps) {
                   className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all whitespace-nowrap border ${
                     selectedCategory === cat.prefix
                       ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30 shadow-sm'
-                      : 'bg-white/5 text-zinc-500 border-white/5 hover:bg-white/10 hover:text-zinc-300'
+                      : 'bg-[#121215] text-zinc-400 border-zinc-800/80 hover:bg-[#18181c] hover:text-zinc-200'
                   }`}
                 >
                   {cat.name}
@@ -134,7 +134,7 @@ export function IconBrowser({ isOpen, onClose }: IconBrowserProps) {
               {selectedCategory && (
                 <button
                   onClick={() => setSelectedCategory(null)}
-                  className="px-2 py-1 rounded-full text-[10px] font-bold text-zinc-600 hover:text-zinc-400 transition-all border border-transparent hover:border-white/5"
+                  className="px-2 py-1 rounded-full text-[10px] font-bold text-zinc-600 hover:text-zinc-400 transition-all border border-transparent hover:border-zinc-850"
                 >
                   ✕ Clear
                 </button>
@@ -162,7 +162,7 @@ export function IconBrowser({ isOpen, onClose }: IconBrowserProps) {
                       className={`relative flex flex-col items-center gap-2.5 p-4 rounded-xl border transition-all duration-150 group ${
                         isCopied
                           ? 'bg-emerald-500/10 border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.1)]'
-                          : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-white/10 hover:shadow-sm hover:-translate-y-0.5'
+                          : 'bg-[#0d0d10] border-zinc-900 hover:bg-[#121216] hover:border-zinc-800 hover:shadow-sm hover:-translate-y-0.5'
                       }`}
                       title="Click to copy import"
                     >
@@ -190,7 +190,7 @@ export function IconBrowser({ isOpen, onClose }: IconBrowserProps) {
                 })}
               </div>
             ) : (
-              <div className="divide-y divide-white/[0.03]">
+              <div className="divide-y divide-zinc-900">
                 {filtered.map(name => {
                   const IconComp = LucideIcons.icons[name as keyof typeof LucideIcons.icons] as React.ComponentType<{ size?: number; className?: string }>;
                   const isCopied = copied === name;
@@ -199,7 +199,7 @@ export function IconBrowser({ isOpen, onClose }: IconBrowserProps) {
                       key={name}
                       onClick={() => handleCopy(name)}
                       className={`w-full flex items-center gap-4 px-6 py-3.5 transition-all text-left group ${
-                        isCopied ? 'bg-emerald-500/5' : 'hover:bg-white/[0.02]'
+                        isCopied ? 'bg-emerald-500/5' : 'hover:bg-zinc-900/40'
                       }`}
                     >
                       <div className="w-9 flex justify-center shrink-0">
@@ -230,9 +230,9 @@ export function IconBrowser({ isOpen, onClose }: IconBrowserProps) {
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-2.5 border-t border-white/5 bg-white/[0.02] flex items-center justify-between text-[10px] text-zinc-600 shrink-0">
+          <div className="px-6 py-2.5 border-t border-zinc-800 bg-[#0c0c0f] flex items-center justify-between text-[10px] text-zinc-600 shrink-0">
             <span className="flex items-center gap-1.5">
-              <kbd className="px-1.5 py-0.5 rounded bg-white/5 border border-white/5 text-[9px] font-mono font-bold">import</kbd>
+              <kbd className="px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-[9px] font-mono font-bold">import</kbd>
               Click any icon to copy its import statement
             </span>
             <span className="font-mono text-zinc-500">{filtered.length} / {ICON_LIST.length}</span>
