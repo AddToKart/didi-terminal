@@ -18,6 +18,7 @@ import { createHandoffQueueService } from "./handoff-queue-service";
 import { createMasterPlanWorkflow } from "../workflows/master-plan-workflow";
 import { createBrainstormWorkflow } from "../workflows/brainstorm-workflow";
 import { loadWorkspaces, saveWorkspaces, getSetting, setSetting } from "./db-service";
+import { eventBus } from "./event-bus";
 import type { SectionState, TerminalLayoutOrientation, TerminalTab, WorkspaceState } from "../types/workspace";
 import {
   ROOT_TERMINAL_LANE_ID,
@@ -374,10 +375,10 @@ export function useAppController() {
     };
 
     refreshCodeReviewStats();
-    const interval = setInterval(refreshCodeReviewStats, 5000);
+    const unsub = eventBus.subscribe("git-status-changed", () => refreshCodeReviewStats());
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      unsub();
     };
   }, [currentProject]);
 
@@ -403,11 +404,11 @@ export function useAppController() {
     };
 
     refreshPortCount();
-    const interval = setInterval(refreshPortCount, 30000);
+    const unsub = eventBus.subscribe("ports-changed", () => refreshPortCount());
 
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      unsub();
     };
   }, [appMode, isDbLoaded, showPortManager]);
 

@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { CheckCircle2, Circle, ClipboardList, Loader2, Plus, RefreshCw, X, Clock, ListOrdered } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { eventBus } from "../../services/event-bus";
 
 type PlanStatus = "todo" | "in_queue" | "in_progress" | "waiting_completion" | "done";
 
@@ -312,8 +313,9 @@ export const MasterPlanPanel = ({ currentProject, onDispatchTask, activeTaskLine
   useEffect(() => {
     refreshPlan().catch(console.error);
     if (!currentProject) return;
-    const interval = setInterval(() => refreshPlan().catch(console.error), 1000);
-    return () => clearInterval(interval);
+
+    const unsub = eventBus.subscribe("master-plan-changed", () => refreshPlan().catch(console.error));
+    return () => unsub();
   }, [currentProject]);
 
   const setTaskStatus = async (task: PlanTask, status: PlanStatus) => {

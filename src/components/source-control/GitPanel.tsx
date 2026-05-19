@@ -6,6 +6,7 @@ import {
   AlertCircle
 } from "lucide-react";
 import { FileIcon } from "./FileIcon";
+import { eventBus } from "../../services/event-bus";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -183,11 +184,18 @@ export function GitPanel({ currentProject, isOpen, onClose, onOpenFullscreen }: 
   }, [currentProject]);
 
   useEffect(() => {
-    if (isOpen && currentProject) {
-      refresh();
-      const id = setInterval(refresh, 6000);
-      return () => clearInterval(id);
-    }
+    if (!isOpen || !currentProject) return;
+    refresh();
+
+    const unsubStatus = eventBus.subscribe("git-status-changed", () => refresh());
+    const unsubBranch = eventBus.subscribe("git-branch-changed", () => refresh());
+    const unsubLog = eventBus.subscribe("git-log-changed", () => refresh());
+
+    return () => {
+      unsubStatus();
+      unsubBranch();
+      unsubLog();
+    };
   }, [isOpen, currentProject, refresh]);
 
   if (!isOpen) return null;

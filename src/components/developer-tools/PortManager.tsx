@@ -11,6 +11,7 @@ import {
   Server
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
+import { eventBus } from "../../services/event-bus";
 
 interface PortInfo {
   port: number;
@@ -59,8 +60,8 @@ export function PortManager({ isOpen, onClose, onPortsUpdate }: PortManagerProps
     if (!isOpen) return;
 
     fetchPorts();
-    const interval = setInterval(fetchPorts, 10000);
-    return () => clearInterval(interval);
+    const unsub = eventBus.subscribe("ports-changed", () => fetchPorts());
+    return () => unsub();
   }, [fetchPorts, isOpen]);
 
   const filteredPorts = ports.filter(p => 

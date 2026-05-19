@@ -7,6 +7,7 @@ import {
   Trash2, MessageCircle, GitFork, ArrowRight, Globe, RotateCw
 } from "lucide-react";
 import { FileIcon } from "./FileIcon";
+import { eventBus } from "../../services/event-bus";
 import { 
   fetchGitHubIssues, 
   fetchGitHubPullRequests, 
@@ -668,12 +669,18 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
   }, [currentProject]);
 
   useEffect(() => {
-    if (isOpen && currentProject) {
-      refresh();
-      // Polling for live updates
-      const id = setInterval(refresh, 10000);
-      return () => clearInterval(id);
-    }
+    if (!isOpen || !currentProject) return;
+    refresh();
+
+    const unsubStatus = eventBus.subscribe("git-status-changed", () => refresh());
+    const unsubBranch = eventBus.subscribe("git-branch-changed", () => refresh());
+    const unsubLog = eventBus.subscribe("git-log-changed", () => refresh());
+
+    return () => {
+      unsubStatus();
+      unsubBranch();
+      unsubLog();
+    };
   }, [isOpen, currentProject, refresh]);
 
   if (!isOpen) return null;

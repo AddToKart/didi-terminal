@@ -4,6 +4,8 @@ use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::hash::{DefaultHasher, Hash, Hasher};
 
+use super::events;
+
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct GitSnapshot {
@@ -489,62 +491,69 @@ pub fn git_panel_get_status(cwd: String) -> Result<GitPanelStatus, String> {
 }
 
 #[tauri::command]
-pub fn git_panel_stage(cwd: String, path: String) -> Result<String, String> {
+pub fn git_panel_stage(cwd: String, path: String, app: AppHandle) -> Result<String, String> {
     let cwd_path = Path::new(&cwd);
     ensure_git_repo(cwd_path)?;
     run_git(cwd_path, &["add", "--", &path], None)?;
+    events::emit_git_status_changed(&app, &cwd);
     Ok(format!("Staged {}", path))
 }
 
 #[tauri::command]
-pub fn git_panel_stage_all(cwd: String) -> Result<String, String> {
+pub fn git_panel_stage_all(cwd: String, app: AppHandle) -> Result<String, String> {
     let cwd_path = Path::new(&cwd);
     ensure_git_repo(cwd_path)?;
     run_git(cwd_path, &["add", "-A"], None)?;
+    events::emit_git_status_changed(&app, &cwd);
     Ok("Staged all files".to_string())
 }
 
 #[tauri::command]
-pub fn git_panel_unstage(cwd: String, path: String) -> Result<String, String> {
+pub fn git_panel_unstage(cwd: String, path: String, app: AppHandle) -> Result<String, String> {
     let cwd_path = Path::new(&cwd);
     ensure_git_repo(cwd_path)?;
-    // `git restore --staged` is cleaner and doesn't write to stderr
-    // Fall back to `git reset HEAD` for older git versions
     if run_git(cwd_path, &["restore", "--staged", "--", &path], None).is_err() {
         run_git(cwd_path, &["reset", "HEAD", "--", &path], None)
             .map_err(|e| e)?;
     }
+    events::emit_git_status_changed(&app, &cwd);
     Ok(format!("Unstaged {}", path))
 }
 
 #[tauri::command]
-pub fn git_panel_discard(cwd: String, path: String) -> Result<String, String> {
+pub fn git_panel_discard(cwd: String, path: String, app: AppHandle) -> Result<String, String> {
     let cwd_path = Path::new(&cwd);
     ensure_git_repo(cwd_path)?;
-    // Try checkout first (tracked files), then remove (untracked)
     if run_git(cwd_path, &["checkout", "--", &path], None).is_err() {
         let full = cwd_path.join(&path);
         std::fs::remove_file(&full).map_err(|e| e.to_string())?;
     }
+    events::emit_git_status_changed(&app, &cwd);
     Ok(format!("Discarded {}", path))
 }
 
 #[tauri::command]
-pub fn git_panel_commit(cwd: String, message: String) -> Result<String, String> {
+pub fn git_panel_commit(cwd: String, message: String, app: AppHandle) -> Result<String, String> {
     let cwd_path = Path::new(&cwd);
     ensure_git_repo(cwd_path)?;
     if message.trim().is_empty() {
         return Err("Commit message cannot be empty".into());
     }
     run_git(cwd_path, &["commit", "-m", &message], None)?;
+    events::emit_git_status_changed(&app, &cwd);
+    events::emit_git_log_changed(&app, &cwd);
+    events::emit_git_branch_changed(&app, &cwd);
     Ok("Committed successfully".to_string())
 }
 
 #[tauri::command]
-pub fn git_panel_pull(cwd: String) -> Result<String, String> {
+pub fn git_panel_pull(cwd: String, app: AppHandle) -> Result<String, String> {
     let cwd_path = Path::new(&cwd);
     ensure_git_repo(cwd_path)?;
     let out = run_git(cwd_path, &["pull", "--rebase"], None)?;
+    events::emit_git_status_changed(&app, &cwd);
+    events::emit_git_log_changed(&app, &cwd);
+    events::emit_git_branch_changed(&app, &cwd);
     if out.is_empty() {
         Ok("Already up to date".to_string())
     } else {
@@ -553,12 +562,13 @@ pub fn git_panel_pull(cwd: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub fn git_panel_push(cwd: String) -> Result<String, String> {
+pub fn git_panel_push(cwd: String, app: AppHandle) -> Result<String, String> {
     let cwd_path = Path::new(&cwd);
     ensure_git_repo(cwd_path)?;
     let branch = run_git(cwd_path, &["branch", "--show-current"], None)
         .unwrap_or_else(|_| "HEAD".to_string());
     let out = run_git(cwd_path, &["push", "origin", &branch], None)?;
+    events::emit_git_log_changed(&app, &cwd);
     if out.is_empty() {
         Ok(format!("Pushed {} to origin successfully", branch))
     } else {
@@ -622,26 +632,33 @@ pub fn git_panel_get_branches(cwd: String) -> Result<Vec<GitBranchInfo>, String>
 }
 
 #[tauri::command]
-pub fn git_panel_switch_branch(cwd: String, branch: String) -> Result<String, String> {
+pub fn git_panel_switch_branch(cwd: String, branch: String, app: AppHandle) -> Result<String, String> {
     let cwd_path = Path::new(&cwd);
     ensure_git_repo(cwd_path)?;
     run_git(cwd_path, &["checkout", &branch], None)?;
+    events::emit_git_status_changed(&app, &cwd);
+    events::emit_git_branch_changed(&app, &cwd);
+    events::emit_git_log_changed(&app, &cwd);
     Ok(format!("Switched to branch {}", branch))
 }
 
 #[tauri::command]
-pub fn git_panel_create_branch(cwd: String, branch: String) -> Result<String, String> {
+pub fn git_panel_create_branch(cwd: String, branch: String, app: AppHandle) -> Result<String, String> {
     let cwd_path = Path::new(&cwd);
     ensure_git_repo(cwd_path)?;
     run_git(cwd_path, &["checkout", "-b", &branch], None)?;
+    events::emit_git_status_changed(&app, &cwd);
+    events::emit_git_branch_changed(&app, &cwd);
+    events::emit_git_log_changed(&app, &cwd);
     Ok(format!("Created and switched to branch {}", branch))
 }
 
 #[tauri::command]
-pub fn git_panel_delete_branch(cwd: String, branch: String) -> Result<String, String> {
+pub fn git_panel_delete_branch(cwd: String, branch: String, app: AppHandle) -> Result<String, String> {
     let cwd_path = Path::new(&cwd);
     ensure_git_repo(cwd_path)?;
     run_git(cwd_path, &["branch", "-D", &branch], None)?;
+    events::emit_git_branch_changed(&app, &cwd);
     Ok(format!("Deleted branch {}", branch))
 }
 
@@ -681,11 +698,16 @@ pub fn git_panel_get_commit_file_diff(cwd: String, commit_hash: String, file_pat
 }
 
 #[tauri::command]
-pub fn git_panel_merge_branch(cwd: String, branch: String) -> Result<String, String> {
+pub fn git_panel_merge_branch(cwd: String, branch: String, app: AppHandle) -> Result<String, String> {
     let cwd_path = Path::new(&cwd);
     ensure_git_repo(cwd_path)?;
     match run_git(cwd_path, &["merge", &branch], None) {
-        Ok(out) => Ok(out),
+        Ok(out) => {
+            events::emit_git_status_changed(&app, &cwd);
+            events::emit_git_log_changed(&app, &cwd);
+            events::emit_git_branch_changed(&app, &cwd);
+            Ok(out)
+        }
         Err(e) => Err(format!("Merge failed (you may have conflicts): {}", e))
     }
 }

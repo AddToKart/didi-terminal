@@ -1,5 +1,8 @@
 use std::io::Write;
 use std::path::Path;
+use tauri::AppHandle;
+
+use super::events;
 
 fn strip_didi_status_marker(value: &str) -> String {
     let Some(start) = value.find("<!--") else {
@@ -20,7 +23,7 @@ fn strip_didi_status_marker(value: &str) -> String {
 }
 
 #[tauri::command]
-pub fn append_master_plan_entry(cwd: String, title: String, body: String) -> Result<(), String> {
+pub fn append_master_plan_entry(cwd: String, title: String, body: String, app: AppHandle) -> Result<(), String> {
     let plan_path = Path::new(&cwd).join("MASTER_PLAN.md");
     let heading = title.trim();
     let content = body.trim();
@@ -41,6 +44,7 @@ pub fn append_master_plan_entry(cwd: String, title: String, body: String) -> Res
         std::fs::write(plan_path, format!("# Project Master Plan{}", entry)).map_err(|e| e.to_string())?;
     }
 
+    events::emit_master_plan_changed(&app, &cwd);
     Ok(())
 }
 
@@ -55,7 +59,7 @@ pub fn read_master_plan(cwd: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub fn set_master_plan_task_status(cwd: String, line: usize, status: String) -> Result<String, String> {
+pub fn set_master_plan_task_status(cwd: String, line: usize, status: String, app: AppHandle) -> Result<String, String> {
     let plan_path = Path::new(&cwd).join("MASTER_PLAN.md");
     let contents = if plan_path.exists() {
         std::fs::read_to_string(&plan_path).map_err(|e| e.to_string())?
@@ -88,11 +92,12 @@ pub fn set_master_plan_task_status(cwd: String, line: usize, status: String) -> 
     lines[line] = next_line;
     let updated = lines.join("\n");
     std::fs::write(&plan_path, &updated).map_err(|e| e.to_string())?;
+    events::emit_master_plan_changed(&app, &cwd);
     Ok(updated)
 }
 
 #[tauri::command]
-pub fn set_master_plan_task_status_by_text(cwd: String, text: String, status: String) -> Result<String, String> {
+pub fn set_master_plan_task_status_by_text(cwd: String, text: String, status: String, app: AppHandle) -> Result<String, String> {
     let plan_path = Path::new(&cwd).join("MASTER_PLAN.md");
     let contents = if plan_path.exists() {
         std::fs::read_to_string(&plan_path).map_err(|e| e.to_string())?
@@ -107,11 +112,11 @@ pub fn set_master_plan_task_status_by_text(cwd: String, text: String, status: St
         return Err("Could not find matching task in MASTER_PLAN.md.".to_string());
     };
 
-    set_master_plan_task_status(cwd, line, status)
+    set_master_plan_task_status(cwd, line, status, app)
 }
 
 #[tauri::command]
-pub fn append_master_plan_task(cwd: String, text: String, status: String) -> Result<String, String> {
+pub fn append_master_plan_task(cwd: String, text: String, status: String, app: AppHandle) -> Result<String, String> {
     let plan_path = Path::new(&cwd).join("MASTER_PLAN.md");
     let clean_text = text.trim();
     if clean_text.is_empty() {
@@ -155,5 +160,6 @@ pub fn append_master_plan_task(cwd: String, text: String, status: String) -> Res
     updated_lines.insert(insert_at, task_line);
     let updated = updated_lines.join("\n");
     std::fs::write(&plan_path, &updated).map_err(|e| e.to_string())?;
+    events::emit_master_plan_changed(&app, &cwd);
     Ok(updated)
 }

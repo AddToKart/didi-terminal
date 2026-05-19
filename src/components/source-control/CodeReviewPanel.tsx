@@ -32,6 +32,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/cn";
+import { eventBus } from "../../services/event-bus";
 
 export interface GitFileDiff {
   path: string;
@@ -107,8 +108,8 @@ export function CodeReviewPanel({ currentProject, isOpen, onClose, onStatsUpdate
     if (!isOpen || !currentProject) return;
 
     fetchStatus();
-    const interval = setInterval(fetchStatus, 5000);
-    return () => clearInterval(interval);
+    const unsub = eventBus.subscribe("git-status-changed", () => fetchStatus());
+    return () => unsub();
   }, [isOpen, currentProject]);
 
   if (!isOpen) return null;

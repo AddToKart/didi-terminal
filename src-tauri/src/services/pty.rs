@@ -276,16 +276,18 @@ pub fn spawn_pty(
             pending.extend_from_slice(&buf[..n]);
 
             let mut process_len = pending.len();
+            let mut invalid_len = 0;
             match std::str::from_utf8(&pending) {
                 Ok(_) => {}
                 Err(e) => {
-                    if e.error_len().is_none() {
+                    if let Some(len) = e.error_len() {
+                        // Invalid sequence in the middle. We process up to the error,
+                        // and we also want to discard/skip the invalid bytes.
+                        process_len = e.valid_up_to();
+                        invalid_len = len;
+                    } else {
                         // Incomplete multi-byte character at the end. 
                         // Wait for more data.
-                        process_len = e.valid_up_to();
-                    } else {
-                        // Invalid sequence in the middle. 
-                        // We emit up to the error, skip the bad byte(s) and continue.
                         process_len = e.valid_up_to();
                     }
                 }
@@ -294,7 +296,16 @@ pub fn spawn_pty(
             if process_len > 0 {
                 let chunk: Vec<u8> = pending.drain(..process_len).collect();
                 pending_emit.extend_from_slice(&chunk);
+            }
 
+            if invalid_len > 0 {
+                // Drain the invalid bytes so they don't block the loop.
+                let _discarded: Vec<u8> = pending.drain(..invalid_len).collect();
+                // Append the UTF-8 replacement character U+FFFD (3 bytes: 239, 191, 189)
+                pending_emit.extend_from_slice(&[239, 191, 189]);
+            }
+
+            if process_len > 0 || invalid_len > 0 {
                 if last_emit.elapsed().as_millis() > 16 || pending_emit.len() > 256 * 1024 {
                     emit_pty_output(&app_handle, &agent_clone, std::mem::take(&mut pending_emit));
                     last_emit = std::time::Instant::now();

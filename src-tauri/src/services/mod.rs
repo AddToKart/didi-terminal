@@ -1,5 +1,6 @@
 pub mod bus;
 pub mod config;
+pub mod events;
 pub mod git;
 pub mod llm;
 pub mod master_plan;

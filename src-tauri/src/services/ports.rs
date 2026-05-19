@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::process::Command;
 use sysinfo::{Pid, System};
+use tauri::AppHandle;
+
+use super::events;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PortInfo {
@@ -68,13 +71,14 @@ pub async fn get_active_ports() -> Result<Vec<PortInfo>, String> {
 }
 
 #[tauri::command]
-pub async fn kill_process(pid: u32) -> Result<(), String> {
+pub async fn kill_process(pid: u32, app: AppHandle) -> Result<(), String> {
     let output = Command::new("taskkill")
         .args(["/F", "/PID", &pid.to_string()])
         .output()
         .map_err(|e| e.to_string())?;
 
     if output.status.success() {
+        events::emit_ports_changed(&app);
         Ok(())
     } else {
         Err(String::from_utf8_lossy(&output.stderr).to_string())
