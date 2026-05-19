@@ -14,6 +14,7 @@ pub struct AppConfig {
     pub theme_amber: String,
     pub theme_mode: String,
     pub glassmorphism: bool,
+    pub github_pat: String,
 }
 
 impl Default for AppConfig {
@@ -27,6 +28,7 @@ impl Default for AppConfig {
             theme_amber: "#ffb000".to_string(),
             theme_mode: "dark".to_string(),
             glassmorphism: false,
+            github_pat: String::new(),
         }
     }
 }

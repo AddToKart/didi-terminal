@@ -11,6 +11,7 @@ interface AppConfig {
   theme_amber: string;
   theme_mode: string;
   glassmorphism: boolean;
+  github_pat: string;
 }
 
 interface Keybinding {
@@ -283,6 +284,19 @@ export function SettingsModal({ onClose }: Props) {
                     <input type="text" value={config.shell} onChange={e => setConfig({ ...config, shell: e.target.value })}
                       placeholder="e.g. pwsh.exe, bash"
                       className="w-full bg-black/40 border border-white/10 text-zinc-200 px-3 py-2 rounded-lg text-xs outline-none focus:border-blue-500/40 transition-all font-mono" />
+                  </div>
+                </div>
+
+                <h3 className="text-[9px] font-bold uppercase tracking-[0.2em] text-blue-400/80 border-b border-white/5 pb-2 pt-2">Source Control & Integrations</h3>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-semibold text-zinc-400 flex items-center gap-2">
+                      <Key size={13} className="text-zinc-600" /> GitHub Personal Access Token
+                    </label>
+                    <input type="password" value={config.github_pat} onChange={e => setConfig({ ...config, github_pat: e.target.value })}
+                      placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                      className="w-full bg-black/40 border border-white/10 text-zinc-200 px-3 py-2 rounded-lg text-xs outline-none focus:border-blue-500/40 transition-all font-mono" />
+                    <p className="text-[9px] text-zinc-500">Required for full-screen Git issues, PRs, and comments integration.</p>
                   </div>
                 </div>
 
