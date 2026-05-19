@@ -4,7 +4,7 @@ import {
   GitBranch, X, RefreshCw, Plus, Minus, RotateCcw, Upload, Download,
   Check, Loader2, GitMerge, AlertCircle, FileText,
   GitPullRequest, GitCommit, LayoutDashboard, Search, ShieldAlert,
-  Trash2, ExternalLink, MessageCircle, GitFork, ArrowRight, Globe
+  Trash2, MessageCircle, GitFork, ArrowRight, Globe, RotateCw
 } from "lucide-react";
 import { FileIcon } from "./FileIcon";
 import { 
@@ -12,7 +12,23 @@ import {
   fetchGitHubPullRequests, 
   parseGitHubRemote, 
   GitHubIssue, 
-  GitHubPullRequest 
+  GitHubPullRequest,
+  IssueDetail,
+  PRDetail,
+  fetchIssueDetail,
+  fetchPRDetail,
+  createGitHubIssueComment,
+  mergePR,
+  updateIssueState,
+  updatePRState,
+  createPRReview,
+  addIssueLabel,
+  removeIssueLabel,
+  fetchRepoLabels,
+  editIssueTitle,
+  editIssueBody,
+  editPRTitle,
+  editPRBody,
 } from "../../services/github-service";
 
 // --- Types ---
@@ -108,6 +124,454 @@ function RefBadge({ refs }: { refs: string }) {
   );
 }
 
+// --- Issue Detail View ---
+
+interface IssueDetailViewProps {
+  issue: IssueDetail;
+  repoInfo: { owner: string; repo: string };
+  onBack: () => void;
+  onComment: string;
+  onCommentChange: (v: string) => void;
+  onSubmitComment: () => void;
+  onToggleState: () => void;
+  onAddLabel: (label: string) => void;
+  onRemoveLabel: (label: string) => void;
+  onLoadLabels: () => void;
+  availableLabels: { name: string; color: string; description: string }[];
+  showLabelPicker: boolean;
+  setShowLabelPicker: (v: boolean) => void;
+  labelSearch: string;
+  setLabelSearch: (v: string) => void;
+  editingTitle: boolean;
+  setEditingTitle: (v: boolean) => void;
+  titleDraft: string;
+  setTitleDraft: (v: string) => void;
+  onSaveTitle: () => void;
+  editingBody: boolean;
+  setEditingBody: (v: boolean) => void;
+  bodyDraft: string;
+  setBodyDraft: (v: string) => void;
+  onSaveBody: () => void;
+}
+
+function IssueDetailView({
+  issue, onBack, onComment, onCommentChange, onSubmitComment,
+  onToggleState, onAddLabel, onRemoveLabel, onLoadLabels, availableLabels,
+  showLabelPicker, setShowLabelPicker, labelSearch, setLabelSearch,
+  editingTitle, setEditingTitle, titleDraft, setTitleDraft, onSaveTitle,
+  editingBody, setEditingBody, bodyDraft, setBodyDraft, onSaveBody,
+}: IssueDetailViewProps) {
+  return (
+    <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Header */}
+      <div className="px-6 py-4 border-b border-white/5 bg-white/[0.02] flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-3">
+          <button onClick={onBack} className="p-1.5 hover:bg-white/10 rounded-lg transition-colors border border-white/5">
+            <ArrowRight size={14} className="rotate-180 text-zinc-400" />
+          </button>
+          <div className="flex items-center gap-2">
+            <FileText size={16} className="text-zinc-400" />
+            <span className="text-xs font-mono text-zinc-500">#{issue.number}</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={onToggleState} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+            issue.state === "open" ? "bg-purple-500/10 text-purple-400 border border-purple-500/20 hover:bg-purple-500/20" : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20"
+          }`}>
+            {issue.state === "open" ? "Close Issue" : "Reopen Issue"}
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+        <div className="max-w-4xl mx-auto space-y-6">
+          {/* Title */}
+          <div>
+            {editingTitle ? (
+              <div className="flex items-start gap-2">
+                <input
+                  value={titleDraft}
+                  onChange={e => setTitleDraft(e.target.value)}
+                  className="flex-1 bg-black/40 border border-brand-accent/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none"
+                  autoFocus
+                  onKeyDown={e => { if (e.key === "Enter") onSaveTitle(); if (e.key === "Escape") setEditingTitle(false); }}
+                />
+                <button onClick={onSaveTitle} className="px-3 py-2 bg-brand-accent text-black rounded-lg text-xs font-bold">Save</button>
+                <button onClick={() => setEditingTitle(false)} className="px-3 py-2 bg-white/5 text-zinc-400 rounded-lg text-xs">Cancel</button>
+              </div>
+            ) : (
+              <div className="flex items-start gap-2 group">
+                <h2 className="text-lg font-bold text-zinc-100 flex-1">{issue.title}</h2>
+                <button onClick={() => { setEditingTitle(true); setTitleDraft(issue.title); }} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded transition-all">
+                  <FileText size={12} className="text-zinc-500" />
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Meta */}
+          <div className="flex items-center gap-3 text-xs text-zinc-500 flex-wrap">
+            <span className={`px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border ${
+              issue.state === 'open' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-purple-500/10 text-purple-400 border-purple-500/20'
+            }`}>{issue.state}</span>
+            <span>opened by <span className="text-zinc-300">@{issue.author}</span> on {new Date(issue.createdAt).toLocaleDateString()}</span>
+            {issue.assignees.length > 0 && <span>· assigned to <span className="text-zinc-300">{issue.assignees.map(a => `@${a}`).join(", ")}</span></span>}
+          </div>
+
+          {/* Labels */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {issue.labels.map(l => (
+              <span key={l.name} className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-md border cursor-default group" style={{ color: `#${l.color}`, backgroundColor: `#${l.color}15`, borderColor: `#${l.color}30` }}>
+                {l.name}
+                <button onClick={() => onRemoveLabel(l.name)} className="opacity-0 group-hover:opacity-100 hover:text-red-400 transition-all">×</button>
+              </span>
+            ))}
+            <button onClick={onLoadLabels} className="text-[10px] px-2 py-1 rounded-md border border-white/10 text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition-all">
+              + Label
+            </button>
+          </div>
+
+          {/* Label Picker */}
+          {showLabelPicker && (
+            <div className="bg-black/40 border border-white/10 rounded-xl p-3 space-y-2">
+              <input
+                placeholder="Search labels..."
+                value={labelSearch}
+                onChange={e => setLabelSearch(e.target.value)}
+                className="w-full bg-zinc-900/50 border border-white/10 rounded-md px-3 py-1.5 text-xs text-white focus:outline-none"
+                autoFocus
+              />
+              <div className="max-h-40 overflow-y-auto space-y-1">
+                {availableLabels.filter(l => l.name.toLowerCase().includes(labelSearch.toLowerCase()) && !issue.labels.find(il => il.name === l.name)).map(l => (
+                  <button key={l.name} onClick={() => onAddLabel(l.name)} className="w-full text-left px-2 py-1.5 rounded hover:bg-white/5 transition-colors flex items-center gap-2">
+                    <div className="w-3 h-3 rounded" style={{ backgroundColor: `#${l.color}` }} />
+                    <span className="text-xs text-zinc-300">{l.name}</span>
+                    {l.description && <span className="text-[10px] text-zinc-600 truncate">{l.description}</span>}
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => setShowLabelPicker(false)} className="text-[10px] text-zinc-500 hover:text-zinc-300">Close</button>
+            </div>
+          )}
+
+          {/* Body */}
+          <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Description</span>
+              {!editingBody && (
+                <button onClick={() => { setEditingBody(true); setBodyDraft(issue.body); }} className="text-[10px] text-zinc-500 hover:text-zinc-300">Edit</button>
+              )}
+            </div>
+            {editingBody ? (
+              <div className="space-y-2">
+                <textarea
+                  value={bodyDraft}
+                  onChange={e => setBodyDraft(e.target.value)}
+                  rows={8}
+                  className="w-full bg-black/40 border border-brand-accent/50 rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none resize-none"
+                />
+                <div className="flex gap-2">
+                  <button onClick={onSaveBody} className="px-3 py-1.5 bg-brand-accent text-black rounded-lg text-xs font-bold">Save</button>
+                  <button onClick={() => setEditingBody(false)} className="px-3 py-1.5 bg-white/5 text-zinc-400 rounded-lg text-xs">Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-xs text-zinc-300 whitespace-pre-wrap font-mono leading-relaxed">{issue.body || <span className="text-zinc-600 italic">No description provided.</span>}</div>
+            )}
+          </div>
+
+          {/* Comments */}
+          <div className="space-y-4">
+            <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Comments ({issue.comments.length})</div>
+            {issue.comments.map(c => (
+              <div key={c.id} className="bg-white/[0.02] border border-white/5 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-zinc-300">@{c.author}</span>
+                  <span className="text-[10px] text-zinc-600">{new Date(c.createdAt).toLocaleString()}</span>
+                </div>
+                <div className="text-xs text-zinc-300 whitespace-pre-wrap font-mono leading-relaxed">{c.body}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Comment Input */}
+          <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4">
+            <textarea
+              value={onComment}
+              onChange={e => onCommentChange(e.target.value)}
+              placeholder="Write a comment..."
+              rows={4}
+              className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white font-mono focus:border-brand-accent/50 focus:outline-none resize-none placeholder:text-zinc-600"
+            />
+            <div className="flex justify-end mt-2">
+              <button onClick={onSubmitComment} disabled={!onComment.trim()} className="px-4 py-2 bg-brand-accent text-black rounded-lg text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed">
+                Comment
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- PR Detail View ---
+
+interface PRDetailViewProps {
+  pr: PRDetail;
+  repoInfo: { owner: string; repo: string };
+  onBack: () => void;
+  onComment: string;
+  onCommentChange: (v: string) => void;
+  onSubmitComment: () => void;
+  onMerge: (method: "merge" | "squash" | "rebase") => void;
+  onToggleState: () => void;
+  onSubmitReview: (event: "APPROVE" | "REQUEST_CHANGES" | "COMMENT") => void;
+  showReviewForm: boolean;
+  setShowReviewForm: (v: boolean) => void;
+  reviewBody: string;
+  setReviewBody: (v: string) => void;
+  busy: string | null;
+  editingTitle: boolean;
+  setEditingTitle: (v: boolean) => void;
+  titleDraft: string;
+  setTitleDraft: (v: string) => void;
+  onSaveTitle: () => void;
+  editingBody: boolean;
+  setEditingBody: (v: boolean) => void;
+  bodyDraft: string;
+  setBodyDraft: (v: string) => void;
+  onSaveBody: () => void;
+}
+
+function PRDetailView({
+  pr, onBack, onComment, onCommentChange, onSubmitComment,
+  onMerge, onToggleState, onSubmitReview, showReviewForm, setShowReviewForm,
+  reviewBody, setReviewBody, busy,
+  editingTitle, setEditingTitle, titleDraft, setTitleDraft, onSaveTitle,
+  editingBody, setEditingBody, bodyDraft, setBodyDraft, onSaveBody,
+}: PRDetailViewProps) {
+  const isMerged = pr.state === "closed" && pr.mergeableState === "merged";
+  const canMerge = pr.state === "open" && pr.mergeable && !pr.isDraft;
+
+  return (
+    <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Header */}
+      <div className="px-6 py-4 border-b border-white/5 bg-white/[0.02] flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-3">
+          <button onClick={onBack} className="p-1.5 hover:bg-white/10 rounded-lg transition-colors border border-white/5">
+            <ArrowRight size={14} className="rotate-180 text-zinc-400" />
+          </button>
+          <div className="flex items-center gap-2">
+            <GitPullRequest size={16} className="text-zinc-400" />
+            <span className="text-xs font-mono text-zinc-500">#{pr.number}</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {pr.state === "open" && (
+            <>
+              <button onClick={() => setShowReviewForm(!showReviewForm)} className="px-3 py-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg text-xs font-bold hover:bg-emerald-500/20 transition-all">
+                Review
+              </button>
+              {canMerge && (
+                <div className="flex items-center gap-1">
+                  <button onClick={() => onMerge("merge")} disabled={!!busy} className="px-3 py-1.5 bg-brand-accent text-black rounded-lg text-xs font-bold hover:bg-brand-accent/80 transition-all disabled:opacity-50">
+                    Merge
+                  </button>
+                  <button onClick={() => onMerge("squash")} disabled={!!busy} className="px-2 py-1.5 bg-brand-accent/20 text-brand-accent rounded-lg text-xs font-bold hover:bg-brand-accent/30 transition-all disabled:opacity-50" title="Squash and merge">
+                    <GitMerge size={12} />
+                  </button>
+                  <button onClick={() => onMerge("rebase")} disabled={!!busy} className="px-2 py-1.5 bg-brand-accent/20 text-brand-accent rounded-lg text-xs font-bold hover:bg-brand-accent/30 transition-all disabled:opacity-50" title="Rebase and merge">
+                    <RotateCw size={12} />
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+          <button onClick={onToggleState} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+            pr.state === "open" ? "bg-zinc-500/10 text-zinc-400 border border-zinc-500/20 hover:bg-zinc-500/20" : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20"
+          }`}>
+            {pr.state === "open" ? "Close PR" : "Reopen PR"}
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+        <div className="max-w-4xl mx-auto space-y-6">
+          {/* Title */}
+          <div>
+            {editingTitle ? (
+              <div className="flex items-start gap-2">
+                <input
+                  value={titleDraft}
+                  onChange={e => setTitleDraft(e.target.value)}
+                  className="flex-1 bg-black/40 border border-brand-accent/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none"
+                  autoFocus
+                  onKeyDown={e => { if (e.key === "Enter") onSaveTitle(); if (e.key === "Escape") setEditingTitle(false); }}
+                />
+                <button onClick={onSaveTitle} className="px-3 py-2 bg-brand-accent text-black rounded-lg text-xs font-bold">Save</button>
+                <button onClick={() => setEditingTitle(false)} className="px-3 py-2 bg-white/5 text-zinc-400 rounded-lg text-xs">Cancel</button>
+              </div>
+            ) : (
+              <div className="flex items-start gap-2 group">
+                <h2 className="text-lg font-bold text-zinc-100 flex-1">{pr.title}</h2>
+                <button onClick={() => { setEditingTitle(true); setTitleDraft(pr.title); }} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded transition-all">
+                  <FileText size={12} className="text-zinc-500" />
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Meta */}
+          <div className="flex items-center gap-3 text-xs text-zinc-500 flex-wrap">
+            <span className={`px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border ${
+              isMerged ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' :
+              pr.state === 'open' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20'
+            }`}>{isMerged ? "MERGED" : pr.isDraft ? "DRAFT" : pr.state}</span>
+            <span><span className="text-zinc-300">@{pr.author}</span> wants to merge <span className="font-mono text-blue-400">{pr.branchRef}</span></span>
+            {pr.assignees.length > 0 && <span>· assigned to <span className="text-zinc-300">{pr.assignees.map(a => `@${a}`).join(", ")}</span></span>}
+          </div>
+
+          {/* Stats */}
+          <div className="flex items-center gap-4 text-xs">
+            <span className="flex items-center gap-1"><Plus size={12} className="text-emerald-400" /> <span className="text-emerald-400">{pr.additions}</span></span>
+            <span className="flex items-center gap-1"><Minus size={12} className="text-red-400" /> <span className="text-red-400">{pr.deletions}</span></span>
+            <span className="text-zinc-600">·</span>
+            <span className="text-zinc-400">{pr.changedFiles} files changed</span>
+            <span className="text-zinc-600">·</span>
+            <span className="text-zinc-400">{pr.commits.length} commits</span>
+          </div>
+
+          {/* Merge Status */}
+          <div className={`p-3 rounded-xl border text-xs ${
+            isMerged ? "bg-purple-500/5 border-purple-500/20 text-purple-400" :
+            canMerge ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-400" :
+            pr.state === "closed" ? "bg-zinc-500/5 border-zinc-500/20 text-zinc-400" :
+            "bg-amber-500/5 border-amber-500/20 text-amber-400"
+          }`}>
+            {isMerged ? "This pull request has been merged." :
+             canMerge ? "This branch is ready to be merged." :
+             pr.state === "closed" ? "This pull request is closed." :
+             `Merge status: ${pr.mergeableState}`}
+          </div>
+
+          {/* Reviews */}
+          {pr.reviews.length > 0 && (
+            <div className="space-y-2">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Reviews</div>
+              {pr.reviews.filter(r => r.state !== "PENDING").map(r => (
+                <div key={r.id} className={`p-3 rounded-xl border ${
+                  r.state === "APPROVED" ? "bg-emerald-500/5 border-emerald-500/20" :
+                  r.state === "CHANGES_REQUESTED" ? "bg-red-500/5 border-red-500/20" :
+                  "bg-white/[0.02] border-white/5"
+                }`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-bold text-zinc-300">@{r.author}</span>
+                    <span className={`text-[10px] font-bold ${
+                      r.state === "APPROVED" ? "text-emerald-400" :
+                      r.state === "CHANGES_REQUESTED" ? "text-red-400" : "text-zinc-500"
+                    }`}>{r.state.replace("_", " ")}</span>
+                  </div>
+                  {r.body && <div className="text-xs text-zinc-400 font-mono">{r.body}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Review Form */}
+          {showReviewForm && (
+            <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4 space-y-3">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Submit Review</div>
+              <textarea
+                value={reviewBody}
+                onChange={e => setReviewBody(e.target.value)}
+                placeholder="Review comments (optional)..."
+                rows={3}
+                className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none resize-none placeholder:text-zinc-600"
+              />
+              <div className="flex gap-2">
+                <button onClick={() => onSubmitReview("APPROVE")} className="px-3 py-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg text-xs font-bold hover:bg-emerald-500/20">Approve</button>
+                <button onClick={() => onSubmitReview("REQUEST_CHANGES")} className="px-3 py-1.5 bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg text-xs font-bold hover:bg-red-500/20">Request Changes</button>
+                <button onClick={() => onSubmitReview("COMMENT")} className="px-3 py-1.5 bg-white/5 text-zinc-400 border border-white/10 rounded-lg text-xs font-bold hover:bg-white/10">Comment</button>
+              </div>
+            </div>
+          )}
+
+          {/* Body */}
+          <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Description</span>
+              {!editingBody && (
+                <button onClick={() => { setEditingBody(true); setBodyDraft(pr.body); }} className="text-[10px] text-zinc-500 hover:text-zinc-300">Edit</button>
+              )}
+            </div>
+            {editingBody ? (
+              <div className="space-y-2">
+                <textarea
+                  value={bodyDraft}
+                  onChange={e => setBodyDraft(e.target.value)}
+                  rows={8}
+                  className="w-full bg-black/40 border border-brand-accent/50 rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none resize-none"
+                />
+                <div className="flex gap-2">
+                  <button onClick={onSaveBody} className="px-3 py-1.5 bg-brand-accent text-black rounded-lg text-xs font-bold">Save</button>
+                  <button onClick={() => setEditingBody(false)} className="px-3 py-1.5 bg-white/5 text-zinc-400 rounded-lg text-xs">Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-xs text-zinc-300 whitespace-pre-wrap font-mono leading-relaxed">{pr.body || <span className="text-zinc-600 italic">No description provided.</span>}</div>
+            )}
+          </div>
+
+          {/* Commits */}
+          {pr.commits.length > 0 && (
+            <div className="space-y-2">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Commits ({pr.commits.length})</div>
+              {pr.commits.map(c => (
+                <div key={c.sha} className="flex items-center gap-3 p-2.5 bg-white/[0.02] border border-white/5 rounded-lg">
+                  <GitCommit size={14} className="text-zinc-500 shrink-0" />
+                  <span className="text-xs text-zinc-300 truncate flex-1">{c.message}</span>
+                  <span className="text-[10px] text-zinc-600 font-mono shrink-0">{c.sha.slice(0, 7)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Comments */}
+          <div className="space-y-4">
+            <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Comments ({pr.comments.length})</div>
+            {pr.comments.map(c => (
+              <div key={c.id} className="bg-white/[0.02] border border-white/5 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-zinc-300">@{c.author}</span>
+                  <span className="text-[10px] text-zinc-600">{new Date(c.createdAt).toLocaleString()}</span>
+                </div>
+                <div className="text-xs text-zinc-300 whitespace-pre-wrap font-mono leading-relaxed">{c.body}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Comment Input */}
+          <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4">
+            <textarea
+              value={onComment}
+              onChange={e => onCommentChange(e.target.value)}
+              placeholder="Write a comment..."
+              rows={4}
+              className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white font-mono focus:border-brand-accent/50 focus:outline-none resize-none placeholder:text-zinc-600"
+            />
+            <div className="flex justify-end mt-2">
+              <button onClick={onSubmitComment} disabled={!onComment.trim()} className="px-4 py-2 bg-brand-accent text-black rounded-lg text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed">
+                Comment
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // --- Component ---
 
 export function SourceControlFullscreen({ currentProject, isOpen, onClose }: SourceControlFullscreenProps) {
@@ -133,6 +597,27 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
   const [githubIssues, setGithubIssues] = useState<GitHubIssue[]>([]);
   const [githubPRs, setGithubPRs] = useState<GitHubPullRequest[]>([]);
   const [githubError, setGithubError] = useState<string | null>(null);
+  const [repoInfo, setRepoInfo] = useState<{ owner: string; repo: string } | null>(null);
+
+  // Detail View State
+  const [selectedIssue, setSelectedIssue] = useState<IssueDetail | null>(null);
+  const [selectedPR, setSelectedPR] = useState<PRDetail | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [issueComment, setIssueComment] = useState("");
+  const [prComment, setPrComment] = useState("");
+  const [prReviewBody, setPrReviewBody] = useState("");
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [editingIssueTitle, setEditingIssueTitle] = useState(false);
+  const [editingIssueBody, setEditingIssueBody] = useState(false);
+  const [editingPRTitle, setEditingPRTitle] = useState(false);
+  const [editingPRBody, setEditingPRBody] = useState(false);
+  const [issueTitleDraft, setIssueTitleDraft] = useState("");
+  const [issueBodyDraft, setIssueBodyDraft] = useState("");
+  const [prTitleDraft, setPrTitleDraft] = useState("");
+  const [prBodyDraft, setPrBodyDraft] = useState("");
+  const [availableLabels, setAvailableLabels] = useState<{ name: string; color: string; description: string }[]>([]);
+  const [showLabelPicker, setShowLabelPicker] = useState(false);
+  const [labelSearch, setLabelSearch] = useState("");
 
   // Search state for non-overview tabs
   const [searchTerm, setSearchTerm] = useState("");
@@ -159,12 +644,13 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
 
       // Attempt to load GitHub data if we have an origin remote
       if (s.remote) {
-        const repoInfo = parseGitHubRemote(s.remote);
-        if (repoInfo) {
+        const info = parseGitHubRemote(s.remote);
+        if (info) {
+          setRepoInfo(info);
           try {
             const [issues, prs] = await Promise.all([
-              fetchGitHubIssues(repoInfo.owner, repoInfo.repo),
-              fetchGitHubPullRequests(repoInfo.owner, repoInfo.repo)
+              fetchGitHubIssues(info.owner, info.repo),
+              fetchGitHubPullRequests(info.owner, info.repo)
             ]);
             setGithubIssues(issues);
             setGithubPRs(prs);
@@ -226,6 +712,226 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
   });
   const deleteBranch = (branch: string) => run("delete:" + branch, () => invoke("git_panel_delete_branch", { cwd: currentProject!, branch }));
   const mergeBranch = (branch: string) => run("merge:" + branch, () => invoke("git_panel_merge_branch", { cwd: currentProject!, branch }));
+
+  // GitHub Detail Handlers
+  const openIssueDetail = async (issue: GitHubIssue) => {
+    if (!repoInfo) return;
+    setLoadingDetail(true);
+    setSelectedPR(null);
+    setShowReviewForm(false);
+    try {
+      const detail = await fetchIssueDetail(repoInfo.owner, repoInfo.repo, issue.number);
+      setSelectedIssue(detail);
+      setIssueTitleDraft(detail.title);
+      setIssueBodyDraft(detail.body);
+      setEditingIssueTitle(false);
+      setEditingIssueBody(false);
+    } catch (e: any) {
+      flash(e.message || "Failed to load issue details", false);
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
+
+  const openPRDetail = async (pr: GitHubPullRequest) => {
+    if (!repoInfo) return;
+    setLoadingDetail(true);
+    setSelectedIssue(null);
+    setShowReviewForm(false);
+    try {
+      const detail = await fetchPRDetail(repoInfo.owner, repoInfo.repo, pr.number);
+      setSelectedPR(detail);
+      setPrTitleDraft(detail.title);
+      setPrBodyDraft(detail.body);
+      setEditingPRTitle(false);
+      setEditingPRBody(false);
+    } catch (e: any) {
+      flash(e.message || "Failed to load PR details", false);
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
+
+  const closeDetailView = () => {
+    setSelectedIssue(null);
+    setSelectedPR(null);
+    setShowReviewForm(false);
+    setIssueComment("");
+    setPrComment("");
+    setPrReviewBody("");
+  };
+
+  const submitIssueComment = async () => {
+    if (!repoInfo || !selectedIssue || !issueComment.trim()) return;
+    try {
+      await createGitHubIssueComment(repoInfo.owner, repoInfo.repo, selectedIssue.number, issueComment.trim());
+      setIssueComment("");
+      const updated = await fetchIssueDetail(repoInfo.owner, repoInfo.repo, selectedIssue.number);
+      setSelectedIssue(updated);
+      flash("Comment added");
+    } catch (e: any) {
+      flash(e.message || "Failed to add comment", false);
+    }
+  };
+
+  const submitPRComment = async () => {
+    if (!repoInfo || !selectedPR || !prComment.trim()) return;
+    try {
+      await createGitHubIssueComment(repoInfo.owner, repoInfo.repo, selectedPR.number, prComment.trim());
+      setPrComment("");
+      const updated = await fetchPRDetail(repoInfo.owner, repoInfo.repo, selectedPR.number);
+      setSelectedPR(updated);
+      flash("Comment added");
+    } catch (e: any) {
+      flash(e.message || "Failed to add comment", false);
+    }
+  };
+
+  const submitPRReview = async (event: "APPROVE" | "REQUEST_CHANGES" | "COMMENT") => {
+    if (!repoInfo || !selectedPR) return;
+    try {
+      await createPRReview(repoInfo.owner, repoInfo.repo, selectedPR.number, event, prReviewBody.trim());
+      setPrReviewBody("");
+      setShowReviewForm(false);
+      const updated = await fetchPRDetail(repoInfo.owner, repoInfo.repo, selectedPR.number);
+      setSelectedPR(updated);
+      flash(`Review submitted: ${event.toLowerCase().replace("_", " ")}`);
+    } catch (e: any) {
+      flash(e.message || "Failed to submit review", false);
+    }
+  };
+
+  const handleMergePR = async (method: "merge" | "squash" | "rebase") => {
+    if (!repoInfo || !selectedPR) return;
+    setBusy("merge");
+    try {
+      await mergePR(repoInfo.owner, repoInfo.repo, selectedPR.number, undefined, method);
+      flash("Pull request merged");
+      const updated = await fetchPRDetail(repoInfo.owner, repoInfo.repo, selectedPR.number);
+      setSelectedPR(updated);
+      await refresh();
+    } catch (e: any) {
+      flash(e.message || "Failed to merge PR", false);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleToggleIssueState = async () => {
+    if (!repoInfo || !selectedIssue) return;
+    const newState = selectedIssue.state === "open" ? "closed" : "open";
+    try {
+      await updateIssueState(repoInfo.owner, repoInfo.repo, selectedIssue.number, newState);
+      flash(`Issue ${newState}`);
+      const updated = await fetchIssueDetail(repoInfo.owner, repoInfo.repo, selectedIssue.number);
+      setSelectedIssue(updated);
+      await refresh();
+    } catch (e: any) {
+      flash(e.message || "Failed to update issue state", false);
+    }
+  };
+
+  const handleTogglePRState = async () => {
+    if (!repoInfo || !selectedPR) return;
+    const newState = selectedPR.state === "open" ? "closed" : "open";
+    try {
+      await updatePRState(repoInfo.owner, repoInfo.repo, selectedPR.number, newState);
+      flash(`PR ${newState}`);
+      const updated = await fetchPRDetail(repoInfo.owner, repoInfo.repo, selectedPR.number);
+      setSelectedPR(updated);
+      await refresh();
+    } catch (e: any) {
+      flash(e.message || "Failed to update PR state", false);
+    }
+  };
+
+  const handleAddLabel = async (label: string) => {
+    if (!repoInfo || !selectedIssue) return;
+    try {
+      await addIssueLabel(repoInfo.owner, repoInfo.repo, selectedIssue.number, label);
+      const updated = await fetchIssueDetail(repoInfo.owner, repoInfo.repo, selectedIssue.number);
+      setSelectedIssue(updated);
+      setShowLabelPicker(false);
+      flash(`Label "${label}" added`);
+    } catch (e: any) {
+      flash(e.message || "Failed to add label", false);
+    }
+  };
+
+  const handleRemoveLabel = async (label: string) => {
+    if (!repoInfo || !selectedIssue) return;
+    try {
+      await removeIssueLabel(repoInfo.owner, repoInfo.repo, selectedIssue.number, label);
+      const updated = await fetchIssueDetail(repoInfo.owner, repoInfo.repo, selectedIssue.number);
+      setSelectedIssue(updated);
+      flash(`Label "${label}" removed`);
+    } catch (e: any) {
+      flash(e.message || "Failed to remove label", false);
+    }
+  };
+
+  const loadAvailableLabels = async () => {
+    if (!repoInfo) return;
+    try {
+      const labels = await fetchRepoLabels(repoInfo.owner, repoInfo.repo);
+      setAvailableLabels(labels);
+      setShowLabelPicker(true);
+    } catch (e: any) {
+      flash(e.message || "Failed to load labels", false);
+    }
+  };
+
+  const handleSaveIssueTitle = async () => {
+    if (!repoInfo || !selectedIssue || !issueTitleDraft.trim()) return;
+    try {
+      await editIssueTitle(repoInfo.owner, repoInfo.repo, selectedIssue.number, issueTitleDraft.trim());
+      const updated = await fetchIssueDetail(repoInfo.owner, repoInfo.repo, selectedIssue.number);
+      setSelectedIssue(updated);
+      setEditingIssueTitle(false);
+      flash("Title updated");
+    } catch (e: any) {
+      flash(e.message || "Failed to update title", false);
+    }
+  };
+
+  const handleSaveIssueBody = async () => {
+    if (!repoInfo || !selectedIssue) return;
+    try {
+      await editIssueBody(repoInfo.owner, repoInfo.repo, selectedIssue.number, issueBodyDraft);
+      const updated = await fetchIssueDetail(repoInfo.owner, repoInfo.repo, selectedIssue.number);
+      setSelectedIssue(updated);
+      setEditingIssueBody(false);
+      flash("Description updated");
+    } catch (e: any) {
+      flash(e.message || "Failed to update description", false);
+    }
+  };
+
+  const handleSavePRTitle = async () => {
+    if (!repoInfo || !selectedPR || !prTitleDraft.trim()) return;
+    try {
+      await editPRTitle(repoInfo.owner, repoInfo.repo, selectedPR.number, prTitleDraft.trim());
+      const updated = await fetchPRDetail(repoInfo.owner, repoInfo.repo, selectedPR.number);
+      setSelectedPR(updated);
+      setEditingPRTitle(false);
+      flash("Title updated");
+    } catch (e: any) {
+      flash(e.message || "Failed to update title", false);
+    }
+  };
+
+  const handleSavePRBody = async () => {
+    if (!repoInfo || !selectedPR) return;
+    try {
+      await editPRBody(repoInfo.owner, repoInfo.repo, selectedPR.number, prBodyDraft);
+      const updated = await fetchPRDetail(repoInfo.owner, repoInfo.repo, selectedPR.number);
+      setSelectedPR(updated);
+      setEditingPRBody(false);
+      flash("Description updated");
+    } catch (e: any) {
+      flash(e.message || "Failed to update description", false);
+    }
+  };
 
   const handleCommitClick = async (hash: string) => {
     if (selectedCommit === hash) {
@@ -331,7 +1037,7 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => { setActiveTab(tab.id as any); setSearchTerm(""); }}
+                    onClick={() => { setActiveTab(tab.id as any); setSearchTerm(""); closeDetailView(); }}
                     className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-medium transition-all ${
                       isActive ? "bg-brand-accent/15 text-brand-accent border border-brand-accent/20" : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200 border border-transparent"
                     }`}
@@ -781,104 +1487,171 @@ export function SourceControlFullscreen({ currentProject, isOpen, onClose }: Sou
               {/* --- GITHUB TABS (Issues / PRs) --- */}
               {(activeTab === "issues" || activeTab === "prs") && (
                 <div className="flex-1 flex flex-col overflow-hidden">
-                  <div className="px-6 py-4 border-b border-white/5 bg-white/[0.02] flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <h3 className="text-sm font-bold text-zinc-200 capitalize">GitHub {activeTab.replace("prs", "Pull Requests")}</h3>
-                      {githubError && (
-                        <span className="text-xs text-red-400 bg-red-500/10 px-2 py-1 rounded-md border border-red-500/20 flex items-center gap-1">
-                          <AlertCircle size={12} /> {githubError}
-                        </span>
-                      )}
-                    </div>
-                    <div className="relative">
-                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
-                      <input
-                        type="text"
-                        placeholder={`Search ${activeTab}...`}
-                        value={searchTerm}
-                        onChange={e => setSearchTerm(e.target.value)}
-                        className="bg-black/40 border border-white/10 rounded-lg pl-9 pr-4 py-1.5 text-xs text-white focus:border-brand-accent/50 outline-none w-64"
-                      />
-                    </div>
-                  </div>
+                  {/* Detail View */}
+                  {selectedIssue && (
+                    <IssueDetailView
+                      issue={selectedIssue}
+                      repoInfo={repoInfo!}
+                      onBack={closeDetailView}
+                      onComment={issueComment}
+                      onCommentChange={setIssueComment}
+                      onSubmitComment={submitIssueComment}
+                      onToggleState={handleToggleIssueState}
+                      onAddLabel={handleAddLabel}
+                      onRemoveLabel={handleRemoveLabel}
+                      onLoadLabels={loadAvailableLabels}
+                      availableLabels={availableLabels}
+                      showLabelPicker={showLabelPicker}
+                      setShowLabelPicker={setShowLabelPicker}
+                      labelSearch={labelSearch}
+                      setLabelSearch={setLabelSearch}
+                      editingTitle={editingIssueTitle}
+                      setEditingTitle={setEditingIssueTitle}
+                      titleDraft={issueTitleDraft}
+                      setTitleDraft={setIssueTitleDraft}
+                      onSaveTitle={handleSaveIssueTitle}
+                      editingBody={editingIssueBody}
+                      setEditingBody={setEditingIssueBody}
+                      bodyDraft={issueBodyDraft}
+                      setBodyDraft={setIssueBodyDraft}
+                      onSaveBody={handleSaveIssueBody}
+                    />
+                  )}
 
-                  <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
-                    <div className="max-w-5xl mx-auto space-y-3">
-                      {/* Empty States */}
-                      {!githubError && activeTab === "issues" && githubIssues.length === 0 && !loading && (
-                        <div className="text-center text-zinc-500 py-12">No issues found for this repository.</div>
-                      )}
-                      {!githubError && activeTab === "prs" && githubPRs.length === 0 && !loading && (
-                        <div className="text-center text-zinc-500 py-12">No pull requests found for this repository.</div>
-                      )}
+                  {selectedPR && (
+                    <PRDetailView
+                      pr={selectedPR}
+                      repoInfo={repoInfo!}
+                      onBack={closeDetailView}
+                      onComment={prComment}
+                      onCommentChange={setPrComment}
+                      onSubmitComment={submitPRComment}
+                      onMerge={handleMergePR}
+                      onToggleState={handleTogglePRState}
+                      onSubmitReview={submitPRReview}
+                      showReviewForm={showReviewForm}
+                      setShowReviewForm={setShowReviewForm}
+                      reviewBody={prReviewBody}
+                      setReviewBody={setPrReviewBody}
+                      busy={busy}
+                      editingTitle={editingPRTitle}
+                      setEditingTitle={setEditingPRTitle}
+                      titleDraft={prTitleDraft}
+                      setTitleDraft={setPrTitleDraft}
+                      onSaveTitle={handleSavePRTitle}
+                      editingBody={editingPRBody}
+                      setEditingBody={setEditingPRBody}
+                      bodyDraft={prBodyDraft}
+                      setBodyDraft={setPrBodyDraft}
+                      onSaveBody={handleSavePRBody}
+                    />
+                  )}
 
-                      {/* Issue List */}
-                      {activeTab === "issues" && githubIssues.filter(i => i.title.toLowerCase().includes(searchTerm.toLowerCase())).map(issue => (
-                        <a href={issue.url} target="_blank" rel="noreferrer" key={issue.number} className="block p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-white/10 hover:bg-white/[0.04] transition-all group">
-                          <div className="flex items-start justify-between gap-4 mb-2">
-                            <h4 className="text-sm font-bold text-zinc-200 group-hover:text-brand-accent transition-colors leading-tight">
-                              {issue.title}
-                            </h4>
-                            <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border ${
-                              issue.state === 'open' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-purple-500/10 text-purple-400 border-purple-500/20'
-                            }`}>
-                              {issue.state}
+                  {/* List View (only when no detail selected) */}
+                  {!selectedIssue && !selectedPR && (
+                    <>
+                      <div className="px-6 py-4 border-b border-white/5 bg-white/[0.02] flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <button onClick={() => setActiveTab("overview")} className="p-1 hover:bg-white/10 rounded transition-colors">
+                            <ArrowRight size={14} className="rotate-180 text-zinc-400" />
+                          </button>
+                          <h3 className="text-sm font-bold text-zinc-200 capitalize">GitHub {activeTab.replace("prs", "Pull Requests")}</h3>
+                          {githubError && (
+                            <span className="text-xs text-red-400 bg-red-500/10 px-2 py-1 rounded-md border border-red-500/20 flex items-center gap-1">
+                              <AlertCircle size={12} /> {githubError}
                             </span>
-                          </div>
-                          {issue.labels.length > 0 && (
-                            <div className="flex flex-wrap items-center gap-1.5 mb-3">
-                              {issue.labels.map(l => (
-                                <span key={l.name} className="text-[9px] px-1.5 py-0.5 rounded-md border border-white/10 font-medium" style={{ color: `#${l.color}`, backgroundColor: `#${l.color}15` }}>
-                                  {l.name}
-                                </span>
-                              ))}
+                          )}
+                        </div>
+                        <div className="relative">
+                          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                          <input
+                            type="text"
+                            placeholder={`Search ${activeTab}...`}
+                            value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                            className="bg-black/40 border border-white/10 rounded-lg pl-9 pr-4 py-1.5 text-xs text-white focus:border-brand-accent/50 outline-none w-64"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+                        <div className="max-w-5xl mx-auto space-y-3">
+                          {loadingDetail && (
+                            <div className="flex items-center justify-center py-8">
+                              <Loader2 size={20} className="animate-spin text-brand-accent" />
                             </div>
                           )}
-                          <div className="flex items-center justify-between text-xs text-zinc-500">
-                            <span className="font-mono">#{issue.number} opened on {new Date(issue.createdAt).toLocaleDateString()} by @{issue.author}</span>
-                            <div className="flex items-center gap-3">
-                              <span className="flex items-center gap-1"><MessageCircle size={12} /> {issue.commentsCount}</span>
-                              <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
-                            </div>
-                          </div>
-                        </a>
-                      ))}
+                          {!githubError && activeTab === "issues" && githubIssues.length === 0 && !loading && (
+                            <div className="text-center text-zinc-500 py-12">No issues found for this repository.</div>
+                          )}
+                          {!githubError && activeTab === "prs" && githubPRs.length === 0 && !loading && (
+                            <div className="text-center text-zinc-500 py-12">No pull requests found for this repository.</div>
+                          )}
 
-                      {/* PR List */}
-                      {activeTab === "prs" && githubPRs.filter(p => p.title.toLowerCase().includes(searchTerm.toLowerCase())).map(pr => (
-                        <a href={pr.url} target="_blank" rel="noreferrer" key={pr.number} className="block p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-white/10 hover:bg-white/[0.04] transition-all group">
-                          <div className="flex items-start justify-between gap-4 mb-2">
-                            <h4 className="text-sm font-bold text-zinc-200 group-hover:text-brand-accent transition-colors leading-tight">
-                              {pr.title}
-                            </h4>
-                            <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border ${
-                              pr.state === 'open' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20'
-                            }`}>
-                              {pr.isDraft ? 'DRAFT' : pr.state}
-                            </span>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2 mb-3">
-                            <span className="text-[10px] font-mono text-blue-400 bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 rounded flex items-center gap-1">
-                              <GitMerge size={10} /> {pr.branchRef}
-                            </span>
-                            {pr.labels.map(l => (
-                              <span key={l.name} className="text-[9px] px-1.5 py-0.5 rounded-md border border-white/10 font-medium" style={{ color: `#${l.color}`, backgroundColor: `#${l.color}15` }}>
-                                {l.name}
-                              </span>
-                            ))}
-                          </div>
-                          <div className="flex items-center justify-between text-xs text-zinc-500">
-                            <span className="font-mono">#{pr.number} opened on {new Date(pr.createdAt).toLocaleDateString()} by @{pr.author}</span>
-                            <div className="flex items-center gap-3">
-                              <span className="flex items-center gap-1"><MessageCircle size={12} /> {pr.commentsCount}</span>
-                              <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                          {activeTab === "issues" && githubIssues.filter(i => i.title.toLowerCase().includes(searchTerm.toLowerCase())).map(issue => (
+                            <div key={issue.number} className="p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-white/10 hover:bg-white/[0.04] transition-all group cursor-pointer" onClick={() => openIssueDetail(issue)}>
+                              <div className="flex items-start justify-between gap-4 mb-2">
+                                <h4 className="text-sm font-bold text-zinc-200 group-hover:text-brand-accent transition-colors leading-tight">
+                                  {issue.title}
+                                </h4>
+                                <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border ${
+                                  issue.state === 'open' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-purple-500/10 text-purple-400 border-purple-500/20'
+                                }`}>
+                                  {issue.state}
+                                </span>
+                              </div>
+                              {issue.labels.length > 0 && (
+                                <div className="flex flex-wrap items-center gap-1.5 mb-3">
+                                  {issue.labels.map(l => (
+                                    <span key={l.name} className="text-[9px] px-1.5 py-0.5 rounded-md border border-white/10 font-medium" style={{ color: `#${l.color}`, backgroundColor: `#${l.color}15` }}>
+                                      {l.name}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                              <div className="flex items-center justify-between text-xs text-zinc-500">
+                                <span className="font-mono">#{issue.number} opened on {new Date(issue.createdAt).toLocaleDateString()} by @{issue.author}</span>
+                                <div className="flex items-center gap-3">
+                                  <span className="flex items-center gap-1"><MessageCircle size={12} /> {issue.commentsCount}</span>
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        </a>
-                      ))}
+                          ))}
 
-                    </div>
-                  </div>
+                          {activeTab === "prs" && githubPRs.filter(p => p.title.toLowerCase().includes(searchTerm.toLowerCase())).map(pr => (
+                            <div key={pr.number} className="p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-white/10 hover:bg-white/[0.04] transition-all group cursor-pointer" onClick={() => openPRDetail(pr)}>
+                              <div className="flex items-start justify-between gap-4 mb-2">
+                                <h4 className="text-sm font-bold text-zinc-200 group-hover:text-brand-accent transition-colors leading-tight">
+                                  {pr.title}
+                                </h4>
+                                <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border ${
+                                  pr.state === 'open' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20'
+                                }`}>
+                                  {pr.isDraft ? 'DRAFT' : pr.state}
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2 mb-3">
+                                <span className="text-[10px] font-mono text-blue-400 bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                  <GitMerge size={10} /> {pr.branchRef}
+                                </span>
+                                {pr.labels.map(l => (
+                                  <span key={l.name} className="text-[9px] px-1.5 py-0.5 rounded-md border border-white/10 font-medium" style={{ color: `#${l.color}`, backgroundColor: `#${l.color}15` }}>
+                                    {l.name}
+                                  </span>
+                                ))}
+                              </div>
+                              <div className="flex items-center justify-between text-xs text-zinc-500">
+                                <span className="font-mono">#{pr.number} opened on {new Date(pr.createdAt).toLocaleDateString()} by @{pr.author}</span>
+                                <div className="flex items-center gap-3">
+                                  <span className="flex items-center gap-1"><MessageCircle size={12} /> {pr.commentsCount}</span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 

@@ -310,6 +310,8 @@ pub fn run() {
             services::git::git_panel_create_branch,
             services::git::git_panel_delete_branch,
             services::git::git_panel_merge_branch,
+            services::git::git_panel_get_commit_details,
+            services::git::git_panel_get_commit_file_diff,
             services::master_plan::append_master_plan_entry,
             services::master_plan::read_master_plan,
             services::master_plan::set_master_plan_task_status,

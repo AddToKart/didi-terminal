@@ -645,6 +645,41 @@ pub fn git_panel_delete_branch(cwd: String, branch: String) -> Result<String, St
     Ok(format!("Deleted branch {}", branch))
 }
 
+#[derive(serde::Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct GitCommitFile {
+    pub path: String,
+    pub status: String,
+}
+
+#[tauri::command]
+pub fn git_panel_get_commit_details(cwd: String, commit_hash: String) -> Result<Vec<GitCommitFile>, String> {
+    let cwd_path = Path::new(&cwd);
+    ensure_git_repo(cwd_path)?;
+    let out = run_git(cwd_path, &["diff-tree", "--no-commit-id", "--name-status", "-r", &commit_hash], None)?;
+    
+    let files = out.lines().filter_map(|line| {
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() >= 2 {
+            Some(GitCommitFile {
+                status: parts[0].to_string(),
+                path: parts[1..].join(" "),
+            })
+        } else {
+            None
+        }
+    }).collect();
+
+    Ok(files)
+}
+
+#[tauri::command]
+pub fn git_panel_get_commit_file_diff(cwd: String, commit_hash: String, file_path: String) -> Result<String, String> {
+    let cwd_path = Path::new(&cwd);
+    ensure_git_repo(cwd_path)?;
+    run_git(cwd_path, &["show", "--pretty=format:", &commit_hash, "--", &file_path], None)
+}
+
 #[tauri::command]
 pub fn git_panel_merge_branch(cwd: String, branch: String) -> Result<String, String> {
     let cwd_path = Path::new(&cwd);
