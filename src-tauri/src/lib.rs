@@ -285,6 +285,7 @@ pub fn run() {
             services::pty::resize_pty,
             services::pty::get_process_stats,
             services::pty::get_project_context,
+            services::pty::get_available_shells,
             services::config::get_config,
             services::config::set_config,
             services::llm::get_sidecar_status,

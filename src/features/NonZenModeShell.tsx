@@ -207,6 +207,11 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
     handleStartBrainstorm,
     handleDispatchMasterPlanTask,
   } = controller;
+
+  const handleSpawnAgentWithShell = useCallback((shellCommand: string, shellName: string) => {
+    spawnAgent(undefined, shellName, shellCommand);
+  }, [spawnAgent]);
+
   const setWorkspaces = useWorkspaceStore(s => s.setWorkspaces);
   const topbarMode = appMode === "orchestrator" ? "orchestrator" : "terminal";
   const activeSection = activeWorkspace?.sections.find(s => s.id === activeWorkspace.activeSectionId) || activeWorkspace?.sections[0];
@@ -482,6 +487,7 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
           <AppTopbar
             appMode={topbarMode}
             onSpawnAgent={spawnAgent}
+            onSpawnAgentWithShell={handleSpawnAgentWithShell}
             newAgentName={newAgentName}
             onChangeNewAgentName={setNewAgentName}
             onOpenBrainstorm={() => setShowBrainstorm(true)}

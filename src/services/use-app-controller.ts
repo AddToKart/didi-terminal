@@ -25,6 +25,7 @@ import {
   clearTerminalLanes,
   getTerminalLanePtyKey,
   loadStoredTerminalLanes,
+  saveTerminalLanes,
 } from "./terminal-lanes";
 import { useZenHotkeys } from "./use-zen-hotkeys";
 import { matchesKeys } from "./keybindings";
@@ -717,12 +718,23 @@ export function useAppController() {
     });
   };
 
-  const spawnAgent = (e: FormEvent) => {
-    e.preventDefault();
+  const spawnAgent = (e?: FormEvent, customName?: string, shell?: string) => {
+    if (e) e.preventDefault();
     const activeTabAgents = activeTab?.agents ?? [];
-    const name = getUniqueAgentNameInTab(activeTabAgents, newAgentName);
+    const name = getUniqueAgentNameInTab(activeTabAgents, customName || newAgentName || "Terminal");
 
-    const newAgent = { id: crypto.randomUUID(), name };
+    const agentId = crypto.randomUUID();
+    if (shell) {
+      const rootLane = {
+        id: ROOT_TERMINAL_LANE_ID,
+        label: "Main",
+        agentName: agentId,
+        shell,
+      };
+      saveTerminalLanes(agentId, activeWorkspaceId, [rootLane]);
+    }
+
+    const newAgent = { id: agentId, name };
     setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, agents: [...t.agents, newAgent] } : t));
     setNewAgentName("");
     addLog(`Spawned terminal: ${name}`, "system");

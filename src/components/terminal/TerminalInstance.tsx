@@ -230,7 +230,20 @@ export function TerminalInstance({ agentId, agentName, cwd, onRemove, onDetach, 
   const lanesRef = useRef(lanes);
   const terminalApiRef = useRef<Terminal | null>(null);
 
+  const [availableShells, setAvailableShells] = useState<{ name: string; command: string; is_wsl: boolean }[]>([]);
+
+  useEffect(() => {
+    invoke<{ name: string; command: string; is_wsl: boolean }[]>("get_available_shells")
+      .then((shells) => {
+        setAvailableShells(shells);
+      })
+      .catch((e) => {
+        console.error("Failed to load available shells:", e);
+      });
+  }, []);
+
   const activeLane = lanes.find(lane => lane.id === activeLaneId) ?? lanes[0] ?? { id: ROOT_TERMINAL_LANE_ID, label: "Main", agentName: agentId };
+
   const getLanePtyKey = useCallback((laneAgentId: string) => {
     return getTerminalLanePtyKey(workspaceId, laneAgentId);
   }, [workspaceId]);
@@ -246,6 +259,29 @@ export function TerminalInstance({ agentId, agentName, cwd, onRemove, onDetach, 
     // Emit state so sidebar can show running indicators
     emit("agent-state", { agent: ptyKey, isReady: nextReady }).catch(console.error);
   }, [ptyKey]);
+
+  const handleSelectShell = useCallback(async (shellCommand: string) => {
+    const updatedLanes = lanesRef.current.map(lane => {
+      if (lane.id === activeLaneId) {
+        return { ...lane, shell: shellCommand || undefined };
+      }
+      return lane;
+    });
+    setLanes(updatedLanes);
+    saveTerminalLanes(agentId, workspaceId, updatedLanes);
+
+    try {
+      await invoke("close_pty", { agent: ptyKey });
+    } catch (error) {
+      console.warn("Failed to close PTY:", error);
+    }
+
+    setReadyState(false);
+    if (terminalApiRef.current) {
+      terminalApiRef.current.reset();
+      terminalApiRef.current.write("\r\n\x1b[33mSpawning new shell...\x1b[0m\r\n");
+    }
+  }, [activeLaneId, ptyKey, agentId, workspaceId, setReadyState]);
 
   const setStatsState = useCallback((nextStats: { cpu: number; mem: number }) => {
     const current = statsRef.current;
@@ -632,7 +668,12 @@ export function TerminalInstance({ agentId, agentName, cwd, onRemove, onDetach, 
       }
     });
 
-    invoke<PtyScrollback>("spawn_pty", { agent: ptyKey, cwd: cwd || null, workspace_name: workspaceName || null })
+    invoke<PtyScrollback>("spawn_pty", {
+      agent: ptyKey,
+      cwd: cwd || null,
+      workspace_name: workspaceName || null,
+      shell: activeLane.shell || null
+    })
       .then((scrollback) => {
         if (cancelled || !terminal) return;
 
@@ -662,7 +703,7 @@ export function TerminalInstance({ agentId, agentName, cwd, onRemove, onDetach, 
       suppressTerminalInputRef.current = false;
       unlistenPty.then(f => f());
     };
-  }, [isTerminalReady, terminal, ptyKey, ptyEventKey, cwd, workspaceName, setReadyState, handleTerminalResize]);
+  }, [isTerminalReady, terminal, ptyKey, ptyEventKey, cwd, workspaceName, setReadyState, handleTerminalResize, activeLane.shell]);
 
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
@@ -724,6 +765,27 @@ export function TerminalInstance({ agentId, agentName, cwd, onRemove, onDetach, 
 
 
           <div className="h-full flex items-center gap-2 px-3 shrink-0">
+            {/* Shell Profile Selector Dropdown */}
+            {availableShells.length > 0 && (
+              <div className="relative flex items-center">
+                <select
+                  value={activeLane.shell || ""}
+                  onChange={(e) => handleSelectShell(e.target.value)}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className="bg-zinc-950/80 border border-zinc-800/80 hover:border-zinc-700/80 rounded px-1.5 py-0.5 text-zinc-300 font-mono text-[9px] font-bold outline-none cursor-pointer tracking-tight max-w-[110px] truncate"
+                  title="Choose Terminal Shell Profile"
+                >
+                  <option value="" className="bg-zinc-950 text-zinc-400 font-mono text-[9px]">Default Shell</option>
+                  {availableShells.map((profile) => (
+                    <option key={profile.command} value={profile.command} className="bg-zinc-950 text-zinc-300 font-mono text-[9px]">
+                      {profile.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {/* CPU & Memory pill widgets */}
             <div className="hidden md:flex items-center gap-1.5">
               <div className="flex items-center bg-zinc-950/80 border border-zinc-800/80 px-2 py-0.5 rounded text-zinc-400 font-mono text-[9px] font-bold shadow-inner" title="CPU Usage">

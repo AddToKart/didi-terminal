@@ -87,8 +87,11 @@ export function SettingsModal({ onClose }: Props) {
   const [hasShortcutChanges, setHasShortcutChanges] = useState(false);
   const recordingRef = useRef<HTMLDivElement>(null);
 
+  const [availableShells, setAvailableShells] = useState<{ name: string; command: string; is_wsl: boolean }[]>([]);
+
   useEffect(() => {
     invoke<AppConfig>("get_config").then(setConfig).catch(console.error);
+    invoke<{ name: string; command: string; is_wsl: boolean }[]>("get_available_shells").then(setAvailableShells).catch(console.error);
   }, []);
 
   useEffect(() => {
@@ -271,9 +274,37 @@ export function SettingsModal({ onClose }: Props) {
                     <label className="text-[11px] font-semibold text-zinc-400 flex items-center gap-2">
                       <ShellIcon size={13} className="text-zinc-600" /> Default Shell
                     </label>
-                    <input type="text" value={config.shell} onChange={e => setConfig({ ...config, shell: e.target.value })}
-                      placeholder="e.g. pwsh.exe, bash"
-                      className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 px-3 py-2 rounded-lg text-xs outline-none focus:border-blue-500/40 transition-all font-mono" />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider">Select Detected Shell</span>
+                        <select
+                          value={availableShells.some(s => s.command === config.shell) ? config.shell : "custom"}
+                          onChange={e => {
+                            const val = e.target.value;
+                            if (val !== "custom") {
+                              setConfig({ ...config, shell: val });
+                            }
+                          }}
+                          className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 px-3 py-2 rounded-lg text-xs outline-none focus:border-blue-500/40 transition-all cursor-pointer h-9"
+                        >
+                          {availableShells.map(s => (
+                            <option key={s.command} value={s.command}>{s.name}</option>
+                          ))}
+                          <option value="custom">Custom Shell Command...</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider">Shell Command / Path</span>
+                        <input
+                          type="text"
+                          value={config.shell}
+                          onChange={e => setConfig({ ...config, shell: e.target.value })}
+                          placeholder="e.g. pwsh.exe, bash"
+                          className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 px-3 py-2 rounded-lg text-xs outline-none focus:border-blue-500/40 transition-all font-mono h-9"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
 

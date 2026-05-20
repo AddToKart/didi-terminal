@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, type FormEvent } from "react";
-import { Brain, ClipboardList, Columns, Globe, Grid2X2, Network, PanelLeft, PanelLeftClose, Plus, Rows, Layers, AlignLeft, Sparkles, ChevronRight, ChevronLeft, GitMerge, LayoutList, FolderSearch, FileKey2, Package, Zap, FolderTree, FileText, FileCode, Palette, Box, HardDrive, Code2, Database, Calendar } from "lucide-react";
+import { Brain, ClipboardList, Columns, Globe, Grid2X2, Network, PanelLeft, PanelLeftClose, Plus, Rows, Layers, AlignLeft, Sparkles, ChevronRight, ChevronLeft, GitMerge, LayoutList, FolderSearch, FileKey2, Package, Zap, FolderTree, FileText, FileCode, Palette, Box, HardDrive, Code2, Database, Calendar, Terminal, ChevronDown } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
 import { WindowControls } from "./WindowControls";
 
 
@@ -37,6 +38,7 @@ interface AppTopbarProps {
   onToggleStorageInspector?: () => void;
   onToggleMockDataGenerator?: () => void;
   currentProject: string | null;
+  onSpawnAgentWithShell?: (shellCommand: string, shellName: string) => void;
 }
 
 function WebDevPopover({ onToggleIconBrowser, onToggleTailwindLabs, onToggleNpmLookup, onToggleHtmlToJsx, onToggleSvgOptimizer, onToggleStorageInspector, onToggleMockDataGenerator }: {
@@ -216,6 +218,160 @@ function WebDevPopover({ onToggleIconBrowser, onToggleTailwindLabs, onToggleNpmL
   );
 }
 
+function ShellProfileSelectorPopover({ onSpawnAgentWithShell }: {
+  onSpawnAgentWithShell?: (shellCommand: string, shellName: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
+  const [shells, setShells] = useState<{ name: string; command: string; is_wsl: boolean }[]>([]);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const updateCoords = () => {
+    if (ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      setCoords({
+        top: rect.bottom + 8,
+        left: rect.left,
+      });
+    }
+  };
+
+  const toggleOpen = () => {
+    if (!open) {
+      updateCoords();
+    }
+    setOpen(!open);
+  };
+
+  useEffect(() => {
+    if (open) {
+      invoke<{ name: string; command: string; is_wsl: boolean }[]>("get_available_shells")
+        .then((res) => {
+          setShells(res);
+        })
+        .catch((e) => console.error("Failed to fetch available shells in topbar popover:", e));
+    }
+  }, [open]);
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      if (open) updateCoords();
+    };
+
+    const handleClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        const popoverEl = document.getElementById("shell-profile-popover-menu");
+        if (popoverEl && popoverEl.contains(e.target as Node)) {
+          return;
+        }
+        setOpen(false);
+      }
+    };
+
+    if (open) {
+      document.addEventListener("mousedown", handleClick);
+      window.addEventListener("resize", handleUpdate);
+      const topbar = document.querySelector(".overflow-x-auto");
+      if (topbar) topbar.addEventListener("scroll", handleUpdate);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      window.removeEventListener("resize", handleUpdate);
+      const topbar = document.querySelector(".overflow-x-auto");
+      if (topbar) topbar.removeEventListener("scroll", handleUpdate);
+    };
+  }, [open]);
+
+  const handleSelect = (shell: { name: string; command: string; is_wsl: boolean }) => {
+    onSpawnAgentWithShell?.(shell.command, shell.name);
+    setOpen(false);
+  };
+
+  const wslDistros = shells.filter(s => s.is_wsl);
+  const systemShells = shells.filter(s => !s.is_wsl);
+
+  return (
+    <div ref={ref} className="relative shrink-0 flex items-center">
+      <button
+        type="button"
+        onClick={toggleOpen}
+        className={`p-1 h-6 px-1.5 flex items-center gap-1 rounded-md transition-all duration-200 text-zinc-400 hover:text-brand-primary bg-app-panel border border-app-border hover:border-brand-primary/30 hover:scale-105 active:scale-95 ${
+          open ? "bg-brand-primary/15 text-brand-primary border-brand-primary/40 shadow-[0_0_8px_rgba(var(--tw-colors-brand-primary),0.2)]" : ""
+        }`}
+        title="Spawn terminal with specific shell/distro"
+      >
+        <Terminal size={12} strokeWidth={2.5} />
+        <span className="text-[9px] font-bold tracking-tight uppercase hidden md:inline">Shell</span>
+        <ChevronDown size={10} strokeWidth={2.5} className="text-zinc-500" />
+      </button>
+
+      {open && coords && (
+        <div
+          id="shell-profile-popover-menu"
+          className="fixed w-56 bg-zinc-950 border border-zinc-800 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.6)] overflow-hidden z-[500] font-sans"
+          style={{
+            top: `${coords.top}px`,
+            left: `${coords.left}px`
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <div className="px-4 py-2 border-b border-zinc-900 flex justify-between items-center bg-zinc-900/10">
+            <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Select Environment</span>
+          </div>
+
+          <div className="p-1 max-h-[320px] overflow-y-auto custom-scrollbar">
+            {systemShells.length > 0 && (
+              <div className="mb-2">
+                <div className="px-3 py-1 text-[8px] font-bold text-zinc-600 uppercase tracking-wider">System Shells</div>
+                {systemShells.map((shell) => (
+                  <button
+                    key={shell.command}
+                    onClick={() => handleSelect(shell)}
+                    className="w-full flex items-center justify-between px-3 py-2 rounded-lg transition-all hover:bg-zinc-900/60 text-left group"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Terminal size={12} className="text-zinc-500 group-hover:text-brand-primary transition-colors shrink-0" />
+                      <span className="text-xs font-bold text-zinc-300 group-hover:text-white truncate transition-colors">{shell.name}</span>
+                    </div>
+                    <span className="text-[8px] font-mono text-zinc-600 bg-zinc-900/80 px-1 py-0.5 rounded border border-zinc-900/60 uppercase">CMD</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {wslDistros.length > 0 && (
+              <div>
+                <div className="px-3 py-1 text-[8px] font-bold text-zinc-600 uppercase tracking-wider">WSL Linux Distros</div>
+                {wslDistros.map((shell) => (
+                  <button
+                    key={shell.command}
+                    onClick={() => handleSelect(shell)}
+                    className="w-full flex items-center justify-between px-3 py-2 rounded-lg transition-all hover:bg-zinc-900/60 text-left group"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Box size={12} className="text-indigo-400 group-hover:text-brand-accent transition-colors shrink-0" />
+                      <span className="text-xs font-bold text-zinc-300 group-hover:text-white truncate transition-colors">
+                        {shell.name.replace("WSL: ", "")}
+                      </span>
+                    </div>
+                    <span className="text-[8px] font-mono text-indigo-400/80 bg-indigo-950/20 px-1 py-0.5 rounded border border-indigo-900/30 uppercase">WSL</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {shells.length === 0 && (
+              <div className="px-4 py-6 text-center text-zinc-500 text-xs font-medium">
+                No active shells detected.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AppTopbar({
   appMode,
   onSpawnAgent,
@@ -249,6 +405,7 @@ export function AppTopbar({
   onToggleStorageInspector,
   onToggleMockDataGenerator,
   currentProject,
+  onSpawnAgentWithShell,
 }: AppTopbarProps) {
   const [isExtraLayoutsOpen, setIsExtraLayoutsOpen] = useState(false);
   const [isToolsOpen, setIsToolsOpen] = useState(false);
@@ -294,6 +451,7 @@ export function AppTopbar({
         >
           <Globe size={14} strokeWidth={2.5} />
         </button>
+        <ShellProfileSelectorPopover onSpawnAgentWithShell={onSpawnAgentWithShell} />
       </form>
       </div>
 

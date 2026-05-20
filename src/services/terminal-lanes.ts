@@ -2,6 +2,7 @@ export interface TerminalLane {
   id: string;
   label: string;
   agentName: string;
+  shell?: string;
 }
 
 export const ROOT_TERMINAL_LANE_ID = "main";
@@ -24,7 +25,12 @@ const getTerminalLaneStorageKey = (workspaceId: string | undefined | null, agent
 const isTerminalLane = (value: unknown): value is TerminalLane => {
   if (!value || typeof value !== "object") return false;
   const lane = value as TerminalLane;
-  return typeof lane.id === "string" && typeof lane.label === "string" && typeof lane.agentName === "string";
+  return (
+    typeof lane.id === "string" &&
+    typeof lane.label === "string" &&
+    typeof lane.agentName === "string" &&
+    (lane.shell === undefined || typeof lane.shell === "string")
+  );
 };
 
 export const loadStoredTerminalLanes = (agentName: string, workspaceId?: string | null): TerminalLane[] | null => {
@@ -42,6 +48,7 @@ export const loadStoredTerminalLanes = (agentName: string, workspaceId?: string 
     const rootLane = {
       ...createRootTerminalLane(agentName),
       label: storedRoot?.label?.trim() || "Main",
+      shell: storedRoot?.shell,
     };
 
     return [
@@ -64,6 +71,7 @@ export const saveTerminalLanes = (agentName: string, workspaceId: string | undef
       {
         ...createRootTerminalLane(agentName),
         label: currentRoot?.label?.trim() || "Main",
+        shell: currentRoot?.shell,
       },
       ...lanes.filter(lane => lane.id !== ROOT_TERMINAL_LANE_ID),
     ];

@@ -158,6 +158,10 @@ pub fn configure_workspace(
             "chcp 65001 >nul"
         };
         cmd.args(["/K", command]);
+    } else if shell_name == "wsl.exe" || shell_name == "wsl" {
+        if let Some(ws) = workspace_string {
+            cmd.args(["--cd", &ws]);
+        }
     }
 
     Ok(())
@@ -168,6 +172,7 @@ pub fn spawn_pty(
     agent: String,
     cwd: Option<String>,
     workspace_name: Option<String>,
+    shell: Option<String>,
     app_handle: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<PtyScrollback, String> {
@@ -223,9 +228,20 @@ pub fn spawn_pty(
         })
         .map_err(|e| format!("{:?}", e))?;
 
-    let shell = state.config.lock().unwrap().shell.clone();
-    let mut cmd = CommandBuilder::new(&shell);
-    configure_workspace(&mut cmd, &shell, cwd)?;
+    let shell_str = shell.unwrap_or_else(|| state.config.lock().unwrap().shell.clone());
+    
+    // Parse the shell string into executable and arguments.
+    // e.g. "wsl.exe -d Ubuntu" becomes executable: "wsl.exe", arguments: ["-d", "Ubuntu"]
+    let mut parts = shell_str.split_whitespace();
+    let exe = parts.next().ok_or_else(|| "Shell configuration is empty".to_string())?;
+    let args: Vec<String> = parts.map(|s| s.to_string()).collect();
+
+    let mut cmd = CommandBuilder::new(exe);
+    if !args.is_empty() {
+        cmd.args(args);
+    }
+
+    configure_workspace(&mut cmd, exe, cwd)?;
     cmd.env("AGENT_NAME", agent.clone());
     let child = pair
         .slave
@@ -445,3 +461,98 @@ pub fn get_project_context(cwd: Option<String>) -> Result<String, String> {
         Ok("NO_WORKSPACE".to_string())
     }
 }
+
+#[derive(serde::Serialize, Clone)]
+pub struct ShellProfile {
+    pub name: String,
+    pub command: String,
+    pub is_wsl: bool,
+}
+
+pub fn parse_wsl_list(output_bytes: &[u8]) -> Vec<String> {
+    if output_bytes.is_empty() {
+        return vec![];
+    }
+    let mut distros = Vec::new();
+    
+    // Check if it's UTF-16 LE
+    let u16_chars: Vec<u16> = output_bytes
+        .chunks_exact(2)
+        .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
+        .collect();
+    
+    let decoded_utf16 = String::from_utf16(&u16_chars);
+    let raw_string = if let Ok(s) = decoded_utf16 {
+        if s.chars().any(|c| c.is_alphabetic()) {
+            s
+        } else {
+            String::from_utf8_lossy(output_bytes).into_owned()
+        }
+    } else {
+        String::from_utf8_lossy(output_bytes).into_owned()
+    };
+
+    for line in raw_string.lines() {
+        let cleaned = line.replace('\0', "").trim().to_string();
+        if !cleaned.is_empty() {
+            distros.push(cleaned);
+        }
+    }
+    distros
+}
+
+#[tauri::command]
+pub fn get_available_shells() -> Result<Vec<ShellProfile>, String> {
+    let mut profiles = Vec::new();
+
+    // Default shells on Windows
+    profiles.push(ShellProfile {
+        name: "PowerShell".to_string(),
+        command: "powershell.exe".to_string(),
+        is_wsl: false,
+    });
+    
+    profiles.push(ShellProfile {
+        name: "Command Prompt".to_string(),
+        command: "cmd.exe".to_string(),
+        is_wsl: false,
+    });
+
+    if std::process::Command::new("pwsh.exe").arg("-Version").output().is_ok() {
+        profiles.push(ShellProfile {
+            name: "PowerShell Core (pwsh)".to_string(),
+            command: "pwsh.exe".to_string(),
+            is_wsl: false,
+        });
+    }
+
+    let git_bash_path = Path::new("C:\\Program Files\\Git\\bin\\bash.exe");
+    if git_bash_path.exists() {
+        profiles.push(ShellProfile {
+            name: "Git Bash".to_string(),
+            command: git_bash_path.to_string_lossy().to_string(),
+            is_wsl: false,
+        });
+    }
+
+    // Query WSL distros
+    let wsl_output = std::process::Command::new("wsl.exe")
+        .args(["--list", "--quiet"])
+        .output();
+
+    if let Ok(output) = wsl_output {
+        if output.status.success() {
+            let distros = parse_wsl_list(&output.stdout);
+            for distro in distros {
+                profiles.push(ShellProfile {
+                    name: format!("WSL: {}", distro),
+                    command: format!("wsl.exe -d {}", distro),
+                    is_wsl: true,
+                });
+            }
+        }
+    }
+
+    Ok(profiles)
+}
+
