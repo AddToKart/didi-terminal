@@ -53,7 +53,7 @@ export function EditorTabBar({
 
   if (tabs.length === 0) {
     return (
-      <div className="h-9 border-b border-zinc-800 bg-zinc-950 flex items-center px-4">
+      <div className="h-9 border-b border-zinc-800 bg-black flex items-center px-4">
         <span className="text-[11px] text-zinc-700 select-none">No files open</span>
       </div>
     );
@@ -62,7 +62,7 @@ export function EditorTabBar({
   return (
     <div
       ref={scrollRef}
-      className="h-9 border-b border-zinc-800 bg-zinc-950 flex items-end overflow-x-auto scrollbar-hide select-none"
+      className="h-9 border-b border-zinc-800 bg-black flex items-end overflow-x-auto scrollbar-hide select-none"
     >
       {tabs.map((tab) => {
         const isActive = tab.id === activeTabId;
@@ -78,8 +78,8 @@ export function EditorTabBar({
               group relative flex items-center gap-1.5 px-3 h-9 min-w-0 max-w-[180px] shrink-0
               text-[12px] font-medium transition-all border-r border-zinc-800/60
               ${isActive
-                ? "bg-[#09090b] text-zinc-200 border-b-2 border-b-sky-400"
-                : "bg-zinc-950 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/60"
+                ? "bg-black text-zinc-200 border-b-2 border-b-sky-400"
+                : "bg-black text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/60"
               }
             `}
             title={tab.filePath}

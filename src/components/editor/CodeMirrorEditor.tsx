@@ -56,28 +56,28 @@ function getLanguageExtension(lang: string) {
   }
 }
 
-// Custom theme — fully overrides oneDark's background with DidiTerminal's zinc-950 palette
+// Custom theme — fully overrides oneDark's background with pure pitch black
 const didiEditorTheme = EditorView.theme({
   "&": {
     height: "100%",
     fontSize: "13px",
     fontFamily: "'JetBrains Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace",
-    backgroundColor: "#09090b",
+    backgroundColor: "transparent",
     color: "#d4d4d8",
   },
   ".cm-scroller": {
     fontFamily: "inherit",
     lineHeight: "1.7",
     overflow: "auto",
-    backgroundColor: "#09090b",
+    backgroundColor: "transparent",
   },
   ".cm-content": {
     caretColor: "#22d3ee",
     padding: "8px 0",
-    backgroundColor: "#09090b",
+    backgroundColor: "transparent",
   },
   ".cm-gutters": {
-    backgroundColor: "#09090b",
+    backgroundColor: "transparent",
     borderRight: "1px solid #18181b",
     color: "#71717a",
     minWidth: "48px",
@@ -138,7 +138,7 @@ const didiEditorTheme = EditorView.theme({
     backgroundColor: "#eab30860",
   },
   ".cm-panels": {
-    backgroundColor: "#09090b",
+    backgroundColor: "transparent",
     borderTop: "1px solid #18181b",
   },
 });
@@ -213,7 +213,7 @@ export function CodeMirrorEditor({
         extensions={extensions}
         onChange={handleChange}
         basicSetup={false}
-        style={{ height: "100%", overflow: "hidden", backgroundColor: "#09090b" }}
+        style={{ height: "100%", overflow: "hidden", backgroundColor: "#000000" }}
       />
     </div>
   );

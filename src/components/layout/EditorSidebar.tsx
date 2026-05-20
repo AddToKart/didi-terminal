@@ -197,7 +197,7 @@ export function EditorSidebar({ root }: EditorSidebarProps) {
   const projectName = root.split(/[\\/]/).pop() ?? root;
 
   return (
-    <div className="h-full flex flex-col bg-zinc-950 border-r border-zinc-800 select-none">
+    <div className="h-full flex flex-col bg-black border-r border-zinc-800 select-none">
       {/* Sidebar header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-800/60">
         <div className="flex items-center gap-2 min-w-0">

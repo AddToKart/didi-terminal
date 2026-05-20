@@ -44,7 +44,7 @@ export function EditorTopbar({
 
   return (
     <div
-      className="h-10 border-b border-zinc-800 bg-zinc-950 flex items-center justify-between px-2 shrink-0 select-none z-10"
+      className="h-10 border-b border-zinc-800 bg-black flex items-center justify-between px-2 shrink-0 select-none z-10"
       data-tauri-drag-region
     >
       {/* Left: Back + mode name + sidebar toggle */}

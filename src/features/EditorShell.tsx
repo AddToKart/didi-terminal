@@ -228,7 +228,7 @@ export function EditorShell({ controller }: EditorShellProps) {
 
                 {/* Status bar — file info */}
                 {activeTab && (
-                  <div className="h-5 bg-[#09090b] border-t border-zinc-800 flex items-center gap-3 px-3 text-[10px] font-mono text-zinc-600 shrink-0">
+                  <div className="h-5 bg-black border-t border-zinc-800 flex items-center gap-3 px-3 text-[10px] font-mono text-zinc-600 shrink-0">
                     <span className="flex items-center gap-1">
                       <FileCode2 size={10} />
                       {activeTab.language}
