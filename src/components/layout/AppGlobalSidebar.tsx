@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Bell, Settings, Palette, Plus, TerminalSquare, Workflow, Focus, Code2, Share2, Globe, Copy, Check } from "lucide-react";
+import { Bell, Settings, Palette, Plus, TerminalSquare, Workflow, Focus, Code2, Share2, Globe, Copy, Check, Command } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -52,7 +52,6 @@ interface AppGlobalSidebarProps {
   onSectionSelect: (workspaceId: string, sectionId: string) => void;
   tasks?: TaskRecord[];
   agentReadyStates?: Record<string, boolean>;
-
 }
 
 export function AppGlobalSidebar({
@@ -81,6 +80,39 @@ export function AppGlobalSidebar({
   const [activeId, setActiveId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const saved = localStorage.getItem("didi:sidebar-width");
+    return saved ? parseInt(saved, 10) : 320;
+  });
+  const [isResizing, setIsResizing] = useState(false);
+
+  const startResizing = (mouseDownEvent: React.MouseEvent) => {
+    mouseDownEvent.preventDefault();
+    setIsResizing(true);
+  };
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = Math.max(240, Math.min(480, e.clientX));
+      setSidebarWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      localStorage.setItem("didi:sidebar-width", sidebarWidth.toString());
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isResizing, sidebarWidth]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -119,28 +151,34 @@ export function AppGlobalSidebar({
 
   return (
     <TooltipProvider delayDuration={300}>
-      <aside className="w-80 border-r border-zinc-800/80 bg-[#0b0c0e] flex flex-col shadow-2xl z-20 shrink-0 relative overflow-hidden">
+      <aside
+        style={{ width: `${sidebarWidth}px` }}
+        className="border-r border-zinc-900 bg-[#000000] flex flex-col z-20 shrink-0 relative select-none"
+      >
         <ScrollArea className="flex-1 px-3 mt-4">
           <div className="space-y-6 pb-6">
             <div>
-              <div className="flex items-center justify-between px-2 mb-3">
-                <span className="text-[11px] font-bold text-zinc-500 tracking-widest uppercase">Workspaces</span>
+              <div className="flex items-center justify-between px-1 mb-3">
+                <div className="flex items-center gap-1.5 pl-0.5">
+                  <Command size={11} className="text-zinc-500" />
+                  <span className="text-[10px] font-bold text-zinc-500 tracking-wider uppercase font-mono">Workspace Lanes</span>
+                </div>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
                       variant="ghost"
                       size="icon"
                       onClick={onCreateWorkspace}
-                      className="size-5 rounded-md hover:bg-zinc-800/80 text-zinc-400 hover:text-zinc-200"
+                      className="size-5 rounded hover:bg-zinc-900 text-zinc-400 hover:text-zinc-200"
                     >
-                      <Plus size={12} strokeWidth={3} />
+                      <Plus size={13} strokeWidth={2} />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side="right">New Workspace</TooltipContent>
+                  <TooltipContent className="bg-zinc-950 border-zinc-900 text-xs font-mono" side="right">New Workspace</TooltipContent>
                 </Tooltip>
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-2">
                 <DndContext
                   sensors={sensors}
                   collisionDetection={closestCenter}
@@ -213,61 +251,65 @@ export function AppGlobalSidebar({
           </div>
         </ScrollArea>
 
-        <div className="p-4 bg-[#08080a] border-t border-zinc-800/80 relative z-10 space-y-4">
-          <div className="bg-zinc-950 p-1 rounded-xl flex gap-1 border border-zinc-800/80 shadow-inner">
+        <div className="p-3 bg-[#030303] border-t border-zinc-900/80 relative z-10 space-y-3">
+          <div className="bg-zinc-950/80 backdrop-blur-md p-1 rounded-lg flex gap-1 border border-zinc-900/60 shadow-[inset_0_1px_2px_rgba(0,0,0,0.6)]">
             <Button
-              variant={appMode === "terminal" ? "secondary" : "ghost"}
+              variant="ghost"
               size="sm"
               onClick={() => onSetAppMode("terminal")}
               className={cn(
-                "flex-1 min-w-0 h-8 px-2 rounded-lg text-[11px] font-semibold transition-all",
+                "flex-1 min-w-0 h-7 px-2 rounded-md text-[10px] font-mono font-semibold transition-all duration-150 relative",
                 appMode === "terminal"
-                  ? "bg-zinc-800 text-white border border-zinc-800/60 shadow-sm hover:bg-zinc-700"
-                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60"
+                  ? "bg-zinc-900 text-cyan-400 border border-zinc-800 shadow-[0_1px_3px_rgba(0,0,0,0.5)]"
+                  : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/30"
               )}
             >
-              <TerminalSquare size={14} className="mr-1 shrink-0" strokeWidth={2.5} /> <span className="truncate">Terminal</span>
+              {appMode === "terminal" && <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-3 h-0.5 rounded-full bg-cyan-500 animate-in fade-in duration-200" />}
+              <TerminalSquare size={12} className="mr-1 shrink-0" strokeWidth={2} /> <span className="truncate">Terminal</span>
             </Button>
             <Button
-              variant={appMode === "orchestrator" ? "secondary" : "ghost"}
+              variant="ghost"
               size="sm"
               onClick={() => onSetAppMode("orchestrator")}
               className={cn(
-                "flex-1 min-w-0 h-8 px-2 rounded-lg text-[11px] font-semibold transition-all",
+                "flex-1 min-w-0 h-7 px-2 rounded-md text-[10px] font-mono font-semibold transition-all duration-150 relative",
                 appMode === "orchestrator"
-                  ? "bg-purple-500/20 text-purple-200 shadow-sm border border-purple-500/40 hover:bg-purple-500/30"
-                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60"
+                  ? "bg-zinc-900 text-cyan-400 border border-zinc-800 shadow-[0_1px_3px_rgba(0,0,0,0.5)]"
+                  : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/30"
               )}
             >
-              <Workflow size={14} className="mr-1 shrink-0" strokeWidth={2.5} /> <span className="truncate">Orchestrator</span>
+              {appMode === "orchestrator" && <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-3 h-0.5 rounded-full bg-cyan-500 animate-in fade-in duration-200" />}
+              <Workflow size={12} className="mr-1 shrink-0" strokeWidth={2} /> <span className="truncate">Orchestrator</span>
             </Button>
             <Button
-              variant={appMode === "zen" ? "secondary" : "ghost"}
+              variant="ghost"
               size="icon"
               onClick={() => onSetAppMode("zen")}
               className={cn(
-                "w-8 h-8 shrink-0 rounded-lg transition-all",
+                "w-7 h-7 shrink-0 rounded-md transition-all duration-150 relative",
                 appMode === "zen"
-                  ? "bg-emerald-500/20 text-emerald-200 shadow-sm border border-emerald-500/40 hover:bg-emerald-500/30"
-                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60"
+                  ? "bg-zinc-900 text-cyan-400 border border-zinc-800 shadow-[0_1px_3px_rgba(0,0,0,0.5)]"
+                  : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/30"
               )}
               title="Zen Mode"
             >
-              <Focus size={14} strokeWidth={2.5} />
+              {appMode === "zen" && <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-2 h-0.5 rounded-full bg-cyan-500 animate-in fade-in duration-200" />}
+              <Focus size={12} strokeWidth={2} />
             </Button>
             <Button
-              variant={appMode === "editor" ? "secondary" : "ghost"}
+              variant="ghost"
               size="icon"
               onClick={() => onSetAppMode("editor")}
               className={cn(
-                "w-8 h-8 shrink-0 rounded-lg transition-all",
+                "w-7 h-7 shrink-0 rounded-md transition-all duration-150 relative",
                 appMode === "editor"
-                  ? "bg-indigo-500/20 text-indigo-200 shadow-sm border border-indigo-500/40 hover:bg-indigo-500/30"
-                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60"
+                  ? "bg-zinc-900 text-cyan-400 border border-zinc-800 shadow-[0_1px_3px_rgba(0,0,0,0.5)]"
+                  : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/30"
               )}
               title="Editor Mode"
             >
-              <Code2 size={14} strokeWidth={2.5} />
+              {appMode === "editor" && <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-2 h-0.5 rounded-full bg-cyan-500 animate-in fade-in duration-200" />}
+              <Code2 size={12} strokeWidth={2} />
             </Button>
           </div>
 
@@ -277,24 +319,24 @@ export function AppGlobalSidebar({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="size-8 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/60 data-[state=open]:bg-zinc-800/60 data-[state=open]:text-white">
-                        <Share2 size={16} />
+                      <Button variant="ghost" size="icon" className="size-7 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/50 data-[state=open]:bg-zinc-900/50 data-[state=open]:text-zinc-200 transition-all">
+                        <Share2 size={13} />
                       </Button>
                     </DropdownMenuTrigger>
                   </TooltipTrigger>
-                  <TooltipContent>Remote Dashboard</TooltipContent>
+                  <TooltipContent className="bg-zinc-950 border-zinc-900 text-xs font-mono">Remote Dashboard</TooltipContent>
                 </Tooltip>
-                <DropdownMenuContent align="start" sideOffset={12} className="w-64 p-3 rounded-2xl border-zinc-800 shadow-2xl bg-zinc-950">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Globe size={14} className="text-brand-accent" />
-                    <p className="text-xs font-semibold text-zinc-200">Local Network Access</p>
+                <DropdownMenuContent align="start" sideOffset={10} className="w-60 p-3 rounded-lg border-zinc-900 shadow-2xl bg-zinc-950/95 backdrop-blur-md">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Globe size={12} className="text-cyan-400" />
+                    <p className="text-[11px] font-mono font-bold text-zinc-300">SERVER CONTROL BRIDGE</p>
                   </div>
-                  <div className="bg-black/50 p-2 rounded-xl border border-zinc-900 flex items-center justify-between gap-2 group">
-                    <p className="text-[10px] font-mono text-zinc-400 truncate pl-1">http://localhost:1420/dashboard</p>
+                  <div className="bg-black p-2 rounded-md border border-zinc-900 flex items-center justify-between gap-2 group">
+                    <p className="text-[9px] font-mono text-zinc-400 truncate pl-1">http://localhost:1420/dashboard</p>
                     <Button
                       variant="secondary"
                       size="icon"
-                      className="size-6 rounded-md shrink-0 bg-zinc-900 hover:bg-zinc-800"
+                      className="size-5 rounded bg-zinc-900 hover:bg-zinc-800 shrink-0 border border-zinc-800/60"
                       onClick={(e) => {
                         e.stopPropagation();
                         navigator.clipboard.writeText("http://localhost:1420/dashboard");
@@ -302,29 +344,29 @@ export function AppGlobalSidebar({
                         setTimeout(() => setCopied(false), 2000);
                       }}
                     >
-                      {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} className="text-zinc-400 group-hover:text-white" />}
+                      {copied ? <Check size={10} className="text-emerald-500" /> : <Copy size={10} className="text-zinc-400 group-hover:text-zinc-200" />}
                     </Button>
                   </div>
-                  <p className="text-[10px] text-zinc-500 mt-2 leading-relaxed px-1">Open this URL on any device in your network to monitor agents live.</p>
+                  <p className="text-[9px] font-mono text-zinc-500 mt-2 leading-normal px-1">Bridge active on port :1421. Access globally to monitor terminal lanes.</p>
                 </DropdownMenuContent>
               </DropdownMenu>
 
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="size-8 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/60">
-                    <Palette size={16} />
+                  <Button variant="ghost" size="icon" className="size-7 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/50 transition-all">
+                    <Palette size={13} />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Theme</TooltipContent>
+                <TooltipContent className="bg-zinc-950 border-zinc-900 text-xs font-mono">Theme Configuration</TooltipContent>
               </Tooltip>
 
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="size-8 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/60">
-                    <Bell size={16} />
+                  <Button variant="ghost" size="icon" className="size-7 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/50 transition-all">
+                    <Bell size={13} />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Notifications</TooltipContent>
+                <TooltipContent className="bg-zinc-950 border-zinc-900 text-xs font-mono">System Notifications</TooltipContent>
               </Tooltip>
             </div>
 
@@ -334,15 +376,23 @@ export function AppGlobalSidebar({
                   variant="ghost"
                   size="icon"
                   onClick={onOpenSettings}
-                  className="size-8 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/60"
+                  className="size-7 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/50 transition-all"
                 >
-                  <Settings size={16} />
+                  <Settings size={13} />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Settings</TooltipContent>
+              <TooltipContent className="bg-zinc-950 border-zinc-900 text-xs font-mono">Control Settings</TooltipContent>
             </Tooltip>
           </div>
         </div>
+        {/* Resize Handle */}
+        <div
+          onMouseDown={startResizing}
+          className={cn(
+            "absolute top-0 right-0 bottom-0 w-1 cursor-col-resize z-30 transition-colors",
+            isResizing ? "bg-cyan-500" : "hover:bg-zinc-800"
+          )}
+        />
       </aside>
     </TooltipProvider>
   );

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, type RefObject } from "react";
-import { FolderOpen, MoreVertical, Pencil, Trash2, Shield, GitBranch, Plus, ChevronDown, ChevronRight, Activity } from "lucide-react";
+import { FolderOpen, Folder, Layers, Terminal, MoreVertical, Pencil, Trash2, Shield, GitBranch, Plus, ChevronRight, Activity } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -42,7 +42,7 @@ function SectionItem({ workspaceId, section, isActive, tasks, agentReadyStates, 
   const runningTask = tasks?.find(t => t.status === "in_progress");
   const isTerminalRunning = section.tabs.some(tab => 
     tab.agents.some(agent => {
-      const key = `${workspaceId || "default"}::${agent}`;
+      const key = `${workspaceId || "default"}::${typeof agent === "string" ? agent : (agent as any).name}`;
       return agentReadyStates?.[key] === false;
     })
   );
@@ -62,14 +62,16 @@ function SectionItem({ workspaceId, section, isActive, tasks, agentReadyStates, 
   return (
     <div
       onClick={(e) => { e.stopPropagation(); onSelect(); }}
+      onPointerDown={(e) => e.stopPropagation()} // Prevent sortable dragging from nested sections
       className={cn(
-        "pl-9 pr-2 py-2 flex flex-col gap-1 group cursor-pointer transition-all duration-300 relative border-l-2 ml-1 mr-2 my-0.5 rounded-r-lg",
+        "px-2.5 py-1.5 flex items-center justify-between group cursor-pointer transition-all duration-150 rounded-md relative select-none",
         isActive
-          ? "bg-zinc-900/40 border-brand-accent shadow-[inset_1px_0_0_0_rgba(255,255,255,0.01)]"
-          : "border-transparent hover:bg-zinc-900/20 hover:border-zinc-800 hover:pl-[38px]"
+          ? "bg-zinc-900/60 text-cyan-400"
+          : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/20"
       )}
     >
-      <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2 min-w-0 flex-1">
+        <Terminal size={12} className={cn("shrink-0", isActive ? "text-cyan-400 animate-pulse" : "text-zinc-500 group-hover:text-zinc-400")} />
         {isEditing ? (
           <input
             ref={inputRef}
@@ -82,58 +84,60 @@ function SectionItem({ workspaceId, section, isActive, tasks, agentReadyStates, 
             }}
             onClick={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
-            className="text-xs font-bold bg-zinc-950/80 border border-zinc-800 rounded-md px-1 py-0.5 outline-none text-white w-full focus:ring-1 focus:ring-brand-accent"
+            className="text-[11px] font-mono bg-zinc-950 border border-zinc-900 rounded px-1.5 py-0.5 outline-none text-white w-full min-w-0 focus:ring-1 focus:ring-zinc-800"
           />
         ) : (
-          <span
-            onDoubleClick={(e) => { e.stopPropagation(); setIsEditing(true); }}
-            className={cn(
-              "text-[11px] font-bold tracking-widest uppercase truncate transition-colors",
-              isActive ? "text-zinc-100" : "text-zinc-500 group-hover:text-zinc-300"
+          <div className="flex flex-col min-w-0 flex-1">
+            <span
+              onDoubleClick={(e) => { e.stopPropagation(); setIsEditing(true); }}
+              className={cn(
+                "text-[11px] font-mono truncate transition-colors",
+                isActive ? "text-zinc-100" : "text-zinc-400 group-hover:text-zinc-300"
+              )}
+            >
+              {section.name}
+            </span>
+            {(runningTask || isTerminalRunning) && !isEditing && (
+              <div className="flex items-center gap-1 opacity-90 transition-opacity mt-0.5 animate-in fade-in duration-200">
+                <Activity size={9} className="text-emerald-500 animate-pulse shrink-0" />
+                <span className="text-[9px] text-emerald-500/80 truncate font-mono tracking-tight" title={runningTask ? runningTask.summary : "Terminal Running"}>
+                  {runningTask ? runningTask.summary : "active"}
+                </span>
+              </div>
             )}
-          >
-            {section.name}
-          </span>
-        )}
-
-        {!isEditing && (
-          <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn(
-                  "size-5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-zinc-700/50 -mr-1",
-                  menuOpen && "opacity-100 bg-zinc-700/50"
-                )}
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <MoreVertical size={12} className="text-zinc-400" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40 rounded-xl shadow-2xl border-zinc-800 bg-zinc-950">
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setIsEditing(true); }} className="gap-2 cursor-pointer text-xs focus:bg-zinc-900 focus:text-white">
-                <Pencil size={14} className="text-zinc-400" /> Rename
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onOpenSecurity(workspaceId); }} className="gap-2 cursor-pointer text-xs focus:bg-zinc-900 focus:text-white">
-                <Shield size={14} className="text-zinc-400" /> Security
-              </DropdownMenuItem>
-              <DropdownMenuSeparator className="bg-zinc-800" />
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDelete(workspaceId, section.id); }} className="gap-2 cursor-pointer text-xs text-red-400 focus:bg-red-500/10 focus:text-red-300">
-                <Trash2 size={14} /> Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          </div>
         )}
       </div>
-      {(runningTask || isTerminalRunning) && !isEditing && (
-        <div className="flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity mt-0.5">
-          <Activity size={10} className="text-emerald-400 animate-pulse shrink-0" />
-          <span className="text-[10px] text-emerald-500/80 truncate font-medium tracking-tight" title={runningTask ? runningTask.summary : "Terminal Running"}>
-            {runningTask ? runningTask.summary : "Running..."}
-          </span>
-        </div>
+
+      {!isEditing && (
+        <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "size-5 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-zinc-800 -mr-1 shrink-0",
+                menuOpen && "opacity-100 bg-zinc-800"
+              )}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <MoreVertical size={11} className="text-zinc-500 hover:text-zinc-300" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-40 rounded-lg border-zinc-900 bg-zinc-950 p-1">
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setIsEditing(true); }} className="gap-2 cursor-pointer text-[11px] focus:bg-zinc-900 focus:text-white rounded py-1">
+              <Pencil size={12} className="text-zinc-400" /> Rename
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onOpenSecurity(workspaceId); }} className="gap-2 cursor-pointer text-[11px] focus:bg-zinc-900 focus:text-white rounded py-1">
+              <Shield size={12} className="text-zinc-400" /> Security
+            </DropdownMenuItem>
+            <DropdownMenuSeparator className="bg-zinc-900 my-1" />
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDelete(workspaceId, section.id); }} className="gap-2 cursor-pointer text-[11px] text-red-400 focus:bg-red-950 focus:text-red-300 rounded py-1">
+              <Trash2 size={12} /> Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
     </div>
   );
@@ -206,19 +210,31 @@ function SortableWorkspaceItem({
   const isAnySectionRunning = ws.sections.some(section =>
     section.tabs.some(tab =>
       tab.agents.some(agent => {
-        const key = `${ws.id || "default"}::${agent.name}`;
+        const key = `${ws.id || "default"}::${typeof agent === "string" ? agent : (agent as any).name}`;
         return agentReadyStates?.[key] === false;
       })
     )
   );
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition: isDragOverlay ? undefined : transition,
     zIndex: isDragging ? 50 : undefined,
   };
 
+  const getDirBasename = (dir: string | null) => {
+    if (!dir) return "";
+    const parts = dir.replace(/\\/g, "/").split("/");
+    if (parts.length >= 2) {
+      return `${parts[parts.length - 2]}/${parts[parts.length - 1]}`;
+    }
+    return parts[parts.length - 1] || "";
+  };
+
+  const dirBasename = getDirBasename(ws.directory);
+
   return (
-    <Collapsible open={isOpen && !isDragging && !isDragOverlay} onOpenChange={setIsOpen} className="mb-3 relative">
+    <Collapsible open={isOpen && !isDragging && !isDragOverlay} onOpenChange={setIsOpen} className="relative group/ws mb-2">
       <div
         ref={setNodeRef}
         style={style}
@@ -229,144 +245,169 @@ function SortableWorkspaceItem({
           setIsOpen(true);
         }}
         className={cn(
-          "group relative flex flex-col justify-between rounded-xl cursor-pointer select-none transition-all duration-300 ease-out border",
+          "flex items-center justify-between py-2.5 px-3 cursor-pointer select-none transition-all duration-155 rounded-lg border border-transparent group",
           isDragOverlay
-            ? "bg-zinc-900 shadow-2xl border-brand-accent/50 scale-105" 
+            ? "bg-zinc-900 border border-zinc-800 shadow-2xl scale-[1.02]"
             : isDragging
-            ? "opacity-40 scale-95 grayscale"
+            ? "opacity-30 scale-[0.98] grayscale"
             : isActive
-            ? "bg-[#111216] border-zinc-800 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.5)] shadow-zinc-950/80 ring-1 ring-white/5 hover:border-zinc-700/80"
-            : "border-transparent hover:bg-zinc-900/60"
+            ? "bg-zinc-900/30 text-zinc-100 border-zinc-900/40"
+            : "hover:bg-zinc-900/15 text-zinc-400 hover:text-zinc-200"
         )}
       >
-        {isActive && !isDragging && !isDragOverlay && (
-          <div className="absolute left-0 top-3.5 w-0.5 h-7 bg-brand-accent rounded-r-full shadow-[0_0_10px_#00f0ff] z-10" />
-        )}
-        <div className="flex items-center justify-between px-2 py-3">
-          <div className="flex items-center gap-2 flex-1 min-w-0 pl-1">
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" size="icon" className="size-6 rounded-md hover:bg-zinc-800/80 text-zinc-500 hover:text-zinc-300 p-0 shrink-0 transition-colors" onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}>
-                {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-              </Button>
-            </CollapsibleTrigger>
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          {/* Chevron (blocks DND dragging to ensure click actions work) */}
+          <CollapsibleTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-5 rounded hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300 p-0 shrink-0 transition-transform duration-200"
+              style={{ transform: isOpen ? "rotate(90deg)" : "rotate(0deg)" }}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsOpen(!isOpen);
+              }}
+            >
+              <ChevronRight size={13} />
+            </Button>
+          </CollapsibleTrigger>
 
-            <div className="min-w-0 flex flex-col flex-1 justify-center">              {editingWsId === ws.id ? (
-                <input
-                  ref={inputRef}
-                  value={editWsName}
-                  onChange={(e) => onEditWsName(e.target.value)}
-                  onBlur={onRenameSubmit}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") onRenameSubmit();
-                    if (e.key === "Escape") onRenameCancel();
-                  }}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={(e) => e.stopPropagation()}
-                  className="text-sm font-bold bg-zinc-950/80 border border-zinc-800 rounded-md px-1.5 py-0.5 outline-none text-white w-full focus:ring-1 focus:ring-brand-accent"
-                />
+          {/* Icon */}
+          <div className="relative shrink-0" onPointerDown={(e) => e.stopPropagation()}>
+            {ws.directory ? (
+              isOpen ? (
+                <FolderOpen size={14} className={cn(isActive ? "text-cyan-400" : "text-zinc-500 group-hover:text-zinc-400")} />
               ) : (
-                <div
-                  className={cn(
-                    "text-sm font-bold truncate transition-colors tracking-tight flex items-center gap-2",
-                    isActive ? "text-zinc-100" : "text-zinc-300 group-hover:text-zinc-100"
-                  )}
-                >
-                  {ws.name}
-                  {isAnySectionRunning && (
-                    <Activity size={12} className="text-emerald-400 animate-pulse shrink-0" />
-                  )}
-                </div>
-              )}
-              {ws.directory && !editingWsId && (
-                <div className="flex items-center gap-1.5 text-[10px] truncate mt-0.5 opacity-60">
-                  <span className="truncate">
-                    {ws.directory.split("\\").pop()?.split("/").pop()}
-                  </span>
-                  {branch && (
-                    <>
-                      <span className="text-zinc-700 mx-0.5">•</span>
-                      <span
-                        className="flex items-center gap-1 font-mono tracking-tighter truncate rounded-md bg-zinc-900/60 px-1 text-zinc-400"
-                        title={`Branch: ${branch}`}
-                      >
-                        <GitBranch size={9} />
-                        {branch}
-                      </span>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
+                <Folder size={14} className={cn(isActive ? "text-cyan-400" : "text-zinc-500 group-hover:text-zinc-400")} />
+              )
+            ) : (
+              <Layers size={14} className={cn(isActive ? "text-cyan-400" : "text-zinc-500 group-hover:text-zinc-400")} />
+            )}
+            {isAnySectionRunning && (
+              <span className="absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-emerald-500 animate-ping" />
+            )}
           </div>
 
-          <div className="flex items-center gap-1.5 shrink-0 pr-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div
-                  className={cn(
-                    "w-1.5 h-1.5 rounded-full transition-all duration-300",
-                    ws.directory
-                      ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"
-                      : "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]"
+          {/* Title and metadata */}
+          <div className="min-w-0 flex flex-col flex-1 leading-tight">
+            {editingWsId === ws.id ? (
+              <input
+                ref={inputRef}
+                value={editWsName}
+                onChange={(e) => onEditWsName(e.target.value)}
+                onBlur={onRenameSubmit}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") onRenameSubmit();
+                  if (e.key === "Escape") onRenameCancel();
+                }}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+                className="text-[11px] font-mono bg-zinc-950 border border-zinc-900 rounded px-1.5 py-0.5 outline-none text-white w-full min-w-0 focus:ring-1 focus:ring-zinc-800"
+              />
+            ) : (
+              <div className="flex flex-col min-w-0">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className={cn(
+                    "text-[11px] font-mono font-semibold truncate tracking-tight",
+                    isActive ? "text-zinc-100" : "text-zinc-400 group-hover:text-zinc-300"
+                  )}>
+                    {ws.name}
+                  </span>
+                  {isAnySectionRunning && (
+                    <Activity size={10} className="text-emerald-500 animate-pulse shrink-0" />
                   )}
-                />
-              </TooltipTrigger>
-              <TooltipContent side="right" className="text-xs">
-                {ws.directory ? "Configured" : "Unconfigured"}
-              </TooltipContent>
-            </Tooltip>
-
-            <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn(
-                    "size-5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-zinc-700/50",
-                    menuOpen && "opacity-100 bg-zinc-700/50"
-                  )}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <MoreVertical size={14} className="text-zinc-500" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48 rounded-xl shadow-2xl border-zinc-800 bg-zinc-950">
-                <DropdownMenuItem onClick={() => onOpenDirectory(ws.id)} className="gap-2 cursor-pointer text-xs focus:bg-zinc-900 focus:text-white">
-                  <FolderOpen size={14} className="text-zinc-400" /> Open Directory
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => onRenameStart(ws.id, ws.name)}
-                  className="gap-2 cursor-pointer text-xs focus:bg-zinc-900 focus:text-white"
-                >
-                  <Pencil size={14} className="text-zinc-400" /> Rename
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => onOpenSecurity(ws.id)}
-                  className="gap-2 cursor-pointer text-xs focus:bg-zinc-900 focus:text-white"
-                >
-                  <Shield size={14} className="text-zinc-400" /> Security
-                </DropdownMenuItem>
-                <DropdownMenuSeparator className="bg-zinc-800" />
-                <DropdownMenuItem
-                  onClick={() => onDelete(ws.id)}
-                  className="gap-2 cursor-pointer text-xs text-red-400 focus:bg-red-500/10 focus:text-red-300"
-                >
-                  <Trash2 size={14} /> Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                </div>
+                {ws.directory && (
+                  <div className="flex items-center gap-1 mt-0.5 min-w-0">
+                    <span className="text-[9px] font-mono text-zinc-500 truncate" title={ws.directory}>
+                      {dirBasename}
+                    </span>
+                    {branch && (
+                      <>
+                        <span className="text-zinc-700 font-mono text-[8px]">•</span>
+                        <span className="flex items-center gap-0.5 font-mono text-[9px] text-cyan-500/80 bg-cyan-950/20 px-1 py-0.2 rounded border border-cyan-900/30 truncate" title={`Branch: ${branch}`}>
+                          <GitBranch size={8} className="text-cyan-500/70" />
+                          {branch}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
-        {(!isDragging && !isDragOverlay) && (
-          <CollapsibleContent className="animate-in slide-in-from-top-2 fade-in duration-200 pb-2">
-            {ws.sections && ws.sections.map((section) => (
-              <SectionItem 
-                key={section.id} 
+        {/* Directory status dot & menu */}
+        <div className="flex items-center gap-1 shrink-0 pr-0.5 ml-1" onPointerDown={(e) => e.stopPropagation()}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div
+                className={cn(
+                  "size-1.5 rounded-full transition-colors duration-200 shrink-0",
+                  ws.directory ? "bg-emerald-500/80" : "bg-amber-500/80"
+                )}
+              />
+            </TooltipTrigger>
+            <TooltipContent side="right" className="text-[10px] font-mono bg-zinc-950 border-zinc-900">
+              {ws.directory ? `Connected: ${ws.directory}` : "No Directory"}
+            </TooltipContent>
+          </Tooltip>
+
+          <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  "size-5 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-zinc-800 shrink-0",
+                  menuOpen && "opacity-100 bg-zinc-800"
+                )}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MoreVertical size={11} className="text-zinc-500 hover:text-zinc-300" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44 rounded-lg border-zinc-900 bg-zinc-950 p-1">
+              <DropdownMenuItem onClick={() => onOpenDirectory(ws.id)} className="gap-2 cursor-pointer text-[11px] focus:bg-zinc-900 focus:text-white rounded py-1">
+                <FolderOpen size={12} className="text-zinc-400" /> Open Directory
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => onRenameStart(ws.id, ws.name)}
+                className="gap-2 cursor-pointer text-[11px] focus:bg-zinc-900 focus:text-white rounded py-1"
+              >
+                <Pencil size={12} className="text-zinc-400" /> Rename
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => onOpenSecurity(ws.id)}
+                className="gap-2 cursor-pointer text-[11px] focus:bg-zinc-900 focus:text-white rounded py-1"
+              >
+                <Shield size={12} className="text-zinc-400" /> Security
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="bg-zinc-900 my-1" />
+              <DropdownMenuItem
+                onClick={() => onDelete(ws.id)}
+                className="gap-2 cursor-pointer text-[11px] text-red-400 focus:bg-red-950 focus:text-red-300 rounded py-1"
+              >
+                <Trash2 size={12} /> Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
+      {/* Sections and Collapsible Tree Line */}
+      {isOpen && !isDragging && !isDragOverlay && (
+        <CollapsibleContent className="animate-in slide-in-from-top-1 fade-in duration-150 pb-1.5 ml-[24px] pl-3.5 border-l border-zinc-900 space-y-1.5 mt-1">
+          {ws.sections &&
+            ws.sections.map((section) => (
+              <SectionItem
+                key={section.id}
                 workspaceId={ws.id}
-                section={section} 
-                isActive={isActive && section.id === activeSectionId} 
+                section={section}
+                isActive={isActive && section.id === activeSectionId}
                 tasks={tasks}
                 agentReadyStates={agentReadyStates}
                 onSelect={() => onSectionSelect(ws.id, section.id)}
@@ -375,17 +416,19 @@ function SortableWorkspaceItem({
                 onOpenSecurity={onOpenSecurity}
               />
             ))}
-            <div className="pl-10 pr-4 mt-2">
-              <button 
-                onClick={(e) => { e.stopPropagation(); onSectionCreate(ws.id); }}
-                className="flex items-center gap-1.5 text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors uppercase font-bold tracking-widest"
-              >
-                <Plus size={10} strokeWidth={3} /> Add section
-              </button>
-            </div>
-          </CollapsibleContent>
-        )}
-      </div>
+          <div className="pl-2 pr-4 pt-2 pb-1" onPointerDown={(e) => e.stopPropagation()}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onSectionCreate(ws.id);
+              }}
+              className="flex items-center gap-1.5 text-[9px] text-zinc-500 hover:text-zinc-300 transition-colors uppercase font-mono tracking-wider py-1 px-1.5 hover:bg-zinc-900/30 rounded"
+            >
+              <Plus size={10} strokeWidth={2.5} /> Add section
+            </button>
+          </div>
+        </CollapsibleContent>
+      )}
     </Collapsible>
   );
 }
