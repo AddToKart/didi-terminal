@@ -11,7 +11,7 @@ use services::pty::PtyProcess;
 use services::bus::start_agent_bus;
 use scripts::templates;
 
-use tauri_plugin_sql::{Migration, MigrationKind};
+
 
 struct AppState {
     pty_writers: Mutex<HashMap<String, Box<dyn Write + Send>>>,
@@ -172,112 +172,11 @@ fn update_vibrancy(window: tauri::Window, enable: bool, theme: String) -> Result
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let migrations = vec![
-        Migration {
-            version: 1,
-            description: "create_initial_tables",
-            sql: "
-                CREATE TABLE IF NOT EXISTS workspaces (
-                    id TEXT PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    directory TEXT,
-                    activeTabId TEXT NOT NULL,
-                    order_index INTEGER NOT NULL DEFAULT 0
-                );
-                CREATE TABLE IF NOT EXISTS tabs (
-                    id TEXT PRIMARY KEY,
-                    workspace_id TEXT NOT NULL,
-                    name TEXT NOT NULL,
-                    layoutOrientation TEXT NOT NULL,
-                    order_index INTEGER NOT NULL DEFAULT 0,
-                    FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
-                );
-                CREATE TABLE IF NOT EXISTS agents (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    tab_id TEXT NOT NULL,
-                    name TEXT NOT NULL,
-                    order_index INTEGER NOT NULL DEFAULT 0,
-                    FOREIGN KEY (tab_id) REFERENCES tabs(id) ON DELETE CASCADE
-                );
-                CREATE TABLE IF NOT EXISTS settings (
-                    key TEXT PRIMARY KEY,
-                    value TEXT NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS personal_tasks (
-                    id TEXT PRIMARY KEY,
-                    workspace_id TEXT NOT NULL,
-                    title TEXT NOT NULL,
-                    description TEXT,
-                    status TEXT NOT NULL,
-                    order_index INTEGER NOT NULL DEFAULT 0,
-                    created_at INTEGER NOT NULL
-                );
-            ",
-            kind: MigrationKind::Up,
-        },
-        Migration {
-            version: 2,
-            description: "add_totp_to_workspaces",
-            sql: "ALTER TABLE workspaces ADD COLUMN totp_secret TEXT;",
-            kind: MigrationKind::Up,
-        },
-        Migration {
-            version: 3,
-            description: "add_sections_table",
-            sql: "
-                CREATE TABLE IF NOT EXISTS sections (
-                    id TEXT PRIMARY KEY,
-                    workspace_id TEXT NOT NULL,
-                    name TEXT NOT NULL,
-                    order_index INTEGER NOT NULL DEFAULT 0,
-                    FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
-                );
-                ALTER TABLE tabs ADD COLUMN section_id TEXT;
-            ",
-            kind: MigrationKind::Up,
-        },
-        Migration {
-            version: 4,
-            description: "add_active_section_id",
-            sql: "ALTER TABLE workspaces ADD COLUMN activeSectionId TEXT DEFAULT '';",
-            kind: MigrationKind::Up,
-        },
-        Migration {
-            version: 5,
-            description: "add_agent_uuid",
-            sql: "ALTER TABLE agents ADD COLUMN agent_uuid TEXT;",
-            kind: MigrationKind::Up,
-        },
-        Migration {
-            version: 6,
-            description: "add_performance_indexes",
-            sql: "
-                CREATE INDEX IF NOT EXISTS idx_workspaces_order ON workspaces(order_index);
-                CREATE INDEX IF NOT EXISTS idx_sections_ws ON sections(workspace_id);
-                CREATE INDEX IF NOT EXISTS idx_tabs_sec ON tabs(section_id);
-                CREATE INDEX IF NOT EXISTS idx_agents_tab ON agents(tab_id);
-                CREATE INDEX IF NOT EXISTS idx_personal_tasks_ws ON personal_tasks(workspace_id);
-            ",
-            kind: MigrationKind::Up,
-        },
-        Migration {
-            version: 7,
-            description: "add_section_merged_tab_pair",
-            sql: "ALTER TABLE sections ADD COLUMN mergedTabPair TEXT;",
-            kind: MigrationKind::Up,
-        }
-    ];
-
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
-        .plugin(
-            tauri_plugin_sql::Builder::default()
-                .add_migrations("sqlite:didi.db", migrations)
-                .build()
-        )
         .invoke_handler(tauri::generate_handler![
             services::pty::spawn_pty,
             services::pty::write_pty,
@@ -355,10 +254,23 @@ pub fn run() {
             close_browser_view,
             update_vibrancy,
             get_local_ip,
+            services::sqlite::load_workspaces,
+            services::sqlite::save_workspaces,
+            services::sqlite::get_setting,
+            services::sqlite::set_setting,
+            services::sqlite::load_personal_tasks,
+            services::sqlite::save_personal_task,
+            services::sqlite::update_personal_task_status,
+            services::sqlite::update_personal_tasks_order,
+            services::sqlite::delete_personal_task,
+            services::sqlite::db_sqlite_load_tables,
+            services::sqlite::db_sqlite_query,
+            services::sqlite::db_sqlite_execute,
         ])
         .setup(|app| {
             services::job::init_job_object();
             let _ = services::vault::init_vault_db(app.handle());
+            let _ = services::sqlite::init_db(app.handle());
             
             let loaded_config = load_config(app.handle());
             

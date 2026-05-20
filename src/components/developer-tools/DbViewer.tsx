@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
-import SqlDatabase from "@tauri-apps/plugin-sql";
 import { TableInfo, QueryResult, DbMode, DbViewerHeader, DbSidebar, RemoteConnectionForm, TableView, QueryConsole, WelcomeScreen, DbFooter } from "@/components/developer-tools/db-viewer-components";
 
 interface DbViewerProps {
@@ -64,13 +63,10 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
     setIsLoading(true);
     setError(null);
     try {
-      const db = await SqlDatabase.load(`sqlite:${path}`);
-      const result = await db.select<{ name: string }[]>(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
-      );
-      setTables(result.map(r => ({ name: r.name })));
+      const result = await invoke<TableInfo[]>("db_sqlite_load_tables", { dbPath: path });
+      setTables(result);
     } catch (err) {
-      setError(`Failed to load tables: ${err}`);
+      setError(`Failed to load tables: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsLoading(false);
     }
@@ -136,15 +132,14 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
 
     try {
       if (dbMode === "sqlite") {
-        const db = await SqlDatabase.load(`sqlite:${dbPath}`);
-        const result = await db.select<any[]>(`SELECT * FROM "${tableInfo.name}" LIMIT 100`);
-        setData(result);
-        if (result.length > 0) {
-          setColumns(Object.keys(result[0]));
-        } else {
-          const cols = await db.select<{ name: string }[]>(`PRAGMA table_info("${tableInfo.name}")`);
-          setColumns(cols.map(c => c.name));
-        }
+        const result = await invoke<QueryResult>("db_sqlite_query", {
+          dbPath,
+          query: `SELECT * FROM "${tableInfo.name}" LIMIT 100`
+        });
+        setColumns(result.columns);
+        setData(result.rows.map(row =>
+          Object.fromEntries(result.columns.map((col, i) => [col, row[i]]))
+        ));
       } else if (dbMode === "postgres") {
         const result = await invoke<QueryResult>("db_query_postgres", {
           connectionString: dbPath,
@@ -178,18 +173,13 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
     setQueryResult(null);
     try {
       if (dbMode === "sqlite") {
-        const db = await SqlDatabase.load(`sqlite:${dbPath}`);
         const isSelect = customQuery.trim().toUpperCase().startsWith("SELECT") || customQuery.trim().toUpperCase().startsWith("PRAGMA") || customQuery.trim().toUpperCase().startsWith("WITH");
         if (isSelect) {
-          const result = await db.select<any[]>(customQuery);
-          if (result.length > 0) {
-            setQueryResult({ columns: Object.keys(result[0]), rows: result.map(r => Object.values(r)), rows_affected: null });
-          } else {
-            setQueryResult({ columns: [], rows: [], rows_affected: null });
-          }
+          const result = await invoke<QueryResult>("db_sqlite_query", { dbPath, query: customQuery });
+          setQueryResult(result);
         } else {
-          const result = await db.execute(customQuery);
-          setQueryResult({ columns: [], rows: [], rows_affected: result.rowsAffected });
+          const rowsAffected = await invoke<number>("db_sqlite_execute", { dbPath, query: customQuery });
+          setQueryResult({ columns: [], rows: [], rows_affected: rowsAffected });
         }
       } else if (dbMode === "postgres") {
         const result = await invoke<QueryResult>("db_query_postgres", { connectionString: dbPath, query: customQuery });
@@ -265,8 +255,7 @@ export function DbViewer({ isOpen, onClose }: DbViewerProps) {
       const query = `UPDATE ${dbMode === "mysql" ? tableIdentMysql : tableIdent} SET ${setClause} WHERE ${whereClauses}`;
 
       if (dbMode === "sqlite") {
-        const db = await SqlDatabase.load(`sqlite:${dbPath}`);
-        await db.execute(query);
+        await invoke("db_sqlite_execute", { dbPath, query });
       } else if (dbMode === "postgres") {
         await invoke("db_query_postgres", { connectionString: dbPath, query });
       } else {

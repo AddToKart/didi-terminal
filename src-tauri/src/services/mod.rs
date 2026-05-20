@@ -17,3 +17,6 @@ pub mod job;
 pub mod profile;
 pub mod docker;
 pub mod vault;
+pub mod sqlite;
+
+
