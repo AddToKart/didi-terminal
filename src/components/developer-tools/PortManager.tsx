@@ -8,7 +8,11 @@ import {
   ExternalLink,
   Search,
   Command,
-  Server
+  Server,
+  Globe,
+  Copy,
+  Check,
+  Loader2
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { eventBus } from "../../services/event-bus";
@@ -32,6 +36,10 @@ export function PortManager({ isOpen, onClose, onPortsUpdate }: PortManagerProps
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [activeTunnels, setActiveTunnels] = useState<Record<number, string>>({});
+  const [tunnelsLoading, setTunnelsLoading] = useState<Record<number, boolean>>({});
+  const [copiedPort, setCopiedPort] = useState<number | null>(null);
+
   const fetchPorts = useCallback(async () => {
     setLoading(true);
     try {
@@ -47,6 +55,15 @@ export function PortManager({ isOpen, onClose, onPortsUpdate }: PortManagerProps
     }
   }, [onPortsUpdate]);
 
+  const fetchTunnels = useCallback(async () => {
+    try {
+      const active = await invoke<Record<number, string>>("get_active_tunnels");
+      setActiveTunnels(active);
+    } catch (err) {
+      console.error("Failed to fetch active tunnels:", err);
+    }
+  }, []);
+
   const handleKill = async (pid: number) => {
     try {
       await invoke("kill_process", { pid });
@@ -56,13 +73,55 @@ export function PortManager({ isOpen, onClose, onPortsUpdate }: PortManagerProps
     }
   };
 
+  const handleExpose = async (port: number) => {
+    setTunnelsLoading(prev => ({ ...prev, [port]: true }));
+    try {
+      const url = await invoke<string>("start_port_tunnel", { port });
+      setActiveTunnels(prev => ({ ...prev, [port]: url }));
+    } catch (err) {
+      alert(`Failed to expose port ${port}: ${err}`);
+    } finally {
+      setTunnelsLoading(prev => ({ ...prev, [port]: false }));
+    }
+  };
+
+  const handleStopExpose = async (port: number) => {
+    setTunnelsLoading(prev => ({ ...prev, [port]: true }));
+    try {
+      await invoke("stop_port_tunnel", { port });
+      setActiveTunnels(prev => {
+        const copy = { ...prev };
+        delete copy[port];
+        return copy;
+      });
+    } catch (err) {
+      alert(`Failed to stop tunnel for port ${port}: ${err}`);
+    } finally {
+      setTunnelsLoading(prev => ({ ...prev, [port]: false }));
+    }
+  };
+
+  const handleCopy = async (port: number, url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedPort(port);
+      setTimeout(() => setCopiedPort(null), 2000);
+    } catch (err) {
+      console.error("Failed to copy URL:", err);
+    }
+  };
+
   useEffect(() => {
     if (!isOpen) return;
 
     fetchPorts();
-    const unsub = eventBus.subscribe("ports-changed", () => fetchPorts());
+    fetchTunnels();
+    const unsub = eventBus.subscribe("ports-changed", () => {
+      fetchPorts();
+      fetchTunnels();
+    });
     return () => unsub();
-  }, [fetchPorts, isOpen]);
+  }, [fetchPorts, fetchTunnels, isOpen]);
 
   const filteredPorts = ports.filter(p => 
     p.process_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -142,7 +201,7 @@ export function PortManager({ isOpen, onClose, onPortsUpdate }: PortManagerProps
             <div className="flex-1">Process</div>
             <div className="w-24">PID</div>
             <div className="w-24">Status</div>
-            <div className="w-20 text-right">Actions</div>
+            <div className="w-28 text-right">Actions</div>
           </div>
 
           {/* Main Content Area */}
@@ -188,6 +247,29 @@ export function PortManager({ isOpen, onClose, onPortsUpdate }: PortManagerProps
                           {port.process_name}
                         </span>
                       </div>
+                      {activeTunnels[port.port] && (
+                        <div className="mt-1.5 flex items-center gap-1.5 animate-in slide-in-from-top-1 duration-200">
+                          <span className="px-2 py-0.5 rounded bg-sky-500/10 border border-sky-500/20 text-[10px] font-mono text-sky-400 truncate max-w-[280px]">
+                            {activeTunnels[port.port]}
+                          </span>
+                          <button
+                            onClick={() => handleCopy(port.port, activeTunnels[port.port])}
+                            className="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white transition-all active:scale-95"
+                            title="Copy Tunnel URL"
+                          >
+                            {copiedPort === port.port ? <Check size={10} className="text-sky-400 animate-in zoom-in-50 duration-150" /> : <Copy size={10} />}
+                          </button>
+                          <a
+                            href={activeTunnels[port.port]}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white transition-all active:scale-95"
+                            title="Open public URL"
+                          >
+                            <ExternalLink size={10} />
+                          </a>
+                        </div>
+                      )}
                     </div>
 
                     <div className="w-24">
@@ -198,24 +280,45 @@ export function PortManager({ isOpen, onClose, onPortsUpdate }: PortManagerProps
 
                     <div className="w-24">
                       <div className="flex items-center gap-1.5">
-                        <div className="w-1 h-1 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
-                        <span className="text-[10px] font-bold text-emerald-500/80 uppercase tracking-tighter">
-                          {port.state}
+                        <div className={`w-1 h-1 rounded-full ${activeTunnels[port.port] ? "bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.6)]" : "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]"}`} />
+                        <span className={`text-[10px] font-bold uppercase tracking-tighter ${activeTunnels[port.port] ? "text-sky-400 animate-pulse" : "text-emerald-500/80"}`}>
+                          {activeTunnels[port.port] ? "Shared" : port.state}
                         </span>
                       </div>
                     </div>
 
-                    <div className="w-20 flex items-center justify-end gap-1">
+                    <div className="w-28 flex items-center justify-end gap-1">
                       <button 
                         onClick={() => window.open(`http://localhost:${port.port}`)}
-                        className="p-1.5 hover:bg-emerald-500/10 text-zinc-650 hover:text-emerald-400 rounded-md transition-all active:scale-90"
+                        className="p-1.5 hover:bg-emerald-500/10 text-zinc-500 hover:text-emerald-400 rounded-md transition-all active:scale-90"
                         title="Open in Browser"
                       >
                         <ExternalLink size={14} />
                       </button>
+                      {tunnelsLoading[port.port] ? (
+                        <div className="p-1.5 text-zinc-400">
+                          <Loader2 size={14} className="animate-spin" />
+                        </div>
+                      ) : activeTunnels[port.port] ? (
+                        <button
+                          onClick={() => handleStopExpose(port.port)}
+                          className="p-1.5 hover:bg-amber-500/10 text-amber-500 hover:text-amber-400 rounded-md transition-all active:scale-90"
+                          title="Stop Exposing"
+                        >
+                          <Globe size={14} className="animate-pulse" />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleExpose(port.port)}
+                          className="p-1.5 hover:bg-sky-500/10 text-zinc-500 hover:text-sky-400 rounded-md transition-all active:scale-90"
+                          title="Expose Port"
+                        >
+                          <Globe size={14} />
+                        </button>
+                      )}
                       <button 
                         onClick={() => handleKill(port.pid)}
-                        className="p-1.5 hover:bg-red-500/10 text-zinc-655 hover:text-red-400 rounded-md transition-all active:scale-90"
+                        className="p-1.5 hover:bg-red-500/10 text-zinc-500 hover:text-red-400 rounded-md transition-all active:scale-90"
                         title="Kill Process"
                       >
                         <Trash2 size={14} />

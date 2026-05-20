@@ -20,7 +20,7 @@ import {
   type DragStartEvent,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { Terminal as TerminalIcon, Network, Monitor, Settings, Code2, GitBranch, LayoutList, FolderSearch, FileKey2, Package, Zap, FolderTree, Server, Database, FileText, FileCode, Palette, Plus, Globe, Shield, Brain, ClipboardList, Box, HardDrive, Columns2 } from "lucide-react";
+import { Terminal as TerminalIcon, Network, Monitor, Settings, Code2, GitBranch, LayoutList, FolderSearch, FileKey2, Package, Zap, FolderTree, Server, Database, FileText, FileCode, Palette, Plus, Globe, Shield, Brain, ClipboardList, Box, HardDrive, Columns2, Container } from "lucide-react";
 import { AppOverlays } from "../components/layout/AppOverlays";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { AppGlobalSidebar } from "../components/layout/AppGlobalSidebar";
@@ -80,6 +80,7 @@ const CalendarPanel = lazy(() => import("../components/workspace/CalendarPanel")
 const ProjectFileExplorer = lazy(() => import("../components/workspace/ProjectFileExplorer").then(m => ({ default: m.ProjectFileExplorer })));
 const SecurityPanel = lazy(() => import("../components/workspace/SecurityPanel").then(m => ({ default: m.SecurityPanel })));
 const PortManager = lazy(() => import("../components/developer-tools/PortManager").then(m => ({ default: m.PortManager })));
+const DockerManager = lazy(() => import("../components/developer-tools/DockerManager").then(m => ({ default: m.DockerManager })));
 const EnvManager = lazy(() => import("../components/developer-tools/EnvManager").then(m => ({ default: m.EnvManager })));
 const PackageManager = lazy(() => import("../components/developer-tools/PackageManager").then(m => ({ default: m.PackageManager })));
 const ApiLab = lazy(() => import("../components/developer-tools/ApiLab").then(m => ({ default: m.ApiLab })));
@@ -138,6 +139,8 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
     setShowFileExplorer,
     showPortManager,
     setShowPortManager,
+    showDockerManager,
+    setShowDockerManager,
     showEnvManager,
     setShowEnvManager,
     showPackageManager,
@@ -207,6 +210,32 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
     handleStartBrainstorm,
     handleDispatchMasterPlanTask,
   } = controller;
+
+  const [dockerCount, setDockerCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const fetchCount = async () => {
+      try {
+        const list = await invoke<any[]>("get_docker_containers");
+        if (active) {
+          setDockerCount(list.length);
+        }
+      } catch (err) {
+        if (active) {
+          setDockerCount(null);
+        }
+      }
+    };
+
+    fetchCount();
+    const interval = setInterval(fetchCount, 10000);
+
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   const handleSpawnAgentWithShell = useCallback((shellCommand: string, shellName: string) => {
     spawnAgent(undefined, shellName, shellCommand);
@@ -426,6 +455,7 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
       { id: "api-lab", label: "API Lab", description: "Test HTTP requests", category: "Panels", categoryOrder: 1, icon: Zap, onSelect: () => setShowApiLab(true) },
       { id: "dep-graph", label: "Dependency Graph", description: "Visualize monorepo dependencies", category: "Panels", categoryOrder: 1, icon: FolderTree, onSelect: () => setShowMonorepoGraph(true) },
       { id: "port-manager", label: "Port Manager", description: "View and kill active ports", category: "Panels", categoryOrder: 1, icon: Server, onSelect: () => setShowPortManager(true) },
+      { id: "docker-manager", label: "Docker Hub", description: "Monitor WSL and local Docker containers", category: "Panels", categoryOrder: 1, icon: Container, onSelect: () => setShowDockerManager(true) },
       { id: "db-viewer", label: "Database Viewer", description: "Browse SQLite, Postgres, MySQL", category: "Panels", categoryOrder: 1, icon: Database, onSelect: () => setShowDbViewer(true) },
       { id: "icon-browser", label: "Icon Browser", description: "Browse and copy lucide-react icons", category: "Panels", categoryOrder: 1, icon: Palette, onSelect: () => setShowIconBrowser(true) },
       { id: "tailwind-labs", label: "Tailwind Labs", description: "Colors, utility classes, spacing reference", category: "Panels", categoryOrder: 1, icon: Palette, onSelect: () => setShowTailwindLabs(true) },
@@ -473,7 +503,7 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
     });
 
     return actions;
-  }, [appMode, activeWorkspaceId, workspaces, setAppMode, setShowSettings, setShowCodeReview, setShowGitPanel, setShowPersonalKanban, setShowCalendar, setShowFileExplorer, setShowEnvManager, setShowPackageManager, setShowApiLab, setShowMonorepoGraph, setShowPortManager, setShowDbViewer, setShowIconBrowser, setShowTailwindLabs, setShowNpmLookup, setShowHtmlToJsx, setShowSvgOptimizer, setShowStorageInspector, setShowMockDataGenerator, setShowConfigEditor, setShowMdViewer, handleTabCreate, handleSpawnBrowser, setShowSecurityPanel, setShowNetworkGraph, setShowBrainstorm, setShowMasterPlan, handleWorkspaceSelect, handleTabSelect]);
+  }, [appMode, activeWorkspaceId, workspaces, setAppMode, setShowSettings, setShowCodeReview, setShowGitPanel, setShowPersonalKanban, setShowCalendar, setShowFileExplorer, setShowEnvManager, setShowPackageManager, setShowApiLab, setShowMonorepoGraph, setShowPortManager, setShowDockerManager, setShowDbViewer, setShowIconBrowser, setShowTailwindLabs, setShowNpmLookup, setShowHtmlToJsx, setShowSvgOptimizer, setShowStorageInspector, setShowMockDataGenerator, setShowConfigEditor, setShowMdViewer, handleTabCreate, handleSpawnBrowser, setShowSecurityPanel, setShowNetworkGraph, setShowBrainstorm, setShowMasterPlan, handleWorkspaceSelect, handleTabSelect]);
 
   return (
     <DndContext
@@ -660,8 +690,10 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
                 /></ModalBoundary>
                 <StatusBar
                   portCount={portCount}
+                  dockerCount={dockerCount}
                   onOpenPortManager={() => setShowPortManager(true)}
                   onOpenDbViewer={() => setShowDbViewer(true)}
+                  onOpenDockerManager={() => setShowDockerManager(true)}
                 />
               </>
             </section>
@@ -681,6 +713,11 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
             isOpen={showPortManager}
             onClose={() => setShowPortManager(false)}
             onPortsUpdate={setPortCount}
+          /></ModalBoundary>
+          <ModalBoundary><DockerManager
+            isOpen={showDockerManager}
+            onClose={() => setShowDockerManager(false)}
+            controller={controller}
           /></ModalBoundary>
           <ModalBoundary><EnvManager
             currentProject={currentProject}

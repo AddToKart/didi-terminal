@@ -2,8 +2,16 @@ use serde::{Deserialize, Serialize};
 use std::process::Command;
 use sysinfo::{Pid, System};
 use tauri::AppHandle;
+use std::sync::{OnceLock, Mutex};
+use std::collections::HashMap;
+use tokio::process::Child;
+use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::time::{timeout, Duration};
+use tokio::process::Command as TokioCommand;
 
 use super::events;
+
+static ACTIVE_TUNNELS: OnceLock<Mutex<HashMap<u16, (Child, String)>>> = OnceLock::new();
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PortInfo {
@@ -84,3 +92,112 @@ pub async fn kill_process(pid: u32, app: AppHandle) -> Result<(), String> {
         Err(String::from_utf8_lossy(&output.stderr).to_string())
     }
 }
+
+#[tauri::command]
+pub async fn start_port_tunnel(port: u16, app: AppHandle) -> Result<String, String> {
+    // If already running, kill the old one
+    let old_child = {
+        let mut tunnels = ACTIVE_TUNNELS.get_or_init(|| Mutex::new(HashMap::new())).lock().unwrap();
+        tunnels.remove(&port).map(|(child, _)| child)
+    };
+    if let Some(mut child) = old_child {
+        let _ = child.kill().await;
+    }
+
+    #[cfg(target_os = "windows")]
+    let mut child = TokioCommand::new("cmd")
+        .args(["/C", "npx", "-y", "localtunnel", "--port", &port.to_string()])
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("Failed to spawn localtunnel: {}", e))?;
+
+    #[cfg(not(target_os = "windows"))]
+    let mut child = TokioCommand::new("npx")
+        .args(["-y", "localtunnel", "--port", &port.to_string()])
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("Failed to spawn localtunnel: {}", e))?;
+
+    let stdout = child.stdout.take().ok_or_else(|| "Failed to capture stdout".to_string())?;
+    let mut reader = BufReader::new(stdout);
+
+    // Read lines for up to 10 seconds to locate the URL
+    let read_future = async {
+        let mut line = String::new();
+        loop {
+            line.clear();
+            match reader.read_line(&mut line).await {
+                Ok(0) => break, // EOF
+                Ok(_) => {
+                    let trimmed = line.trim();
+                    if trimmed.starts_with("your url is:") {
+                        let parts: Vec<&str> = trimmed.split("your url is:").collect();
+                        if parts.len() > 1 {
+                            return Ok(parts[1].trim().to_string());
+                        }
+                    }
+                }
+                Err(e) => return Err(e.to_string()),
+            }
+        }
+        Err("localtunnel exited before URL was generated".to_string())
+    };
+
+    match timeout(Duration::from_secs(10), read_future).await {
+        Ok(result) => {
+            let extracted_url = result?;
+            // Now store child and url in map
+            let mut tunnels = ACTIVE_TUNNELS.get_or_init(|| Mutex::new(HashMap::new())).lock().unwrap();
+            tunnels.insert(port, (child, extracted_url.clone()));
+            events::emit_ports_changed(&app);
+            Ok(extracted_url)
+        }
+        Err(_) => {
+            // Timeout! Kill the process
+            let _ = child.kill().await;
+            Err("Timed out waiting for localtunnel public URL".to_string())
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn stop_port_tunnel(port: u16, app: AppHandle) -> Result<(), String> {
+    let old_child = {
+        let mut tunnels = ACTIVE_TUNNELS.get_or_init(|| Mutex::new(HashMap::new())).lock().unwrap();
+        tunnels.remove(&port).map(|(child, _)| child)
+    };
+    if let Some(mut child) = old_child {
+        let _ = child.kill().await;
+    }
+    events::emit_ports_changed(&app);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn get_active_tunnels() -> Result<HashMap<u16, String>, String> {
+    let mut tunnels = ACTIVE_TUNNELS.get_or_init(|| Mutex::new(HashMap::new())).lock().unwrap();
+    let mut inactive = Vec::new();
+    for (port, (child, _)) in tunnels.iter_mut() {
+        match child.try_wait() {
+            Ok(Some(_status)) => {
+                inactive.push(*port);
+            }
+            Ok(None) => {}
+            Err(_) => {
+                inactive.push(*port);
+            }
+        }
+    }
+    for port in inactive {
+        tunnels.remove(&port);
+    }
+    
+    let mut active_map = HashMap::new();
+    for (port, (_, url)) in tunnels.iter() {
+        active_map.insert(*port, url.clone());
+    }
+    Ok(active_map)
+}
+

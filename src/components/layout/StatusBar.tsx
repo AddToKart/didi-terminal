@@ -2,16 +2,25 @@ import {
   Terminal, 
   Wifi,
   ChevronUp,
-  Database
+  Database,
+  Container
 } from "lucide-react";
 
 interface StatusBarProps {
   portCount: number;
+  dockerCount: number | null;
   onOpenPortManager: () => void;
   onOpenDbViewer: () => void;
+  onOpenDockerManager: () => void;
 }
 
-export function StatusBar({ portCount, onOpenPortManager, onOpenDbViewer }: StatusBarProps) {
+export function StatusBar({ 
+  portCount, 
+  dockerCount,
+  onOpenPortManager, 
+  onOpenDbViewer,
+  onOpenDockerManager
+}: StatusBarProps) {
   return (
     <div className="h-6 bg-[#09090b] border-t border-zinc-800/80 flex items-center justify-between text-[11px] font-sans text-zinc-400 select-none z-[40] px-3">
       <div className="flex items-center gap-1.5 h-full">
@@ -22,6 +31,18 @@ export function StatusBar({ portCount, onOpenPortManager, onOpenDbViewer }: Stat
         >
           <Wifi size={11} className={portCount > 0 ? "text-amber-500/80" : "text-zinc-500"} />
           <span>{portCount} {portCount === 1 ? 'Port' : 'Ports'}</span>
+          <ChevronUp size={10} className="text-zinc-500/60" />
+        </button>
+
+        <div className="h-3 w-[1px] bg-zinc-800/60" />
+
+        <button 
+          className="flex items-center gap-1.5 cursor-pointer hover:bg-zinc-800/40 text-zinc-400 hover:text-zinc-200 rounded px-2 py-0.5 transition-all duration-150 font-medium text-[11px]"
+          onClick={onOpenDockerManager}
+          title="Docker container hub"
+        >
+          <Container size={11} className={dockerCount !== null && dockerCount > 0 ? "text-sky-400 shadow-[0_0_6px_rgba(56,189,248,0.4)] font-bold animate-pulse" : "text-zinc-500"} />
+          <span>{dockerCount === null ? 'Docker Offline' : `${dockerCount} ${dockerCount === 1 ? 'Container' : 'Containers'}`}</span>
           <ChevronUp size={10} className="text-zinc-500/60" />
         </button>
 

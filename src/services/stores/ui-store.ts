@@ -36,6 +36,8 @@ interface UIState {
   setShowFileExplorer: (show: boolean | ((prev: boolean) => boolean)) => void;
   showPortManager: boolean;
   setShowPortManager: (show: boolean | ((prev: boolean) => boolean)) => void;
+  showDockerManager: boolean;
+  setShowDockerManager: (show: boolean | ((prev: boolean) => boolean)) => void;
   showEnvManager: boolean;
   setShowEnvManager: (show: boolean | ((prev: boolean) => boolean)) => void;
   showPackageManager: boolean;
@@ -117,6 +119,8 @@ export const useUIStore = create<UIState>((set) => ({
   setShowFileExplorer: (val) => set((state) => ({ showFileExplorer: typeof val === 'function' ? val(state.showFileExplorer) : val })),
   showPortManager: false,
   setShowPortManager: (val) => set((state) => ({ showPortManager: typeof val === 'function' ? val(state.showPortManager) : val })),
+  showDockerManager: false,
+  setShowDockerManager: (val) => set((state) => ({ showDockerManager: typeof val === 'function' ? val(state.showDockerManager) : val })),
   showEnvManager: false,
   setShowEnvManager: (val) => set((state) => ({ showEnvManager: typeof val === 'function' ? val(state.showEnvManager) : val })),
   showPackageManager: false,

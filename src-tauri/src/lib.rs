@@ -328,6 +328,14 @@ pub fn run() {
             services::packages::run_package_update,
             services::ports::get_active_ports,
             services::ports::kill_process,
+            services::ports::start_port_tunnel,
+            services::ports::stop_port_tunnel,
+            services::ports::get_active_tunnels,
+            services::vault::get_vault_vars,
+            services::vault::save_vault_vars,
+            services::docker::get_docker_containers,
+            services::docker::get_docker_stats,
+            services::docker::control_container,
             services::graph::get_project_graph,
             services::security::set_workspace_pin,
             services::security::verify_workspace_pin,
@@ -349,6 +357,7 @@ pub fn run() {
         ])
         .setup(|app| {
             services::job::init_job_object();
+            let _ = services::vault::init_vault_db(app.handle());
             
             let loaded_config = load_config(app.handle());
             

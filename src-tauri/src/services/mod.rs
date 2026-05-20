@@ -15,3 +15,5 @@ pub mod security;
 pub mod db_client;
 pub mod job;
 pub mod profile;
+pub mod docker;
+pub mod vault;

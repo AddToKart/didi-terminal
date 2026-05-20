@@ -339,6 +339,22 @@ export function TerminalInstance({ agentId, agentName, cwd, onRemove, onDetach, 
     saveTerminalLanes(agentId, workspaceId, lanes);
   }, [agentId, workspaceId, lanes]);
 
+  useEffect(() => {
+    const unlistenPromise = listen<{ agentId: string; selectLaneId?: string }>("lanes-changed", (event) => {
+      const { agentId: changedAgentId, selectLaneId } = event.payload;
+      if (changedAgentId === agentId) {
+        const restoredLanes = loadTerminalLanes(agentId, workspaceId);
+        setLanes(restoredLanes);
+        if (selectLaneId) {
+          setActiveLaneId(selectLaneId);
+        }
+      }
+    });
+    return () => {
+      unlistenPromise.then(unlisten => unlisten());
+    };
+  }, [agentId, workspaceId]);
+
   const handleSelectLane = useCallback((laneId: string) => {
     if (laneId === activeLaneId) return;
     setActiveLaneId(laneId);
