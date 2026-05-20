@@ -54,77 +54,90 @@ function getLanguageExtension(lang: string) {
   }
 }
 
-// Custom theme tweak to match DidiTerminal zinc palette
+// Custom theme — fully overrides oneDark's background with DidiTerminal's zinc-950 palette
 const didiEditorTheme = EditorView.theme({
   "&": {
     height: "100%",
     fontSize: "13px",
     fontFamily: "'JetBrains Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace",
     backgroundColor: "#09090b",
+    color: "#d4d4d8",
   },
   ".cm-scroller": {
     fontFamily: "inherit",
     lineHeight: "1.7",
     overflow: "auto",
+    backgroundColor: "#09090b",
   },
   ".cm-content": {
     caretColor: "#22d3ee",
     padding: "8px 0",
+    backgroundColor: "#09090b",
   },
   ".cm-gutters": {
     backgroundColor: "#09090b",
-    borderRight: "1px solid #27272a",
-    color: "#52525b",
+    borderRight: "1px solid #18181b",
+    color: "#3f3f46",
     minWidth: "48px",
   },
+  ".cm-lineNumbers .cm-gutterElement": {
+    color: "#3f3f46",
+  },
   ".cm-activeLineGutter": {
-    backgroundColor: "#18181b",
-    color: "#a1a1aa",
+    backgroundColor: "#0f0f11",
+    color: "#71717a",
   },
   ".cm-activeLine": {
-    backgroundColor: "#18181b80",
+    backgroundColor: "#0f0f1180",
   },
   ".cm-cursor": {
     borderLeftColor: "#22d3ee",
     borderLeftWidth: "2px",
   },
   ".cm-selectionBackground": {
-    backgroundColor: "#22d3ee22",
+    backgroundColor: "#22d3ee1a",
   },
   "&.cm-focused .cm-selectionBackground": {
-    backgroundColor: "#22d3ee33",
+    backgroundColor: "#22d3ee28",
   },
   ".cm-matchingBracket": {
-    backgroundColor: "#22d3ee22",
-    outline: "1px solid #22d3ee50",
+    backgroundColor: "#22d3ee1a",
+    outline: "1px solid #22d3ee40",
     borderRadius: "2px",
   },
   ".cm-foldGutter": {
     width: "12px",
   },
+  ".cm-foldGutter .cm-gutterElement": {
+    color: "#3f3f46",
+  },
   ".cm-tooltip": {
-    backgroundColor: "#18181b",
-    border: "1px solid #3f3f46",
+    backgroundColor: "#0d0d10",
+    border: "1px solid #27272a",
     borderRadius: "6px",
   },
   ".cm-tooltip-autocomplete": {
-    backgroundColor: "#18181b",
-    border: "1px solid #3f3f46",
+    backgroundColor: "#0d0d10",
+    border: "1px solid #27272a",
     borderRadius: "8px",
     padding: "4px",
   },
   ".cm-tooltip-autocomplete ul li[aria-selected]": {
-    backgroundColor: "#22d3ee20",
+    backgroundColor: "#22d3ee18",
     color: "#22d3ee",
     borderRadius: "4px",
   },
   ".cm-searchMatch": {
-    backgroundColor: "#eab30840",
-    outline: "1px solid #eab30870",
+    backgroundColor: "#eab30830",
+    outline: "1px solid #eab30860",
     borderRadius: "2px",
   },
   ".cm-searchMatch.cm-searchMatch-selected": {
-    backgroundColor: "#eab30870",
+    backgroundColor: "#eab30860",
+  },
+  ".cm-panels": {
+    backgroundColor: "#09090b",
+    borderTop: "1px solid #18181b",
   },
 });
 
@@ -141,7 +154,8 @@ export function CodeMirrorEditor({
 
   const extensions = useMemo(
     () => [
-      didiEditorTheme,
+      oneDark,           // syntax highlight colors from oneDark
+      didiEditorTheme,   // our overrides win because they come after
       langExtension,
       history(),
       lineNumbers(),
@@ -184,11 +198,11 @@ export function CodeMirrorEditor({
         ref={editorRef}
         value={content}
         height="100%"
-        theme={oneDark}
+        theme="none"
         extensions={extensions}
         onChange={handleChange}
         basicSetup={false}
-        style={{ height: "100%", overflow: "hidden" }}
+        style={{ height: "100%", overflow: "hidden", backgroundColor: "#09090b" }}
       />
     </div>
   );
