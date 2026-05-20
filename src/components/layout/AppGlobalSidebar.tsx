@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { FolderOpen, Settings, Bell, Palette, Plus, TerminalSquare, Workflow, MoreVertical, Pencil, Trash2, Globe, Copy, Check, GitBranch, Share2, Focus, Shield, ChevronDown, ChevronRight, Activity } from "lucide-react";
+import { FolderOpen, Settings, Bell, Palette, Plus, TerminalSquare, Workflow, MoreVertical, Pencil, Trash2, Globe, Copy, Check, GitBranch, Share2, Focus, Shield, ChevronDown, ChevronRight, Activity, Code2 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   DndContext,
@@ -636,6 +636,20 @@ export function AppGlobalSidebar({
               title="Zen Mode"
             >
               <Focus size={14} strokeWidth={2.5} />
+            </Button>
+            <Button
+              variant={appMode === "editor" ? "secondary" : "ghost"}
+              size="icon"
+              onClick={() => onSetAppMode("editor")}
+              className={cn(
+                "w-8 h-8 shrink-0 rounded-lg transition-all",
+                appMode === "editor"
+                  ? "bg-indigo-500/20 text-indigo-200 shadow-sm border border-indigo-500/40 hover:bg-indigo-500/30"
+                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60"
+              )}
+              title="Editor Mode"
+            >
+              <Code2 size={14} strokeWidth={2.5} />
             </Button>
           </div>
 

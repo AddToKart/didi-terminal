@@ -1,4 +1,4 @@
-export type AppMode = "terminal" | "orchestrator" | "zen";
+export type AppMode = "terminal" | "orchestrator" | "zen" | "editor";
 
 export type TerminalLayoutOrientation =
   | "horizontal"

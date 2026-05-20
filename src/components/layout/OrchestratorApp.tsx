@@ -3,6 +3,7 @@ import { useAppController } from "../../services/use-app-controller";
 import { TerminalModePage } from "../../pages/TerminalModePage";
 import { OrchestrationModePage } from "../../pages/OrchestrationModePage";
 import { ZenModePage } from "../../pages/ZenModePage";
+import { EditorModePage } from "../../pages/EditorModePage";
 
 export function OrchestratorApp() {
   const controller = useAppController();
@@ -12,6 +13,7 @@ export function OrchestratorApp() {
       {controller.appMode === "zen" && <ZenModePage controller={controller} />}
       {controller.appMode === "terminal" && <TerminalModePage controller={controller} />}
       {controller.appMode === "orchestrator" && <OrchestrationModePage controller={controller} />}
+      {controller.appMode === "editor" && <EditorModePage controller={controller} />}
       <AmbientMode />
     </main>
   );

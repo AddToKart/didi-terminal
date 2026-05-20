@@ -388,7 +388,7 @@ export function useAppController() {
   }, [currentProject]);
 
   useEffect(() => {
-    if (!isDbLoaded || showPortManager || appMode === "zen") return;
+    if (!isDbLoaded || showPortManager || appMode === "zen" || appMode === "editor") return;
 
     let cancelled = false;
     let isRefreshing = false;
