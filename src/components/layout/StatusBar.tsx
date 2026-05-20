@@ -13,48 +13,51 @@ interface StatusBarProps {
 
 export function StatusBar({ portCount, onOpenPortManager, onOpenDbViewer }: StatusBarProps) {
   return (
-    <div className="h-6 bg-[#09090b] border-t border-zinc-800/80 flex items-center justify-between text-[10px] text-zinc-400 select-none z-[40] px-3">
-      <div className="flex items-center gap-2 h-full py-0.5">
-        <div 
-          className="flex items-center gap-1.5 cursor-pointer bg-zinc-950 border border-zinc-800/80 hover:border-amber-500/50 hover:bg-amber-500/5 text-zinc-400 hover:text-amber-300 rounded px-2.5 h-full transition-all duration-200 font-mono text-[9px] font-bold shadow-inner"
+    <div className="h-6 bg-[#09090b] border-t border-zinc-800/80 flex items-center justify-between text-[11px] font-sans text-zinc-400 select-none z-[40] px-3">
+      <div className="flex items-center gap-1.5 h-full">
+        <button 
+          className="flex items-center gap-1.5 cursor-pointer hover:bg-zinc-800/40 text-zinc-400 hover:text-zinc-200 rounded px-2 py-0.5 transition-all duration-150 font-medium text-[11px]"
           onClick={onOpenPortManager}
           title="Active ports monitor"
         >
-          <Wifi size={10} className={portCount > 0 ? "text-amber-400" : "text-zinc-600"} />
-          <span className="uppercase tracking-tight">{portCount} {portCount === 1 ? 'Port' : 'Ports'}</span>
-          <ChevronUp size={10} className="text-zinc-600" />
-        </div>
+          <Wifi size={11} className={portCount > 0 ? "text-amber-500/80" : "text-zinc-500"} />
+          <span>{portCount} {portCount === 1 ? 'Port' : 'Ports'}</span>
+          <ChevronUp size={10} className="text-zinc-500/60" />
+        </button>
 
-        <div 
-          className="flex items-center gap-1.5 cursor-pointer bg-zinc-950 border border-zinc-800/80 hover:border-indigo-500/50 hover:bg-indigo-500/5 text-zinc-400 hover:text-indigo-300 rounded px-2.5 h-full transition-all duration-200 font-mono text-[9px] font-bold shadow-inner"
+        <div className="h-3 w-[1px] bg-zinc-800/60" />
+
+        <button 
+          className="flex items-center gap-1.5 cursor-pointer hover:bg-zinc-800/40 text-zinc-400 hover:text-zinc-200 rounded px-2 py-0.5 transition-all duration-150 font-medium text-[11px]"
           onClick={onOpenDbViewer}
           title="Explore database"
         >
-          <Database size={10} className="text-indigo-500" />
-          <span className="uppercase tracking-tight">Database</span>
-        </div>
+          <Database size={11} className="text-zinc-500" />
+          <span>Database</span>
+        </button>
 
-        <div className="flex items-center gap-1.5 bg-zinc-950 border border-zinc-800/80 text-zinc-400 rounded px-2.5 h-full font-mono text-[9px] font-bold shadow-inner">
-          <span className="relative flex h-1.5 w-1.5 shrink-0">
-            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500 shadow-[0_0_8px_rgba(52,211,153,0.6)]"></span>
-          </span>
-          <span className="uppercase tracking-tight">System Stable</span>
+        <div className="h-3 w-[1px] bg-zinc-800/60" />
+
+        <div className="flex items-center gap-1.5 px-2 py-0.5 text-zinc-400 font-medium text-[11px]">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0"></span>
+          <span>System Stable</span>
         </div>
       </div>
 
-      <div className="flex items-center gap-2 h-full py-0.5">
-        <div className="flex items-center gap-1.5 bg-zinc-950 border border-zinc-800/80 rounded px-2.5 h-full text-zinc-400 font-mono text-[9px] font-bold shadow-inner">
-          <Terminal size={10} className="text-zinc-500" />
-          <span className="uppercase tracking-tight">Powershell</span>
+      <div className="flex items-center gap-1.5 h-full">
+        <div className="flex items-center gap-1.5 px-2 py-0.5 text-zinc-400 font-medium text-[11px]">
+          <Terminal size={11} className="text-zinc-500" />
+          <span>PowerShell</span>
         </div>
         
-        <div className="flex items-center gap-1.5 bg-zinc-950 border border-emerald-950/80 rounded px-2.5 h-full text-emerald-400 font-mono text-[9px] font-bold shadow-[0_0_8px_rgba(16,185,129,0.02)]">
-          <span className="relative flex h-1.5 w-1.5 shrink-0">
-            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500 shadow-[0_0_8px_rgba(52,211,153,0.6)]"></span>
-          </span>
-          <span className="uppercase tracking-tight text-emerald-400/90">Connected</span>
+        <div className="h-3 w-[1px] bg-zinc-800/60" />
+
+        <div className="flex items-center gap-1.5 px-2 py-0.5 text-zinc-400 font-medium text-[11px]">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0"></span>
+          <span>Connected</span>
         </div>
       </div>
     </div>
   );
 }
+
