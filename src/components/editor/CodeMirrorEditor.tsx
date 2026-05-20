@@ -14,6 +14,8 @@ import { highlightActiveLine, lineNumbers } from "@codemirror/view";
 import { history } from "@codemirror/commands";
 import { search } from "@codemirror/search";
 import { EditorView } from "@codemirror/view";
+import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
+import { tags as t } from "@lezer/highlight";
 
 interface CodeMirrorEditorProps {
   tabId: string;
@@ -77,15 +79,15 @@ const didiEditorTheme = EditorView.theme({
   ".cm-gutters": {
     backgroundColor: "#09090b",
     borderRight: "1px solid #18181b",
-    color: "#3f3f46",
+    color: "#71717a",
     minWidth: "48px",
   },
   ".cm-lineNumbers .cm-gutterElement": {
-    color: "#3f3f46",
+    color: "#71717a",
   },
   ".cm-activeLineGutter": {
     backgroundColor: "#0f0f11",
-    color: "#71717a",
+    color: "#e4e4e7",
   },
   ".cm-activeLine": {
     backgroundColor: "#0f0f1180",
@@ -141,6 +143,14 @@ const didiEditorTheme = EditorView.theme({
   },
 });
 
+// Override specific syntax tokens from oneDark
+const customSyntaxHighlighting = syntaxHighlighting(
+  HighlightStyle.define([
+    { tag: t.number, color: "#f472b6" }, // Pink-400 for numbers to clearly distinguish them
+    { tag: t.bool, color: "#f472b6" },
+  ])
+);
+
 export function CodeMirrorEditor({
   tabId,
   language,
@@ -156,6 +166,7 @@ export function CodeMirrorEditor({
     () => [
       oneDark,           // syntax highlight colors from oneDark
       didiEditorTheme,   // our overrides win because they come after
+      customSyntaxHighlighting, // override specific token colors like numbers
       langExtension,
       history(),
       lineNumbers(),
