@@ -23,12 +23,14 @@ pub struct VaultVarInput {
     pub env_value: String,
 }
 
-fn get_db_path(app: &AppHandle) -> std::path::PathBuf {
-    app.path().app_data_dir().unwrap().join("didi.db")
+fn get_db_path(app: &AppHandle) -> Result<std::path::PathBuf, String> {
+    app.path().app_data_dir()
+        .map(|dir| dir.join("didi.db"))
+        .map_err(|e| format!("Failed to resolve app data directory: {}", e))
 }
 
 pub fn init_vault_db(app: &AppHandle) -> Result<(), String> {
-    let db_path = get_db_path(app);
+    let db_path = get_db_path(app)?;
     let conn = Connection::open(db_path).map_err(|e| e.to_string())?;
     
     conn.execute(
@@ -100,7 +102,7 @@ pub async fn get_vault_vars(
     app: AppHandle,
     workspace_id: String
 ) -> Result<Vec<VaultVar>, String> {
-    let db_path = get_db_path(&app);
+    let db_path = get_db_path(&app)?;
     let conn = Connection::open(db_path).map_err(|e| e.to_string())?;
 
     let mut stmt = conn.prepare(
@@ -137,7 +139,7 @@ pub async fn save_vault_vars(
     workspace_id: String,
     vars: Vec<VaultVarInput>
 ) -> Result<(), String> {
-    let db_path = get_db_path(&app);
+    let db_path = get_db_path(&app)?;
     let mut conn = Connection::open(db_path).map_err(|e| e.to_string())?;
 
     let key = derive_key(&workspace_id);

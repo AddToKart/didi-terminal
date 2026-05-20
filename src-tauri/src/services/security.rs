@@ -8,8 +8,10 @@ use argon2::{
     Argon2
 };
 
-fn get_db_path(app: &AppHandle) -> std::path::PathBuf {
-    app.path().app_data_dir().unwrap().join("didi.db")
+fn get_db_path(app: &AppHandle) -> Result<std::path::PathBuf, String> {
+    app.path().app_data_dir()
+        .map(|dir| dir.join("didi.db"))
+        .map_err(|e| format!("Failed to resolve app data directory: {}", e))
 }
 
 #[tauri::command]
@@ -28,7 +30,7 @@ pub async fn set_workspace_pin(
         .map_err(|e| e.to_string())?
         .to_string();
 
-    let db_path = get_db_path(&app);
+    let db_path = get_db_path(&app)?;
     let conn = Connection::open(db_path).map_err(|e| e.to_string())?;
     conn.execute(
         "UPDATE workspaces SET totp_secret = ?1 WHERE id = ?2",
@@ -44,7 +46,7 @@ pub async fn verify_workspace_pin(
     workspace_id: String,
     pin: String
 ) -> Result<bool, String> {
-    let db_path = get_db_path(&app);
+    let db_path = get_db_path(&app)?;
     let conn = Connection::open(db_path).map_err(|e| e.to_string())?;
     
     let hash: Option<String> = conn.query_row(
@@ -64,7 +66,7 @@ pub async fn verify_workspace_pin(
 
 #[tauri::command]
 pub async fn is_pin_enabled(app: AppHandle, workspace_id: String) -> Result<bool, String> {
-    let db_path = get_db_path(&app);
+    let db_path = get_db_path(&app)?;
     let conn = Connection::open(db_path).map_err(|e| e.to_string())?;
     
     let hash: Option<String> = conn.query_row(
@@ -87,7 +89,7 @@ pub async fn disable_workspace_pin(
         return Err("Invalid PIN".to_string());
     }
 
-    let db_path = get_db_path(&app);
+    let db_path = get_db_path(&app)?;
     let conn = Connection::open(db_path).map_err(|e| e.to_string())?;
     conn.execute(
         "UPDATE workspaces SET totp_secret = NULL WHERE id = ?1",
