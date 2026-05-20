@@ -7,7 +7,7 @@ import { rust } from "@codemirror/lang-rust";
 import { json } from "@codemirror/lang-json";
 import { python } from "@codemirror/lang-python";
 import { markdown } from "@codemirror/lang-markdown";
-import { oneDark } from "@codemirror/theme-one-dark";
+import { oneDarkHighlightStyle } from "@codemirror/theme-one-dark";
 import { autocompletion, closeBrackets } from "@codemirror/autocomplete";
 import { bracketMatching, foldGutter, indentOnInput } from "@codemirror/language";
 import { highlightActiveLine, lineNumbers } from "@codemirror/view";
@@ -164,8 +164,8 @@ export function CodeMirrorEditor({
 
   const extensions = useMemo(
     () => [
-      oneDark,           // syntax highlight colors from oneDark
-      didiEditorTheme,   // our overrides win because they come after
+      syntaxHighlighting(oneDarkHighlightStyle), // ONLY syntax colors, no gray background theme
+      didiEditorTheme,   // our structural theme (pitch black)
       customSyntaxHighlighting, // override specific token colors like numbers
       langExtension,
       history(),
