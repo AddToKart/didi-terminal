@@ -1,39 +1,20 @@
 import { useEffect } from "react";
 import { emit } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
-import type { AppMode } from "../types/workspace";
 import { matchesKeys } from "./keybindings";
 import { getTerminalLanePtyKey } from "./terminal-lanes";
+import { useUIStore } from "./stores/ui-store";
+import { useWorkspaceStore } from "./stores/workspace-store";
+import { useAgentStore } from "./stores/agent-store";
 
-interface UseZenHotkeysParams {
-  appMode: AppMode;
-  setAppMode: (mode: any) => void;
-  activeWorkspaceId: string;
-  zenAgents: string[];
-  setZenAgents: (agents: any) => void;
-  setZenLayout: (layout: any) => void;
-  lastActiveZenAgent: string | null;
-  setLastActiveZenAgent: (agent: any) => void;
-  focusedZenAgent: string | null;
-  setFocusedZenAgent: (agent: any) => void;
-}
-
-export const useZenHotkeys = ({
-  appMode,
-  setAppMode,
-  activeWorkspaceId,
-  zenAgents,
-  setZenAgents,
-  setZenLayout,
-  lastActiveZenAgent,
-  setLastActiveZenAgent,
-  focusedZenAgent,
-  setFocusedZenAgent,
-}: UseZenHotkeysParams) => {
+export const useZenHotkeys = () => {
   useEffect(() => {
-    const zenWorkspaceId = `zen::${activeWorkspaceId}`;
-
     const handleKeyDown = (e: KeyboardEvent) => {
+      const appMode = useUIStore.getState().appMode;
+      const setAppMode = useUIStore.getState().setAppMode;
+      const activeWorkspaceId = useWorkspaceStore.getState().activeWorkspaceId;
+      const zenWorkspaceId = `zen::${activeWorkspaceId}`;
+
       if (matchesKeys(e, "zen-toggle")) {
         e.preventDefault();
         e.stopPropagation();
@@ -41,6 +22,14 @@ export const useZenHotkeys = ({
       }
 
       if (appMode === "zen") {
+        const zenAgents = useAgentStore.getState().zenAgents;
+        const setZenAgents = useAgentStore.getState().setZenAgents;
+        const setZenLayout = useAgentStore.getState().setZenLayout;
+        const lastActiveZenAgent = useAgentStore.getState().lastActiveZenAgent;
+        const setLastActiveZenAgent = useAgentStore.getState().setLastActiveZenAgent;
+        const focusedZenAgent = useAgentStore.getState().focusedZenAgent;
+        const setFocusedZenAgent = useAgentStore.getState().setFocusedZenAgent;
+
         if (matchesKeys(e, "zen-focus")) {
           e.preventDefault();
           e.stopPropagation();
@@ -56,7 +45,7 @@ export const useZenHotkeys = ({
           e.stopPropagation();
           setFocusedZenAgent(null);
           const newId = `zen-terminal-${crypto.randomUUID().slice(0, 4)}`;
-          setZenAgents((prev: any) => [...prev, newId]);
+          setZenAgents([...zenAgents, newId]);
           setLastActiveZenAgent(newId);
           setTimeout(() => emit("focus-agent", { agent: newId }), 100);
         }
@@ -86,11 +75,9 @@ export const useZenHotkeys = ({
           if (zenAgents.length > 1) {
             const target = lastActiveZenAgent || zenAgents[zenAgents.length - 1];
             invoke("close_pty", { agent: getTerminalLanePtyKey(zenWorkspaceId, target) }).catch(console.error);
-            setZenAgents((prev: any) => {
-              const next = prev.filter((a: any) => a !== target);
-              setLastActiveZenAgent(next[next.length - 1]);
-              return next;
-            });
+            const next = zenAgents.filter((a) => a !== target);
+            setZenAgents(next);
+            setLastActiveZenAgent(next[next.length - 1]);
           } else {
             setAppMode("terminal");
           }
@@ -113,5 +100,5 @@ export const useZenHotkeys = ({
 
     window.addEventListener("keydown", handleKeyDown, true);
     return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, [activeWorkspaceId, appMode, focusedZenAgent, lastActiveZenAgent, zenAgents]);
+  }, []);
 };

@@ -2,20 +2,25 @@ import { invoke } from "@tauri-apps/api/core";
 import { WindowControls } from "../components/layout/WindowControls";
 import { ZenTerminalArea } from "../components/terminal/ZenTerminalArea";
 import { getTerminalLanePtyKey } from "@/services/terminal-lanes";
-import type { ZenModeProps } from "../types/zen-mode.types";
+import { useUIController } from "@/services/useUIController";
+import { useWorkspaceController } from "@/services/useWorkspaceController";
+import { useTerminalController } from "@/services/useTerminalController";
 
-export function ZenModeView({ controller }: ZenModeProps) {
+export function ZenModeView() {
+  const ui = useUIController();
+  const ws = useWorkspaceController();
+  const term = useTerminalController();
+
+  const { isGlass, setAppMode } = ui;
+  const { activeWorkspaceId } = ws;
   const {
-    isGlass,
-    setAppMode,
-    activeWorkspaceId,
     zenAgents,
     setZenAgents,
     zenLayout,
     lastActiveZenAgent,
     setLastActiveZenAgent,
     focusedZenAgent,
-  } = controller;
+  } = term;
   const zenWorkspaceId = `zen::${activeWorkspaceId}`;
 
   const removeZenAgent = (agent: string) => {

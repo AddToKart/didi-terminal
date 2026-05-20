@@ -10,10 +10,10 @@ export function OrchestratorApp() {
 
   return (
     <main className="h-screen w-screen bg-app-bg text-slate-300 overflow-hidden flex selection:bg-brand-accent/20 relative">
-      {controller.appMode === "zen" && <ZenModePage controller={controller} />}
-      {controller.appMode === "terminal" && <TerminalModePage controller={controller} />}
-      {controller.appMode === "orchestrator" && <OrchestrationModePage controller={controller} />}
-      {controller.appMode === "editor" && <EditorModePage controller={controller} />}
+      {controller.appMode === "zen" && <ZenModePage />}
+      {controller.appMode === "terminal" && <TerminalModePage />}
+      {controller.appMode === "orchestrator" && <OrchestrationModePage />}
+      {controller.appMode === "editor" && <EditorModePage />}
       <AmbientMode />
     </main>
   );

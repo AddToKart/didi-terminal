@@ -30,6 +30,10 @@ import { AppTerminalWorkspace } from "../components/layout/AppTerminalWorkspace"
 import { Omnibar, type PaletteAction } from "../components/modals/Omnibar";
 import { NonZenModePanels } from "./NonZenModePanels";
 import type { NonZenModeShellProps } from "../types/terminal-mode.types";
+import { useUIController } from "@/services/useUIController";
+import { useWorkspaceController } from "@/services/useWorkspaceController";
+import { useTerminalController } from "@/services/useTerminalController";
+import { useOrchestrationController } from "@/services/useOrchestrationController";
 import {
   getMergedTabPairForTab,
   mergeTabPair,
@@ -65,20 +69,16 @@ function TerminalDropZone() {
 const NetworkGraph = lazy(() => import("../components/graphs/NetworkGraph").then(m => ({ default: m.NetworkGraph })));
 const SettingsModal = lazy(() => import("../components/modals/SettingsModal").then(m => ({ default: m.SettingsModal })));
 
-export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellProps) {
+
+export function NonZenModeShell({ rightSidebar }: NonZenModeShellProps) {
+  const ui = useUIController();
+  const ws = useWorkspaceController();
+  const term = useTerminalController();
+  const orch = useOrchestrationController();
+
   const {
     appMode,
     setAppMode,
-    workspaces,
-    activeWorkspaceId,
-    activeWorkspace,
-    currentProject,
-    tabs,
-    activeTabId,
-    agents,
-    layoutOrientation,
-    newAgentName,
-    setNewAgentName,
     isSidebarOpen,
     setIsSidebarOpen,
     showNetworkGraph,
@@ -130,12 +130,17 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
     showOmnibar,
     setShowOmnibar,
     setShowSecurityPanel,
-    tasks,
-    agentStatusMap,
-    masterPlanQueueState,
-    brainstormSessions,
     isGlass,
-    approvalRequest,
+  } = ui;
+
+  const {
+    workspaces,
+    activeWorkspaceId,
+    activeWorkspace,
+    currentProject,
+    tabs,
+    activeTabId,
+    layoutOrientation,
     handleWorkspaceSelect,
     handleWorkspaceReorder,
     handleWorkspaceRename,
@@ -151,6 +156,13 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
     handleTabRename,
     handleTabClose,
     handleTabReorder,
+  } = ws;
+
+  const {
+    newAgentName,
+    setNewAgentName,
+    agentStatusMap,
+    agents,
     spawnAgent,
     handleOpenProjectInTerminal,
     handleSpawnBrowser,
@@ -161,9 +173,17 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
     handleQuickDispatch,
     handleHitlApprove,
     handleHitlReject,
+  } = term;
+
+  const {
+    tasks,
+    masterPlanQueueState,
+    brainstormSessions,
+    approvalRequest,
     handleStartBrainstorm,
     handleDispatchMasterPlanTask,
-  } = controller;
+  } = orch;
+
 
   const codeReviewStats = useGitStore(s => s.codeReviewStats);
 
@@ -573,7 +593,6 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
           </div>
           <NonZenModePanels
             currentProject={currentProject}
-            controller={controller}
           />
         </div>
 

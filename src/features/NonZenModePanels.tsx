@@ -6,7 +6,6 @@ import { useUIStore } from "../services/stores/ui-store";
 import { useGitStore } from "../services/stores/git-store";
 import { useAgentStore } from "../services/stores/agent-store";
 import { useWorkspaceStore } from "../services/stores/workspace-store";
-import type { AppController } from "../services/use-app-controller";
 
 function ModalBoundary({ children, title }: { children: ReactNode; title?: string }) {
   return (
@@ -43,12 +42,10 @@ const TwoFactorModal = lazy(() => import("../components/modals/TwoFactorModal").
 
 interface NonZenModePanelsProps {
   currentProject: string | null;
-  controller: AppController;
 }
 
 export function NonZenModePanels({
   currentProject,
-  controller,
 }: NonZenModePanelsProps) {
   const showCodeReview = useUIStore(s => s.showCodeReview);
   const setShowCodeReview = useUIStore(s => s.setShowCodeReview);
@@ -201,7 +198,6 @@ export function NonZenModePanels({
       <ModalBoundary><DockerManager
         isOpen={showDockerManager}
         onClose={() => setShowDockerManager(false)}
-        controller={controller}
       /></ModalBoundary>
       <ModalBoundary><EnvManager
         currentProject={currentProject}

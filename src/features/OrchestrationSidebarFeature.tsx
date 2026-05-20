@@ -1,34 +1,51 @@
 import { AppSidebar } from "../components/layout/AppSidebar";
-import type { OrchestrationModeProps } from "../types/orchestration-mode.types";
+import { useUIController } from "@/services/useUIController";
+import { useWorkspaceController } from "@/services/useWorkspaceController";
+import { useTerminalController } from "@/services/useTerminalController";
+import { useOrchestrationController } from "@/services/useOrchestrationController";
 
-export function OrchestrationSidebarFeature({ controller }: OrchestrationModeProps) {
+export function OrchestrationSidebarFeature() {
+  const ui = useUIController();
+  const ws = useWorkspaceController();
+  const term = useTerminalController();
+  const orch = useOrchestrationController();
+
   const {
     appMode,
     isSidebarOpen,
     sidecarStatus,
+    isTasksCollapsed,
+    setIsTasksCollapsed,
+    isActivityCollapsed,
+    setIsActivityCollapsed,
+  } = ui;
+
+  const {
     currentProject,
+    activeWorkspaceId,
+    handleOpenDirectory,
+    handleManualSnapshot,
+    handleRewindSnapshot,
+    handleInitialize,
+  } = ws;
+
+  const {
     sentinelEnabled,
     setSentinelEnabled,
     sentinelIncidents,
     hitlEnabled,
     setHitlEnabled,
+    snapshots,
+    snapshotBusy,
+    tasks,
+    activity,
+  } = orch;
+
+  const {
     agents,
     agentQueueCounts,
     removeAgent,
-    snapshots,
-    snapshotBusy,
-    handleManualSnapshot,
-    handleRewindSnapshot,
-    isTasksCollapsed,
-    setIsTasksCollapsed,
-    tasks,
-    isActivityCollapsed,
-    setIsActivityCollapsed,
-    activity,
-    activeWorkspaceId,
-    handleOpenDirectory,
-    handleInitialize,
-  } = controller;
+  } = term;
 
   if (!isSidebarOpen || appMode !== "orchestrator") return null;
 

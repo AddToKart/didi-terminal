@@ -19,6 +19,9 @@ import { invoke } from "@tauri-apps/api/core";
 import { emit } from "@tauri-apps/api/event";
 import { loadTerminalLanes, saveTerminalLanes } from "../../services/terminal-lanes";
 
+import { useWorkspaceController } from "../../services/useWorkspaceController";
+import { useTerminalController } from "../../services/useTerminalController";
+
 interface ContainerInfo {
   id: string;
   name: string;
@@ -38,10 +41,11 @@ interface ContainerStats {
 interface DockerManagerProps {
   isOpen: boolean;
   onClose: () => void;
-  controller: any;
 }
 
-export function DockerManager({ isOpen, onClose, controller }: DockerManagerProps) {
+export function DockerManager({ isOpen, onClose }: DockerManagerProps) {
+  const ws = useWorkspaceController();
+  const term = useTerminalController();
   const [containers, setContainers] = useState<ContainerInfo[]>([]);
   const [stats, setStats] = useState<Record<string, ContainerStats>>({});
   const [searchTerm, setSearchTerm] = useState("");
@@ -49,7 +53,8 @@ export function DockerManager({ isOpen, onClose, controller }: DockerManagerProp
   const [error, setError] = useState<string | null>(null);
   const [actionLoadingMap, setActionLoadingMap] = useState<Record<string, boolean>>({});
 
-  const { activeWorkspaceId, activeTabId, tabs } = controller || {};
+  const { activeWorkspaceId, activeTabId, tabs } = ws;
+  const { spawnAgent } = term;
 
   const fetchData = useCallback(async (showLoading = false) => {
     if (showLoading) setLoading(true);
@@ -123,7 +128,7 @@ export function DockerManager({ isOpen, onClose, controller }: DockerManagerProp
       emit("lanes-changed", { agentId: activeAgent.id, selectLaneId: nextLaneId });
     } else {
       // Spawn a new agent in the active tab since no agent exists yet
-      controller.spawnAgent(undefined, `Docker: ${containerName.slice(0, 10)}`, `docker exec -it ${containerId} sh`);
+      spawnAgent(undefined, `Docker: ${containerName.slice(0, 10)}`, `docker exec -it ${containerId} sh`);
     }
 
     onClose();

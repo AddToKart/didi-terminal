@@ -8,7 +8,8 @@ import { EditorTabBar } from "@/components/layout/EditorTabBar";
 import { CodeMirrorEditor } from "@/components/editor/CodeMirrorEditor";
 import { QuickOpenModal } from "@/components/modals/QuickOpenModal";
 import { useEditorStore } from "@/services/stores/editor-store";
-import type { AppController } from "@/services/use-app-controller";
+import { useUIController } from "@/services/useUIController";
+import { useWorkspaceController } from "@/services/useWorkspaceController";
 
 // Lazy-load the terminal pane since it spawns a PTY
 const EditorTerminalPane = lazy(() =>
@@ -17,14 +18,13 @@ const EditorTerminalPane = lazy(() =>
   }))
 );
 
-interface EditorShellProps {
-  controller: AppController;
-}
-
 const AUTOSAVE_DEBOUNCE_MS = 1500;
 
-export function EditorShell({ controller }: EditorShellProps) {
-  const { appMode, setAppMode, currentProject } = controller;
+export function EditorShell() {
+  const ui = useUIController();
+  const ws = useWorkspaceController();
+  const { appMode, setAppMode } = ui;
+  const { currentProject } = ws;
   const prevModeRef = useRef<"terminal" | "orchestrator" | "zen">("terminal");
 
   const {
