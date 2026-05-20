@@ -1,80 +1,73 @@
 # Project Overview
 
-DidiTerminal is an autonomous multi-agent orchestrator desktop application built with Tauri, React, TypeScript, and Vite. 
+DidiTerminal is a high-performance, autonomous multi-agent orchestrator desktop application built with Tauri, React 19, and Rust.
 
-The application manages multiple native pseudo-terminals (PTYs) running PowerShell, rendered via `xterm.js`. It enables asynchronous multi-agent collaboration via a Windows named pipe IPC bus (`\\.\pipe\agentbus`), allowing agents to delegate tasks to one another.
+The application manages multiple native pseudo-terminals (PTYs) and a CodeMirror-based editor, enabling seamless transitions between terminal orchestration and code authoring. It features a Windows named pipe IPC bus (`\\.\pipe\agentbus`) for asynchronous multi-agent collaboration and task delegation.
 
 ## Key Technologies
-- **Frontend:** React 19, TypeScript, Vite, Tailwind CSS, `xterm.js`, `react-resizable-panels`, `@xyflow/react`.
-- **Backend:** Tauri 2.0 (Rust), `portable-pty`, `tokio` (for async named pipe IPC).
-- **Persistence:** SQLite via `@tauri-apps/plugin-sql` for workspaces, settings, and personal tasks.
-- **Inference:** Local AI inference via a bundled `llama-server` sidecar binary.
+- **Frontend:** React 19, TypeScript, Vite, Tailwind CSS (v3/v4), `xterm.js`, `CodeMirror 6`, `Zustand`.
+- **Backend:** Tauri 2.0 (Rust), `portable-pty`, `tokio` (for async named pipe IPC), SQLite.
+- **Persistence:** SQLite via `@tauri-apps/plugin-sql` for workspaces, settings, and task history.
+- **Inference:** Local AI inference via bundled `llama-server` sidecar.
 
 # Key Features
 
-- **Multi-Workspace Hierarchy:** Organizes work into Workspaces, Sections, and Tabs. Each Tab can host multiple tiled agent PTYs.
-- **Master Plan Kanban:** An interactive board synchronized with `MASTER_PLAN.md`. Supports automated task dispatching, status updates, and subtask tracking.
-- **Dynamic Layout Engine:** Supports Vertical, Horizontal, Grid, and specialized layouts (Waterfall, Canvas, Focus) for terminal instances.
-- **Zen Mode:** A minimal, distraction-free environment for deep work, accessible via hotkeys.
-- **Agent Network Graph:** Real-time visualization of agent relationships and handoff flows using `@xyflow/react`.
-- **Sentinel Monitoring:** An autonomous watchdog service that monitors agent PTYs for loops and repeated failures, intervening when necessary.
-- **Git Snapshots (Time Machine):** Automatic, non-invasive git snapshots created before each task delegation, providing a safety net for the workspace.
-- **Human-In-The-Loop (HITL):** Optional human approval for task completions triggered by specific markdown markers.
+- **Four Primary Modes:**
+  - **Terminal Mode:** Multi-agent PTY management with advanced layouts.
+  - **Orchestrator Mode:** High-level view for agent network graph and long-term planning.
+  - **Zen Mode:** Distraction-free, minimal environment for focused work.
+  - **Editor Mode:** Full-screen CodeMirror 6 editor with pitch-black UI and terminal integration.
+- **Workspace Hierarchy:** `Workspace` -> `Section` -> `Tab` -> `Agents`. Supports multiple tiled PTYs per Tab.
+- **Merged Tabs:** Drag-and-drop tabs onto each other to create split views within a single workspace context.
+- **Full-Screen Source Control:** Professional Git integration with Graph views, Branch management, and GitHub PR interactivity.
+- **Developer Power-Tools:** Integrated panels for Port Forwarding, Docker Management, Environment Vault, WSL Distro spawner, and DB Viewing. Accessible via the minimalist `StatusBar`.
+- **Master Plan Kanban:** Real-time synchronization between `MASTER_PLAN.md` and an interactive task board.
+- **Time Machine (Git Snapshots):** Automated, non-invasive snapshots before every major agent delegation for safety and rollback.
 
 # Building and Running
 
 Managed via `package.json` scripts:
-
-- **Development Mode:** `npm run tauri dev`
-- **Production Build:** `npm run tauri build`
+- **Development:** `npm run tauri dev`
+- **Build:** `npm run tauri build`
 
 # Architecture & Development Conventions
 
-## Multi-Agent Collaboration Protocol
+## State Management Strategy
 
-1.  **Initialization:** `initialize_project` scaffolds a `.didi/` directory.
-2.  **IPC Bus:** A Rust background task (`bus.rs`) listens on `\\.\pipe\agentbus` for JSON payloads.
-3.  **Delegation:** Agents write JSON to the pipe. Rust emits `agent-handoff` to the frontend.
-4.  **Enrichment:** `handoff-service.ts` injects workspace context and rules into delegated tasks.
-5.  **Queueing:** `handoff-queue-service.ts` manages tasks when agents are busy.
-6.  **Execution:** The frontend writes the task to the target agent's PTY once it detects a shell prompt.
+The app has transitioned from monolithic state to a modular **Zustand + Specialized Hooks** architecture:
+- **Stores (`src/services/stores/`):** Atomic Zustand stores for UI, Workspaces, Agents, Git, and Orchestration.
+- **Domain Hooks (`src/services/`):** 
+  - `use-workspace-crud.ts`: Logic for creating/renaming/deleting workspaces and sections.
+  - `use-agent-ops.ts`: Terminal spawning, layout management, and agent lifecycle.
+  - `use-app-effects.ts`: Collection of lifecycle hooks for persistence, event listeners, and background sync.
 
 ## Code Conventions
 
 ### Project Structure & Placement Rules
 
-Adhere strictly to this granular directory structure to maintain architectural integrity:
-
 - **Frontend (`src/`):**
-    - `components/`: Domain-specific UI logic, further subdivided:
-        - `ui/`: Low-level, reusable atomic components (buttons, inputs, cards, dropdowns). Usually shadcn/ui.
-        - `layout/`: High-level app scaffolding (TopBar, SideBar, Tab navigation, Orchestrator layout).
-        - `terminal/`: Core terminal logic (xterm.js instances, PTY output handling, browser instances).
-        - `workspace/`: Project management tools (Kanban boards, File Explorers, Security/PIN panels).
-        - `panels/`: Informational side-drawers or contextual views (Sentinel logs, Master Plan view, Snapshots).
-        - `source-control/`: Git integration UI (Diff viewers, Git panels, Fullscreen code reviews).
-        - `modals/`: Global overlays (Settings, Brainstorming sessions, HITL Approvals).
-        - `developer-tools/`: Internal power-user utilities (Port manager, DB viewers, Env manager).
-        - `graphs/`: Data visualizations (Agent network graphs, Monorepo dependency maps).
-        - `architecture/`: Visual representations of the app's internal state or structure.
-    - `features/`: Complex, "smart" containers that orchestrate multiple components (e.g., ZenModeView, OrchestrationSidebar).
-    - `pages/`: Primary entry points for different app modes (TerminalModePage, ZenModePage).
-    - `services/`: Singletons and hooks managing state, IPC, and background logic (handoff-service, sentinel-service, db-service).
-    - `types/`: Domain-specific TypeScript interfaces (workspace.ts, orchestration-mode.types.ts).
-    - `workflows/`: Implementations of complex multi-agent sequences (brainstorm-workflow, master-plan-workflow).
-    - `lib/`: Shared utilities (styling helpers, glassmorphism math, terminal control sequence regex).
-    - `dashboard/`: Specialized logic for the home/overview dashboard.
+    - `components/`: Pure and semi-smart UI components.
+        - **Sub-Component Pattern:** Large components should be split into `Component.tsx` (orchestration) and `component-components.tsx` (atomic parts).
+        - `ui/`: shadcn/ui atoms.
+        - `layout/`: App scaffolding (TopBar, SideBar, StatusBar).
+        - `terminal/`: xterm.js and PTY logic.
+        - `developer-tools/`: Specialized panels (Docker, Env, Ports).
+        - `source-control/`: Git and GitHub UI.
+    - `features/`: Mode-specific shells (ZenModeView, EditorShell, NonZenModeShell).
+    - `services/`: Zustand stores, specialized hooks, and core logic.
+    - `lib/`: High-performance utilities (Xterm write queue, layout math, glassmorphism).
 
-- **Backend (`src-tauri/src/`):**
-    - `services/`: Rust modules handling specific domains (pty, git, llm, bus, db_client).
+### Aesthetic Standards
 
-**Placement Rule:** If a component is reusable across the entire app, put it in `ui/`. If it belongs to a specific feature set (e.g., Kanban), put it in the corresponding `components/` subfolder. If it coordinates multiple domains (e.g., a mode-specific view), put it in `features/`.
+- **Pitch Black UI:** The app uses a pure black (`#000000`) background for the main canvas, editor, and terminals to maximize focus and OLED contrast.
+- **Cybernetic Refinements:** Minimalist borders, subtle glassmorphism, and cyan/pink accents for technical clarity.
+- **Minimalism:** Use the `StatusBar` for high-signal notifications and indicators rather than intrusive modals.
 
-### Implementation Standards
+## Terminal & Agent Protocols
 
-- **State Management:** `useAppController.ts` is the primary state hub, leveraging `db-service.ts` for SQLite persistence.
-- **Event Bus:** Communication between Rust and React happens via Tauri `emit`/`listen`.
-- **Terminal Parsing:** `app-core.ts` contains shared regex and utilities for parsing shell prompts and control sequences.
+- **IPC Bus:** `\\.\pipe\agentbus` handles JSON handoffs.
+- **Lane System:** Terminals use a "Lane" system (`terminal-lanes.ts`) for managing sub-pty instances and layouts.
+- **Prompt Detection:** `app-core.ts` contains regex for detecting shell readiness across different platforms (PowerShell, WSL).
 
 ## MASTER_PLAN.md Conventions
 

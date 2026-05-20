@@ -1,8 +1,8 @@
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, emit } from "@tauri-apps/api/event";
 import { readText } from "@tauri-apps/plugin-clipboard-manager";
-import { Terminal as TerminalIcon, X, Zap, ExternalLink, Plus, GripVertical, Search, ChevronRight } from "lucide-react";
+import { Terminal as TerminalIcon, X, Zap, ExternalLink, GripVertical } from "lucide-react";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import type { Terminal } from "@xterm/xterm";
 import { createXtermWriteQueue } from "@/lib/xterm-write-queue";
@@ -15,86 +15,19 @@ import {
   saveTerminalLanes,
   type TerminalLane,
 } from "../../services/terminal-lanes";
-
-const stripTerminalControls = (value: string) =>
-  value
-    .replace(/\x1B\][^\x07]*(?:\x07|\x1B\\)/g, "")
-    .replace(/\x1B\[[0-?]*[ -/]*[@-~]/g, "")
-    .replace(/\x1B[@-_][0-?]*[ -/]*[@-~]/g, "");
-
-const CLI_PROFILES = [
-  {
-    name: "opencode",
-    patterns: ["Ask anything", "Build ·", "commands"],
-  },
-  {
-    name: "copilot",
-    patterns: ["GitHub Copilot", "ctrl+p commands", "commands ? help"],
-  },
-  {
-    name: "gemini",
-    patterns: ["Type your message", "Type your message or @path/to/file", "Gemini CLI"],
-  },
-  {
-    name: "shell",
-    patterns: ["PS ", "$ ", ">>> "],
-  },
-];
-
-const isPromptReady = (value: string) =>
-  CLI_PROFILES.some(profile => profile.patterns.some(pattern => value.includes(pattern))) ||
-  /(^|\s)>($|\s)/.test(value);
-
-const getAgentId = (agentName: string) =>
-  agentName.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
-
-const getPtyEventKey = (agent: string) => agent.replace(/[^a-zA-Z0-9]/g, "_");
-const STATS_REFRESH_MS = 10000;
-interface PtyOutputPayload {
-  agent: string;
-  workspace?: string;
-  data: string;
-  bytes?: string | number[];
-}
-
-interface PtyScrollback {
-  data: string;
-  bytes?: string | number[];
-}
-
-const decodeBase64Bytes = (value: string) => {
-  const binary = atob(value);
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index);
-  }
-  return bytes;
-};
-
-const getTerminalWritePayload = (payload: Pick<PtyOutputPayload, "data" | "bytes">) => {
-  if (typeof payload.bytes === "string" && payload.bytes.length > 0) {
-    return decodeBase64Bytes(payload.bytes);
-  }
-
-  if (Array.isArray(payload.bytes) && payload.bytes.length > 0) {
-    return new Uint8Array(payload.bytes);
-  }
-
-  return payload.data;
-};
-
-const getNextLaneIndex = (lanes: TerminalLane[]) => {
-  const usedIndexes = new Set(
-    lanes
-      .map(lane => lane.agentName.match(/\slane\s(\d+)$/i)?.[1])
-      .filter((value): value is string => Boolean(value))
-      .map(value => Number(value))
-  );
-
-  let index = 2;
-  while (usedIndexes.has(index)) index += 1;
-  return index;
-};
+import {
+  stripTerminalControls,
+  getAgentId,
+  getPtyEventKey,
+  getTerminalWritePayload,
+  getNextLaneIndex,
+  isPromptReady,
+  STATS_REFRESH_MS,
+  type PtyOutputPayload,
+  type PtyScrollback,
+} from "./terminal-helpers";
+import { TerminalLaneStrip } from "./TerminalLaneStrip";
+import { TerminalFindBar } from "./TerminalFindBar";
 interface Props {
   agentId: string;
   agentName: string;
@@ -111,119 +44,7 @@ interface Props {
   onZoom?: () => void;
 }
 
-interface TerminalLaneStripProps {
-  lanes: TerminalLane[];
-  activeLaneId: string;
-  editingLaneId: string | null;
-  editLaneLabel: string;
-  onSelectLane: (laneId: string) => void;
-  onAddLane: (event: React.MouseEvent) => void;
-  onCloseLane: (event: React.MouseEvent, laneId: string) => void;
-  onStartRenameLane: (lane: TerminalLane) => void;
-  onEditLaneLabelChange: (value: string) => void;
-  onCommitRenameLane: () => void;
-  onCancelRenameLane: () => void;
-  containerWidth: number;
-}
 
-const TerminalLaneStrip = memo(({
-  lanes,
-  activeLaneId,
-  editingLaneId,
-  editLaneLabel,
-  onSelectLane,
-  onAddLane,
-  onCloseLane,
-  onStartRenameLane,
-  onEditLaneLabelChange,
-  onCommitRenameLane,
-  onCancelRenameLane,
-  containerWidth,
-}: TerminalLaneStripProps) => {
-  const isCompact = containerWidth < 420;
-  const isSuperCompact = containerWidth < 300;
-
-  return (
-    <div
-      className="h-full flex items-center min-w-0 flex-1 overflow-x-auto custom-scrollbar border-l border-app-border"
-      onPointerDown={(event) => event.stopPropagation()}
-      onContextMenu={(event) => event.stopPropagation()}
-    >
-      <div className="flex items-center h-full">
-        {lanes.map((lane, index) => {
-          const isActive = lane.id === activeLaneId;
-          const isEditing = lane.id === editingLaneId;
-          const displayText = isSuperCompact ? `${index + 1}` : lane.label;
-
-          return (
-            <div
-              key={lane.id}
-              onClick={() => {
-                if (!isEditing) onSelectLane(lane.id);
-              }}
-              onDoubleClick={() => onStartRenameLane(lane)}
-              className={`group flex items-center gap-1.5 h-full border-r border-app-border cursor-pointer select-none transition-all ${
-                isSuperCompact
-                  ? "px-2.5 min-w-[28px] max-w-[40px]"
-                  : isCompact
-                  ? "px-2 min-w-[50px] max-w-[80px]"
-                  : "px-3 min-w-[92px] max-w-[160px]"
-              } ${isActive
-                  ? "bg-app-panel text-white shadow-[inset_0_-2px_0_0_var(--tw-colors-brand-accent)]"
-                  : "bg-transparent text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
-                }`}
-              title={`Switch to ${lane.label}`}
-            >
-              {isEditing ? (
-                <input
-                  value={editLaneLabel}
-                  onChange={(event) => onEditLaneLabelChange(event.target.value)}
-                  onBlur={onCommitRenameLane}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") onCommitRenameLane();
-                    if (event.key === "Escape") onCancelRenameLane();
-                  }}
-                  onClick={(event) => event.stopPropagation()}
-                  onPointerDown={(event) => event.stopPropagation()}
-                  autoFocus
-                  className="bg-transparent border-none outline-none text-xs font-bold text-white flex-1 min-w-0"
-                />
-              ) : (
-                <span className={`text-[10px] truncate flex-1 text-center ${isActive ? "font-bold" : "font-medium"}`}>
-                  {displayText}
-                </span>
-              )}
-              {lane.id !== ROOT_TERMINAL_LANE_ID && !isSuperCompact && (
-                <button
-                  type="button"
-                  onClick={(event) => onCloseLane(event, lane.id)}
-                  onPointerDown={(event) => event.stopPropagation()}
-                  className={`p-0.5 rounded transition-colors ${isActive
-                      ? "text-brand-primary/80 hover:text-white hover:bg-white/10"
-                      : "opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-zinc-200 hover:bg-white/5"
-                    }`}
-                  title={`Close ${lane.label}`}
-                >
-                  <X size={10} strokeWidth={2.5} />
-                </button>
-              )}
-            </div>
-          );
-        })}
-      </div>
-      <button
-        type="button"
-        onClick={onAddLane}
-        onPointerDown={(event) => event.stopPropagation()}
-        className={`h-full flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/5 transition-colors border-r border-app-border shrink-0 ${
-          isSuperCompact ? "w-6" : isCompact ? "w-8" : "w-10"
-        }`}
-      >
-        <Plus size={12} strokeWidth={2.5} />
-      </button>
-    </div>
-  );
-});
 
 export function TerminalInstance({ agentId, agentName, cwd, onRemove, onDetach, onSplit, dragAttributes, dragListeners, workspaceName, workspaceId, isZenMode, onFocus, onZoom }: Props) {
   const terminalRef = useRef<HTMLDivElement>(null);
@@ -902,44 +723,15 @@ export function TerminalInstance({ agentId, agentName, cwd, onRemove, onDetach, 
         </div>
       )}
 
-      {/* Terminal Find */}
-      {showTerminalFind && (
-        <div className="flex items-center gap-2 px-3 py-1.5 border-b border-app-border bg-zinc-900/60 shrink-0" onClick={(e) => e.stopPropagation()}>
-          <Search size={12} className="text-zinc-500 shrink-0" />
-          <input
-            type="text"
-            value={terminalFindQuery}
-            onChange={e => handleTerminalFindChange(e.target.value)}
-            onKeyDown={handleTerminalFindKeyDown}
-            placeholder="Find in terminal..."
-            className="flex-1 bg-transparent text-xs text-zinc-200 placeholder:text-zinc-600 outline-none border-none"
-            autoFocus
-          />
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => terminalSearch?.findPrevious(terminalFindQuery)}
-              className="p-1 text-zinc-500 hover:text-zinc-300 transition-colors"
-              title="Previous (Shift+Enter)"
-            >
-              <ChevronRight size={12} className="rotate-180" />
-            </button>
-            <button
-              onClick={() => terminalSearch?.findNext(terminalFindQuery)}
-              className="p-1 text-zinc-500 hover:text-zinc-300 transition-colors"
-              title="Next (Enter)"
-            >
-              <ChevronRight size={12} />
-            </button>
-            <button
-              onClick={() => { setShowTerminalFind(false); setTerminalFindQuery(""); }}
-              className="p-1 text-zinc-500 hover:text-zinc-300 transition-colors"
-              title="Close"
-            >
-              <X size={12} />
-            </button>
-          </div>
-        </div>
-      )}
+      <TerminalFindBar
+        show={showTerminalFind}
+        query={terminalFindQuery}
+        onQueryChange={handleTerminalFindChange}
+        onKeyDown={handleTerminalFindKeyDown}
+        onFindNext={(q) => terminalSearch?.findNext(q)}
+        onFindPrevious={(q) => terminalSearch?.findPrevious(q)}
+        onClose={() => { setShowTerminalFind(false); setTerminalFindQuery(""); }}
+      />
 
       {/* Terminal Content */}
       <div className={`flex-1 overflow-hidden relative group ${isPulsing ? 'animate-flash-bg' : ''}`}>

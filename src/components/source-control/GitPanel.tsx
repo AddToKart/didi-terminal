@@ -2,59 +2,25 @@ import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   GitBranch, X, Plus, Minus, RotateCcw, Upload, Download,
-  ChevronDown, ChevronRight, Check, Loader2, GitMerge,
-  AlertCircle
+  ChevronDown, ChevronRight, Check, Loader2, GitMerge
 } from "lucide-react";
 import { FileIcon } from "./FileIcon";
 import { eventBus } from "../../services/event-bus";
+import {
+  GitPanelFile,
+  GitPanelStatus,
+  GitCommitEntry,
+  GitBranchInfo,
+  StatusIcon,
+} from "./source-control-types";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-
-interface GitBranchInfo {
-  name: string;
-  isCurrent: boolean;
-}
-
-interface GitPanelFile {
-  path: string;
-  status: string;
-  statusLabel: string;
-}
-
-interface GitPanelStatus {
-  branch: string;
-  remote: string;
-  staged: GitPanelFile[];
-  unstaged: GitPanelFile[];
-}
-
-interface GitCommitEntry {
-  hash: string;
-  shortHash: string;
-  message: string;
-  author: string;
-  date: string;
-  refs: string;
-}
 
 interface GitPanelProps {
   currentProject: string | null;
   isOpen: boolean;
   onClose: () => void;
   onOpenFullscreen?: () => void;
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function StatusIcon({ status }: { status: string }) {
-  const s = status.trim();
-  if (s === "M") return <span className="text-amber-500 text-[10px] font-black w-3 text-center" title="Modified">M</span>;
-  if (s === "A") return <span className="text-emerald-500 text-[10px] font-black w-3 text-center" title="Added">A</span>;
-  if (s === "D") return <span className="text-red-500 text-[10px] font-black w-3 text-center" title="Deleted">D</span>;
-  if (s === "R") return <span className="text-blue-500 text-[10px] font-black w-3 text-center" title="Renamed">R</span>;
-  if (s === "??") return <span className="text-zinc-500 text-[10px] font-black w-3 text-center" title="Untracked">U</span>;
-  if (s === "U") return <AlertCircle size={10} className="text-orange-500" />;
-  return <div className="w-3" />;
 }
 
 

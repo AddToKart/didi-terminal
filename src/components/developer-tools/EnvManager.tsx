@@ -1,15 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { 
-  X, 
-  Save,
-  Eye,
-  EyeOff,
-  Plus,
-  Trash2,
-  FileKey2,
-  RefreshCw,
-  AlertCircle
-} from "lucide-react";
+import { X, Save, FileKey2, RefreshCw, AlertCircle } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   Select,
@@ -19,24 +9,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-
-interface EnvConfig {
-  path: string;
-  name: string;
-}
-
-interface EnvVar {
-  key: string;
-  value: string;
-  isNew?: boolean;
-  config: EnvConfig;
-}
-
-interface VaultVar {
-  id: string;
-  env_key: string;
-  env_value: string;
-}
+import {
+  EnvConfig,
+  EnvVar,
+  VaultVar,
+  LoadingSpinner,
+  EmptyState,
+  VaultVarRow,
+  EnvVarRow,
+  AddRowButton,
+} from "./env-manager-components";
 
 interface EnvManagerProps {
   currentProject: string | null;
@@ -564,213 +546,76 @@ export function EnvManager({ currentProject, isOpen, onClose }: EnvManagerProps)
           <div className="flex-1 overflow-y-auto custom-scrollbar bg-black/10 p-4">
             {activeTab === "vault" ? (
               vaultLoading ? (
-                <div className="h-full flex items-center justify-center">
-                  <RefreshCw size={20} className="animate-spin text-zinc-500" />
-                </div>
+                <LoadingSpinner size={20} />
               ) : error && vaultVars.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center opacity-70">
-                  <AlertCircle size={48} className="text-zinc-600 mb-3" />
-                  <p className="text-sm font-bold text-white mb-1">
-                    Vault Error
-                  </p>
-                  <p className="text-xs text-zinc-500 mb-4">{error}</p>
-                </div>
+                <EmptyState
+                  icon={<AlertCircle size={48} className="text-zinc-600 mb-3" />}
+                  title="Vault Error"
+                  description={error ?? ""}
+                />
               ) : vaultVars.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center opacity-70">
-                  <AlertCircle size={48} className="text-zinc-600 mb-3" />
-                  <p className="text-sm font-bold text-white mb-1">
-                    Secure Vault is Empty
-                  </p>
-                  <p className="text-xs text-zinc-500 mb-4">No encrypted credentials stored for this workspace.</p>
-                  <button
-                    onClick={addVaultVar}
-                    className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg text-xs font-bold text-white transition-colors animate-all active:scale-95"
-                  >
-                    Add Secure Secret
-                  </button>
-                </div>
+                <EmptyState
+                  icon={<AlertCircle size={48} className="text-zinc-600 mb-3" />}
+                  title="Secure Vault is Empty"
+                  description="No encrypted credentials stored for this workspace."
+                  action={{ label: "Add Secure Secret", onClick: addVaultVar }}
+                />
               ) : (
                 <div className="space-y-2">
                   {vaultVars.map((env, index) => (
-                    <div
+                    <VaultVarRow
                       key={`vault-${index}`}
-                      className="flex items-center gap-2 group animate-in fade-in slide-in-from-top-2 duration-300"
-                    >
-                      <input
-                        type="text"
-                        placeholder="SECURE_KEY_NAME"
-                        value={env.env_key}
-                        onChange={(e) => updateVaultVar(index, "env_key", e.target.value)}
-                        className="flex-[0.4] min-w-0 bg-zinc-950 border border-zinc-800 focus:border-emerald-500/50 rounded-lg px-3 py-2 text-xs font-mono font-bold text-emerald-400 placeholder:text-zinc-700 outline-none transition-all"
-                      />
-
-                      <div className="flex-[0.6] min-w-0 relative flex items-center">
-                        <input
-                          type={
-                            showValues.has(`vault-${index}`)
-                              ? "text"
-                              : "password"
-                          }
-                          placeholder="secure value..."
-                          value={env.env_value}
-                          onChange={(e) =>
-                            updateVaultVar(index, "env_value", e.target.value)
-                          }
-                          className="w-full bg-zinc-950 border border-zinc-800 focus:border-zinc-500 rounded-lg pl-3 pr-10 py-2 text-xs font-mono text-zinc-300 placeholder:text-zinc-750 outline-none transition-all"
-                        />
-                        <button
-                          onClick={() => {
-                            const next = new Set(showValues);
-                            const k = `vault-${index}`;
-                            if (next.has(k)) next.delete(k);
-                            else next.add(k);
-                            setShowValues(next);
-                          }}
-                          className="absolute right-2 p-1.5 text-zinc-500 hover:text-zinc-300 transition-colors"
-                        >
-                          {showValues.has(`vault-${index}`) ? (
-                            <EyeOff size={14} />
-                          ) : (
-                            <Eye size={14} />
-                          )}
-                        </button>
-                      </div>
-
-                      <div className="w-16 flex items-center justify-end shrink-0">
-                        <button
-                          onClick={() => removeVaultVar(index)}
-                          className="p-2 text-zinc-650 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors active:scale-95"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </div>
+                      env={env}
+                      showValue={showValues.has(`vault-${index}`)}
+                      onUpdate={(field, value) => updateVaultVar(index, field, value)}
+                      onRemove={() => removeVaultVar(index)}
+                      onToggleVisibility={() => {
+                        const next = new Set(showValues);
+                        const k = `vault-${index}`;
+                        if (next.has(k)) next.delete(k);
+                        else next.add(k);
+                        setShowValues(next);
+                      }}
+                    />
                   ))}
 
-                  <button
+                  <AddRowButton
+                    label="Add Secure Secret"
                     onClick={addVaultVar}
-                    className="w-full flex items-center justify-center gap-2 py-3 border border-dashed border-zinc-850 hover:border-emerald-500/30 hover:bg-emerald-500/5 rounded-lg text-xs font-bold text-zinc-500 hover:text-emerald-400 transition-all mt-4 group"
-                  >
-                    <Plus
-                      size={14}
-                      className="group-hover:scale-110 transition-transform"
-                    />
-                    Add Secure Secret
-                  </button>
+                    variant="vault"
+                  />
                 </div>
               )
             ) : (
               loading ? (
-                <div className="h-full flex items-center justify-center">
-                  <RefreshCw size={20} className="animate-spin text-zinc-500" />
-                </div>
+                <LoadingSpinner size={20} />
               ) : error && envVars.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center opacity-70">
-                  <AlertCircle size={48} className="text-zinc-600 mb-3" />
-                  <p className="text-sm font-bold text-white mb-1">
-                    No .env found
-                  </p>
-                  <p className="text-xs text-zinc-500 mb-4">{error}</p>
-                  <button
-                    onClick={addVar}
-                    className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg text-xs font-bold text-white transition-colors"
-                  >
-                    Create New Variable
-                  </button>
-                </div>
+                <EmptyState
+                  icon={<AlertCircle size={48} className="text-zinc-600 mb-3" />}
+                  title="No .env found"
+                  description={error ?? ""}
+                  action={{ label: "Create New Variable", onClick: addVar }}
+                />
               ) : (
                 <div className="space-y-2">
                   {envVars.map((env, index) => (
-                    <div
+                    <EnvVarRow
                       key={`${env.config.path}-${index}`}
-                      className="flex items-center gap-2 group animate-in fade-in slide-in-from-top-2 duration-300"
-                    >
-                      {activeConfigPath === "global" && (
-                        <div className="w-28 shrink-0">
-                          <Select
-                            value={String(
-                              configs.findIndex(
-                                (c) => c.path === env.config.path
-                              )
-                            )}
-                            onValueChange={(v) => {
-                              const cfg = configs[parseInt(v)];
-                              if (cfg) updateVar(index, "config", cfg);
-                            }}
-                          >
-                            <SelectTrigger className="w-full bg-zinc-900 border-zinc-800 text-[10px] font-bold text-zinc-400 h-9">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent position="popper" sideOffset={4} className="bg-zinc-950 border-zinc-800 z-[200]">
-                              {configs.map((cfg, idx) => (
-                                <SelectItem
-                                  key={idx}
-                                  value={String(idx)}
-                                  className="text-[10px] font-medium focus:bg-zinc-900 focus:text-white cursor-pointer"
-                                >
-                                  {cfg.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
-
-                      <input
-                        type="text"
-                        placeholder="KEY_NAME"
-                        value={env.key}
-                        onChange={(e) => updateVar(index, "key", e.target.value)}
-                        className="flex-[0.4] min-w-0 bg-zinc-950 border border-zinc-800 focus:border-blue-500/50 rounded-lg px-3 py-2 text-xs font-mono font-bold text-blue-400 placeholder:text-zinc-700 outline-none transition-all"
-                      />
-
-                      <div className="flex-[0.6] min-w-0 relative flex items-center">
-                        <input
-                          type={
-                            showValues.has(env.key) || env.isNew
-                              ? "text"
-                              : "password"
-                          }
-                          placeholder="value..."
-                          value={env.value}
-                          onChange={(e) =>
-                            updateVar(index, "value", e.target.value)
-                          }
-                          className="w-full bg-zinc-950 border border-zinc-800 focus:border-zinc-500 rounded-lg pl-3 pr-10 py-2 text-xs font-mono text-zinc-300 placeholder:text-zinc-750 outline-none transition-all"
-                        />
-                        <button
-                          onClick={() => toggleVisibility(env.key)}
-                          className="absolute right-2 p-1.5 text-zinc-500 hover:text-zinc-300 transition-colors"
-                        >
-                          {showValues.has(env.key) || env.isNew ? (
-                            <EyeOff size={14} />
-                          ) : (
-                            <Eye size={14} />
-                          )}
-                        </button>
-                      </div>
-
-                      <div className="w-16 flex items-center justify-end shrink-0">
-                        <button
-                          onClick={() => removeVar(index)}
-                          className="p-2 text-zinc-650 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors active:scale-95"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </div>
+                      env={env}
+                      showValue={showValues.has(env.key) || env.isNew === true}
+                      showConfigPicker={activeConfigPath === "global"}
+                      configs={configs}
+                      onUpdate={(field, value) => updateVar(index, field, value)}
+                      onRemove={() => removeVar(index)}
+                      onToggleVisibility={() => toggleVisibility(env.key)}
+                    />
                   ))}
 
-                  <button
+                  <AddRowButton
+                    label="Add Variable"
                     onClick={addVar}
-                    className="w-full flex items-center justify-center gap-2 py-3 border border-dashed border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900/50 rounded-lg text-xs font-bold text-zinc-500 hover:text-zinc-300 transition-all mt-4 group"
-                  >
-                    <Plus
-                      size={14}
-                      className="group-hover:scale-110 transition-transform"
-                    />
-                    Add Variable
-                  </button>
+                    variant="env"
+                  />
                 </div>
               )
             )}

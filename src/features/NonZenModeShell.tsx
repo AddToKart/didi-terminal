@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useState, useCallback, useEffect, type ReactNode } from "react";
+import { lazy, useMemo, useState, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getSplitAgentNameInTab, getUniqueAgentNameInTab } from "@/services/agent-naming";
 import { saveWorkspaces } from "@/services/db-service";
@@ -8,7 +8,8 @@ import {
   getTerminalLanePtyKey,
   loadStoredTerminalLanes,
 } from "@/services/terminal-lanes";
-import { useWorkspaceStore } from "../services/stores/workspace-store";
+import { useGitStore } from "@/services/stores/git-store";
+import { useWorkspaceStore } from "@/services/stores/workspace-store";
 import {
   DndContext,
   closestCenter,
@@ -22,14 +23,12 @@ import {
 } from "@dnd-kit/core";
 import { Terminal as TerminalIcon, Network, Monitor, Settings, Code2, GitBranch, LayoutList, FolderSearch, FileKey2, Package, Zap, FolderTree, Server, Database, FileText, FileCode, Palette, Plus, Globe, Shield, Brain, ClipboardList, Box, HardDrive, Columns2, Container } from "lucide-react";
 import { AppOverlays } from "../components/layout/AppOverlays";
-import { ErrorBoundary } from "../components/ErrorBoundary";
 import { AppGlobalSidebar } from "../components/layout/AppGlobalSidebar";
 import { AppTopbar } from "../components/layout/AppTopbar";
 import { AppTerminalTabs, TERMINAL_DROP_ID } from "../components/layout/AppTerminalTabs";
 import { AppTerminalWorkspace } from "../components/layout/AppTerminalWorkspace";
-import { StatusBar } from "../components/layout/StatusBar";
-import { TwoFactorModal } from "../components/modals/TwoFactorModal";
 import { Omnibar, type PaletteAction } from "../components/modals/Omnibar";
+import { NonZenModePanels } from "./NonZenModePanels";
 import type { NonZenModeShellProps } from "../types/terminal-mode.types";
 import {
   getMergedTabPairForTab,
@@ -63,38 +62,6 @@ function TerminalDropZone() {
   );
 }
 
-function ModalBoundary({ children, title }: { children: ReactNode; title?: string }) {
-  return (
-    <ErrorBoundary title={title || "Panel crashed"}>
-      <Suspense fallback={null}>{children}</Suspense>
-    </ErrorBoundary>
-  );
-}
-
-// Lazy-loaded modals & panels
-const CodeReviewPanel = lazy(() => import("../components/source-control/CodeReviewPanel").then(m => ({ default: m.CodeReviewPanel })));
-const GitPanel = lazy(() => import("../components/source-control/GitPanel").then(m => ({ default: m.GitPanel })));
-const SourceControlFullscreen = lazy(() => import("../components/source-control/SourceControlFullscreen").then(m => ({ default: m.SourceControlFullscreen })));
-const PersonalKanban = lazy(() => import("../components/workspace/PersonalKanban").then(m => ({ default: m.PersonalKanban })));
-const CalendarPanel = lazy(() => import("../components/workspace/CalendarPanel").then(m => ({ default: m.CalendarPanel })));
-const ProjectFileExplorer = lazy(() => import("../components/workspace/ProjectFileExplorer").then(m => ({ default: m.ProjectFileExplorer })));
-const SecurityPanel = lazy(() => import("../components/workspace/SecurityPanel").then(m => ({ default: m.SecurityPanel })));
-const PortManager = lazy(() => import("../components/developer-tools/PortManager").then(m => ({ default: m.PortManager })));
-const PortForwardingPanel = lazy(() => import("../components/developer-tools/PortForwardingPanel").then(m => ({ default: m.PortForwardingPanel })));
-const DockerManager = lazy(() => import("../components/developer-tools/DockerManager").then(m => ({ default: m.DockerManager })));
-const EnvManager = lazy(() => import("../components/developer-tools/EnvManager").then(m => ({ default: m.EnvManager })));
-const PackageManager = lazy(() => import("../components/developer-tools/PackageManager").then(m => ({ default: m.PackageManager })));
-const ApiLab = lazy(() => import("../components/developer-tools/ApiLab").then(m => ({ default: m.ApiLab })));
-const DbViewer = lazy(() => import("../components/developer-tools/DbViewer").then(m => ({ default: m.DbViewer })));
-const MdViewer = lazy(() => import("../components/developer-tools/MdViewer").then(m => ({ default: m.MdViewer })));
-const ConfigEditor = lazy(() => import("../components/developer-tools/ConfigEditor").then(m => ({ default: m.ConfigEditor })));
-const IconBrowser = lazy(() => import("../components/developer-tools/IconBrowser").then(m => ({ default: m.IconBrowser })));
-const TailwindLabs = lazy(() => import("../components/developer-tools/TailwindLabs").then(m => ({ default: m.TailwindLabs })));
-const NpmLookup = lazy(() => import("../components/developer-tools/NpmLookup").then(m => ({ default: m.NpmLookup })));
-const HtmlToJsx = lazy(() => import("../components/developer-tools/HtmlToJsx").then(m => ({ default: m.HtmlToJsx })));
-const SvgOptimizer = lazy(() => import("../components/developer-tools/SvgOptimizer").then(m => ({ default: m.SvgOptimizer })));
-const StorageInspector = lazy(() => import("../components/developer-tools/StorageInspector").then(m => ({ default: m.StorageInspector })));
-const MockDataGenerator = lazy(() => import("../components/developer-tools/MockDataGenerator").then(m => ({ default: m.MockDataGenerator })));
 const NetworkGraph = lazy(() => import("../components/graphs/NetworkGraph").then(m => ({ default: m.NetworkGraph })));
 const SettingsModal = lazy(() => import("../components/modals/SettingsModal").then(m => ({ default: m.SettingsModal })));
 
@@ -104,7 +71,6 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
     setAppMode,
     workspaces,
     activeWorkspaceId,
-    setActiveWorkspaceId,
     activeWorkspace,
     currentProject,
     tabs,
@@ -123,26 +89,17 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
     setShowBrainstorm,
     showMasterPlan,
     setShowMasterPlan,
-    tasks,
-    agentStatusMap,
-    masterPlanQueueState,
     showCodeReview,
     setShowCodeReview,
     showGitPanel,
     setShowGitPanel,
-    showGitFullscreen,
-    setShowGitFullscreen,
     showPersonalKanban,
     setShowPersonalKanban,
     showCalendar,
     setShowCalendar,
     showFileExplorer,
     setShowFileExplorer,
-    showPortManager,
     setShowPortManager,
-    showPortForwarding,
-    setShowPortForwarding,
-    showDockerManager,
     setShowDockerManager,
     showEnvManager,
     setShowEnvManager,
@@ -152,7 +109,6 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
     setShowApiLab,
     showMonorepoGraph,
     setShowMonorepoGraph,
-    showDbViewer,
     setShowDbViewer,
     showMdViewer,
     setShowMdViewer,
@@ -170,21 +126,16 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
     setShowSvgOptimizer,
     showStorageInspector,
     setShowStorageInspector,
-    showMockDataGenerator,
     setShowMockDataGenerator,
     showOmnibar,
     setShowOmnibar,
-    showSecurityPanel,
     setShowSecurityPanel,
-    pendingWorkspaceId,
-    setPendingWorkspaceId,
-    portCount,
-    setPortCount,
-    codeReviewStats,
-    setCodeReviewStats,
-    approvalRequest,
+    tasks,
+    agentStatusMap,
+    masterPlanQueueState,
     brainstormSessions,
     isGlass,
+    approvalRequest,
     handleWorkspaceSelect,
     handleWorkspaceReorder,
     handleWorkspaceRename,
@@ -214,32 +165,7 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
     handleDispatchMasterPlanTask,
   } = controller;
 
-  const [dockerCount, setDockerCount] = useState<number | null>(null);
-  const [forwardedCount, setForwardedCount] = useState(0);
-
-  useEffect(() => {
-    let active = true;
-    const fetchCount = async () => {
-      try {
-        const list = await invoke<any[]>("get_docker_containers");
-        if (active) {
-          setDockerCount(list.length);
-        }
-      } catch (err) {
-        if (active) {
-          setDockerCount(null);
-        }
-      }
-    };
-
-    fetchCount();
-    const interval = setInterval(fetchCount, 10000);
-
-    return () => {
-      active = false;
-      clearInterval(interval);
-    };
-  }, []);
+  const codeReviewStats = useGitStore(s => s.codeReviewStats);
 
   const handleSpawnAgentWithShell = useCallback((shellCommand: string, shellName: string) => {
     spawnAgent(undefined, shellName, shellCommand);
@@ -643,72 +569,12 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
                 />
               </div>
 
-              {(showCodeReview || showGitPanel || showPersonalKanban || showCalendar || showFileExplorer) && (
-                <div
-                  className="fixed inset-0 bg-black/85 z-[45] animate-in fade-in duration-300"
-                  onClick={() => {
-                    setShowCodeReview(false);
-                    setShowGitPanel(false);
-                    setShowPersonalKanban(false);
-                    setShowCalendar(false);
-                    setShowFileExplorer(false);
-                  }}
-                />
-              )}
-
-              <>
-                <ModalBoundary><CodeReviewPanel
-                  currentProject={currentProject}
-                  isOpen={showCodeReview}
-                  onClose={() => setShowCodeReview(false)}
-                  onStatsUpdate={setCodeReviewStats}
-                /></ModalBoundary>
-                <ModalBoundary><GitPanel
-                  currentProject={currentProject}
-                  isOpen={showGitPanel}
-                  onClose={() => setShowGitPanel(false)}
-                  onOpenFullscreen={() => {
-                    setShowGitPanel(false);
-                    setShowGitFullscreen(true);
-                  }}
-                /></ModalBoundary>
-                <ModalBoundary><SourceControlFullscreen
-                  currentProject={currentProject}
-                  isOpen={showGitFullscreen}
-                  onClose={() => setShowGitFullscreen(false)}
-                /></ModalBoundary>
-                <ModalBoundary><PersonalKanban
-                  workspaceId={activeWorkspaceId}
-                  isOpen={showPersonalKanban}
-                  onClose={() => setShowPersonalKanban(false)}
-                /></ModalBoundary>
-                <ModalBoundary><CalendarPanel
-                  workspaceId={activeWorkspaceId}
-                  isOpen={showCalendar}
-                  onClose={() => setShowCalendar(false)}
-                /></ModalBoundary>
-                <ModalBoundary><ProjectFileExplorer
-                  currentProject={currentProject}
-                  isOpen={showFileExplorer}
-                  onClose={() => setShowFileExplorer(false)}
-                /></ModalBoundary>
-                <StatusBar
-                  portCount={portCount}
-                  dockerCount={dockerCount}
-                  forwardedCount={forwardedCount}
-                  onOpenPortManager={() => setShowPortManager(true)}
-                  onOpenDbViewer={() => setShowDbViewer(true)}
-                  onOpenDockerManager={() => setShowDockerManager(true)}
-                  onOpenPortForwarding={() => setShowPortForwarding(true)}
-                />
-                <ModalBoundary><PortForwardingPanel
-                  isOpen={showPortForwarding}
-                  onClose={() => setShowPortForwarding(false)}
-                  onForwardedCountChange={setForwardedCount}
-                /></ModalBoundary>
-              </>
             </section>
           </div>
+          <NonZenModePanels
+            currentProject={currentProject}
+            controller={controller}
+          />
         </div>
 
         <DragOverlay dropAnimation={null}>
@@ -718,97 +584,6 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
             </div>
           ) : null}
         </DragOverlay>
-
-        <>
-          <ModalBoundary><PortManager
-            isOpen={showPortManager}
-            onClose={() => setShowPortManager(false)}
-            onPortsUpdate={setPortCount}
-          /></ModalBoundary>
-          <ModalBoundary><DockerManager
-            isOpen={showDockerManager}
-            onClose={() => setShowDockerManager(false)}
-            controller={controller}
-          /></ModalBoundary>
-          <ModalBoundary><EnvManager
-            currentProject={currentProject}
-            isOpen={showEnvManager}
-            onClose={() => setShowEnvManager(false)}
-          /></ModalBoundary>
-          <ModalBoundary><PackageManager
-            currentProject={currentProject}
-            isOpen={showPackageManager}
-            onClose={() => setShowPackageManager(false)}
-          /></ModalBoundary>
-          <ModalBoundary><ApiLab
-            isOpen={showApiLab}
-            onClose={() => setShowApiLab(false)}
-          /></ModalBoundary>
-          <ModalBoundary><DbViewer
-            isOpen={showDbViewer}
-            onClose={() => setShowDbViewer(false)}
-          /></ModalBoundary>
-          <ModalBoundary><MdViewer
-            currentProject={currentProject}
-            isOpen={showMdViewer}
-            onClose={() => setShowMdViewer(false)}
-          /></ModalBoundary>
-          <ModalBoundary><ConfigEditor
-            currentProject={currentProject}
-            isOpen={showConfigEditor}
-            onClose={() => setShowConfigEditor(false)}
-          /></ModalBoundary>
-          <ModalBoundary><IconBrowser
-            isOpen={showIconBrowser}
-            onClose={() => setShowIconBrowser(false)}
-          /></ModalBoundary>
-          <ModalBoundary><TailwindLabs
-            isOpen={showTailwindLabs}
-            onClose={() => setShowTailwindLabs(false)}
-          /></ModalBoundary>
-          <ModalBoundary><NpmLookup
-            isOpen={showNpmLookup}
-            onClose={() => setShowNpmLookup(false)}
-          /></ModalBoundary>
-          <ModalBoundary><HtmlToJsx
-            isOpen={showHtmlToJsx}
-            onClose={() => setShowHtmlToJsx(false)}
-          /></ModalBoundary>
-          <ModalBoundary><SvgOptimizer
-            isOpen={showSvgOptimizer}
-            onClose={() => setShowSvgOptimizer(false)}
-          /></ModalBoundary>
-          <ModalBoundary><StorageInspector
-            isOpen={showStorageInspector}
-            onClose={() => setShowStorageInspector(false)}
-          /></ModalBoundary>
-          <ModalBoundary><MockDataGenerator
-            isOpen={showMockDataGenerator}
-            onClose={() => setShowMockDataGenerator(false)}
-          /></ModalBoundary>
-          {showSecurityPanel && (
-            <ModalBoundary title="Panel crashed"><SecurityPanel
-              workspaceId={showSecurityPanel}
-              workspaceName={workspaces.find(w => w.id === showSecurityPanel)?.name || ""}
-              isOpen={!!showSecurityPanel}
-              onClose={() => setShowSecurityPanel(null)}
-            /></ModalBoundary>
-          )}
-          {pendingWorkspaceId && (
-            <ModalBoundary title="Panel crashed"><TwoFactorModal
-              isOpen={!!pendingWorkspaceId}
-              workspaceId={pendingWorkspaceId}
-              workspaceName={workspaces.find(w => w.id === pendingWorkspaceId)?.name || ""}
-              onVerify={success => {
-                if (success) {
-                  setActiveWorkspaceId(pendingWorkspaceId);
-                  setPendingWorkspaceId(null);
-                }
-              }}
-              onCancel={() => setPendingWorkspaceId(null)}
-            /></ModalBoundary>
-          )}
-        </>
 
         <Omnibar
           isOpen={showOmnibar}
