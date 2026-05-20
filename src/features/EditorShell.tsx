@@ -6,6 +6,7 @@ import { EditorTopbar } from "@/components/layout/EditorTopbar";
 import { EditorSidebar } from "@/components/layout/EditorSidebar";
 import { EditorTabBar } from "@/components/layout/EditorTabBar";
 import { CodeMirrorEditor } from "@/components/editor/CodeMirrorEditor";
+import { QuickOpenModal } from "@/components/modals/QuickOpenModal";
 import { useEditorStore } from "@/services/stores/editor-store";
 import type { AppController } from "@/services/use-app-controller";
 
@@ -41,6 +42,7 @@ export function EditorShell({ controller }: EditorShellProps) {
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);
+  const [isQuickOpenVisible, setIsQuickOpenVisible] = useState(false);
   const autosaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   // Track previous mode for back button
@@ -120,7 +122,7 @@ export function EditorShell({ controller }: EditorShellProps) {
       }
       if (e.ctrlKey && e.key === "p") {
         e.preventDefault();
-        // Quick-open placeholder — future feature
+        setIsQuickOpenVisible(true);
       }
       if (e.ctrlKey && e.key === "Tab") {
         e.preventDefault();
@@ -154,7 +156,13 @@ export function EditorShell({ controller }: EditorShellProps) {
         onToggleTerminal={() => setIsTerminalOpen((v) => !v)}
         onSave={handleSave}
         onSaveAll={handleSaveAll}
-        onQuickOpen={() => {}}
+        onQuickOpen={() => setIsQuickOpenVisible(true)}
+      />
+
+      <QuickOpenModal
+        isOpen={isQuickOpenVisible}
+        onClose={() => setIsQuickOpenVisible(false)}
+        root={root}
       />
 
       {/* Main body: sidebar + editor area */}

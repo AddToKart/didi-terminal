@@ -322,6 +322,7 @@ pub fn run() {
             services::fs::read_file_content,
             services::fs::write_file_content,
             services::fs::scan_env_files,
+            services::fs::search_project_files,
             services::http::make_http_request,
             services::packages::scan_project_configs,
             services::packages::get_outdated_npm,

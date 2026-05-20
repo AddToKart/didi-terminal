@@ -147,3 +147,38 @@ pub async fn list_directory(path: String, root: String) -> Result<Vec<FileEntry>
     .await
     .map_err(|e| e.to_string())?
 }
+
+#[tauri::command]
+pub async fn search_project_files(cwd: String) -> Result<Vec<String>, String> {
+    tokio::task::spawn_blocking(move || {
+        let root = Path::new(&cwd);
+        if !root.exists() || !root.is_dir() {
+            return Err("Invalid directory".to_string());
+        }
+
+        let mut files = Vec::new();
+        // WalkBuilder automatically respects .gitignore, hidden files (like .git), and skips large binaries efficiently
+        let walker = ignore::WalkBuilder::new(root)
+            .hidden(false) // we might want to see .env, so we let ignore handle .git explicitly or by default
+            .filter_entry(|e| {
+                let name = e.file_name().to_string_lossy();
+                name != ".git" && name != "node_modules" && name != "target" && name != "dist" && name != "build"
+            })
+            .build();
+
+        for result in walker {
+            if let Ok(entry) = result {
+                if entry.file_type().map_or(false, |ft| ft.is_file()) {
+                    if let Ok(rel_path) = entry.path().strip_prefix(root) {
+                        files.push(rel_path.to_string_lossy().replace('\\', "/"));
+                    }
+                }
+            }
+        }
+
+        files.sort();
+        Ok(files)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
