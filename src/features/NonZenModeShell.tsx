@@ -80,6 +80,7 @@ const CalendarPanel = lazy(() => import("../components/workspace/CalendarPanel")
 const ProjectFileExplorer = lazy(() => import("../components/workspace/ProjectFileExplorer").then(m => ({ default: m.ProjectFileExplorer })));
 const SecurityPanel = lazy(() => import("../components/workspace/SecurityPanel").then(m => ({ default: m.SecurityPanel })));
 const PortManager = lazy(() => import("../components/developer-tools/PortManager").then(m => ({ default: m.PortManager })));
+const PortForwardingPanel = lazy(() => import("../components/developer-tools/PortForwardingPanel").then(m => ({ default: m.PortForwardingPanel })));
 const DockerManager = lazy(() => import("../components/developer-tools/DockerManager").then(m => ({ default: m.DockerManager })));
 const EnvManager = lazy(() => import("../components/developer-tools/EnvManager").then(m => ({ default: m.EnvManager })));
 const PackageManager = lazy(() => import("../components/developer-tools/PackageManager").then(m => ({ default: m.PackageManager })));
@@ -139,6 +140,8 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
     setShowFileExplorer,
     showPortManager,
     setShowPortManager,
+    showPortForwarding,
+    setShowPortForwarding,
     showDockerManager,
     setShowDockerManager,
     showEnvManager,
@@ -212,6 +215,7 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
   } = controller;
 
   const [dockerCount, setDockerCount] = useState<number | null>(null);
+  const [forwardedCount, setForwardedCount] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -691,10 +695,17 @@ export function NonZenModeShell({ controller, rightSidebar }: NonZenModeShellPro
                 <StatusBar
                   portCount={portCount}
                   dockerCount={dockerCount}
+                  forwardedCount={forwardedCount}
                   onOpenPortManager={() => setShowPortManager(true)}
                   onOpenDbViewer={() => setShowDbViewer(true)}
                   onOpenDockerManager={() => setShowDockerManager(true)}
+                  onOpenPortForwarding={() => setShowPortForwarding(true)}
                 />
+                <ModalBoundary><PortForwardingPanel
+                  isOpen={showPortForwarding}
+                  onClose={() => setShowPortForwarding(false)}
+                  onForwardedCountChange={setForwardedCount}
+                /></ModalBoundary>
               </>
             </section>
           </div>

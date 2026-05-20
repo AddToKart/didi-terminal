@@ -72,6 +72,8 @@ export function useAppController() {
   const setShowFileExplorer = useUIStore(s => s.setShowFileExplorer);
   const showPortManager = useUIStore(s => s.showPortManager);
   const setShowPortManager = useUIStore(s => s.setShowPortManager);
+  const showPortForwarding = useUIStore(s => s.showPortForwarding);
+  const setShowPortForwarding = useUIStore(s => s.setShowPortForwarding);
   const showDockerManager = useUIStore(s => s.showDockerManager);
   const setShowDockerManager = useUIStore(s => s.setShowDockerManager);
   const showEnvManager = useUIStore(s => s.showEnvManager);
@@ -923,6 +925,8 @@ export function useAppController() {
     setShowFileExplorer,
     showPortManager,
     setShowPortManager,
+    showPortForwarding,
+    setShowPortForwarding,
     showDockerManager,
     setShowDockerManager,
     showEnvManager,
