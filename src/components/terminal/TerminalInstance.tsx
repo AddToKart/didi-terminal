@@ -123,6 +123,7 @@ interface TerminalLaneStripProps {
   onEditLaneLabelChange: (value: string) => void;
   onCommitRenameLane: () => void;
   onCancelRenameLane: () => void;
+  containerWidth: number;
 }
 
 const TerminalLaneStrip = memo(({
@@ -137,79 +138,110 @@ const TerminalLaneStrip = memo(({
   onEditLaneLabelChange,
   onCommitRenameLane,
   onCancelRenameLane,
-}: TerminalLaneStripProps) => (
-  <div
-    className="h-full flex items-center min-w-0 flex-1 overflow-x-auto custom-scrollbar border-l border-app-border"
-    onPointerDown={(event) => event.stopPropagation()}
-    onContextMenu={(event) => event.stopPropagation()}
-  >
-    <div className="flex items-center h-full">
-      {lanes.map((lane) => {
-        const isActive = lane.id === activeLaneId;
-        const isEditing = lane.id === editingLaneId;
-        return (
-          <div
-            key={lane.id}
-            onClick={() => {
-              if (!isEditing) onSelectLane(lane.id);
-            }}
-            onDoubleClick={() => onStartRenameLane(lane)}
-            className={`group flex items-center gap-2 px-3 h-full border-r border-app-border cursor-pointer select-none min-w-[92px] max-w-[160px] transition-all ${isActive
-                ? "bg-app-panel text-white shadow-[inset_0_-2px_0_0_var(--tw-colors-brand-accent)]"
-                : "bg-transparent text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
-              }`}
-            title={`Switch to ${lane.label}`}
-          >
-            {isEditing ? (
-              <input
-                value={editLaneLabel}
-                onChange={(event) => onEditLaneLabelChange(event.target.value)}
-                onBlur={onCommitRenameLane}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") onCommitRenameLane();
-                  if (event.key === "Escape") onCancelRenameLane();
-                }}
-                onClick={(event) => event.stopPropagation()}
-                onPointerDown={(event) => event.stopPropagation()}
-                autoFocus
-                className="bg-transparent border-none outline-none text-xs font-bold text-white flex-1 min-w-0"
-              />
-            ) : (
-              <span className={`text-xs truncate flex-1 ${isActive ? "font-bold" : "font-medium"}`}>
-                {lane.label}
-              </span>
-            )}
-            {lane.id !== ROOT_TERMINAL_LANE_ID && (
-              <button
-                type="button"
-                onClick={(event) => onCloseLane(event, lane.id)}
-                onPointerDown={(event) => event.stopPropagation()}
-                className={`p-1 rounded-md transition-colors ${isActive
-                    ? "text-brand-primary/80 hover:text-white hover:bg-white/10"
-                    : "opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-zinc-200 hover:bg-white/5"
-                  }`}
-                title={`Close ${lane.label}`}
-              >
-                <X size={12} strokeWidth={2.5} />
-              </button>
-            )}
-          </div>
-        );
-      })}
-    </div>
-    <button
-      type="button"
-      onClick={onAddLane}
+  containerWidth,
+}: TerminalLaneStripProps) => {
+  const isCompact = containerWidth < 420;
+  const isSuperCompact = containerWidth < 300;
+
+  return (
+    <div
+      className="h-full flex items-center min-w-0 flex-1 overflow-x-auto custom-scrollbar border-l border-app-border"
       onPointerDown={(event) => event.stopPropagation()}
-      className="h-full w-10 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/5 transition-colors border-r border-app-border shrink-0"
+      onContextMenu={(event) => event.stopPropagation()}
     >
-      <Plus size={16} strokeWidth={2.5} />
-    </button>
-  </div>
-));
+      <div className="flex items-center h-full">
+        {lanes.map((lane, index) => {
+          const isActive = lane.id === activeLaneId;
+          const isEditing = lane.id === editingLaneId;
+          const displayText = isSuperCompact ? `${index + 1}` : lane.label;
+
+          return (
+            <div
+              key={lane.id}
+              onClick={() => {
+                if (!isEditing) onSelectLane(lane.id);
+              }}
+              onDoubleClick={() => onStartRenameLane(lane)}
+              className={`group flex items-center gap-1.5 h-full border-r border-app-border cursor-pointer select-none transition-all ${
+                isSuperCompact
+                  ? "px-2.5 min-w-[28px] max-w-[40px]"
+                  : isCompact
+                  ? "px-2 min-w-[50px] max-w-[80px]"
+                  : "px-3 min-w-[92px] max-w-[160px]"
+              } ${isActive
+                  ? "bg-app-panel text-white shadow-[inset_0_-2px_0_0_var(--tw-colors-brand-accent)]"
+                  : "bg-transparent text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
+                }`}
+              title={`Switch to ${lane.label}`}
+            >
+              {isEditing ? (
+                <input
+                  value={editLaneLabel}
+                  onChange={(event) => onEditLaneLabelChange(event.target.value)}
+                  onBlur={onCommitRenameLane}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") onCommitRenameLane();
+                    if (event.key === "Escape") onCancelRenameLane();
+                  }}
+                  onClick={(event) => event.stopPropagation()}
+                  onPointerDown={(event) => event.stopPropagation()}
+                  autoFocus
+                  className="bg-transparent border-none outline-none text-xs font-bold text-white flex-1 min-w-0"
+                />
+              ) : (
+                <span className={`text-[10px] truncate flex-1 text-center ${isActive ? "font-bold" : "font-medium"}`}>
+                  {displayText}
+                </span>
+              )}
+              {lane.id !== ROOT_TERMINAL_LANE_ID && !isSuperCompact && (
+                <button
+                  type="button"
+                  onClick={(event) => onCloseLane(event, lane.id)}
+                  onPointerDown={(event) => event.stopPropagation()}
+                  className={`p-0.5 rounded transition-colors ${isActive
+                      ? "text-brand-primary/80 hover:text-white hover:bg-white/10"
+                      : "opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-zinc-200 hover:bg-white/5"
+                    }`}
+                  title={`Close ${lane.label}`}
+                >
+                  <X size={10} strokeWidth={2.5} />
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <button
+        type="button"
+        onClick={onAddLane}
+        onPointerDown={(event) => event.stopPropagation()}
+        className={`h-full flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/5 transition-colors border-r border-app-border shrink-0 ${
+          isSuperCompact ? "w-6" : isCompact ? "w-8" : "w-10"
+        }`}
+      >
+        <Plus size={12} strokeWidth={2.5} />
+      </button>
+    </div>
+  );
+});
 
 export function TerminalInstance({ agentId, agentName, cwd, onRemove, onDetach, onSplit, dragAttributes, dragListeners, workspaceName, workspaceId, isZenMode, onFocus, onZoom }: Props) {
   const terminalRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState<number>(500);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerWidth(entry.contentRect.width);
+      }
+    });
+    observer.observe(containerRef.current);
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
 
   const [isPulsing, setIsPulsing] = useState(false);
   const [isReady, setIsReady] = useState(false);
@@ -723,6 +755,7 @@ export function TerminalInstance({ agentId, agentName, cwd, onRemove, onDetach, 
 
   return (
     <div
+      ref={containerRef}
       className={`flex flex-col h-full w-full transition-colors duration-300 outline-none ${isZenMode ? 'bg-black zen-terminal' : sentinelPaused ? 'bg-transparent border border-red-400 shadow-sm z-10 relative' : isPulsing ? 'bg-transparent border border-brand-accent animate-pulse-border shadow-sm z-10 relative' : isFocused ? 'bg-transparent border border-brand-accent shadow-sm z-10 relative' : 'bg-transparent border border-app-border z-0'}`}
       tabIndex={-1}
       onFocus={handleFocus}
@@ -743,9 +776,11 @@ export function TerminalInstance({ agentId, agentName, cwd, onRemove, onDetach, 
           >
             {dragListeners && <GripVertical size={12} className="text-slate-600" />}
             <TerminalIcon size={12} className={sentinelPaused ? 'text-red-300' : isPulsing ? 'text-brand-primary' : isFocused ? 'text-brand-accent' : 'text-slate-500'} />
-            <span className={`text-[11px] font-bold tracking-widest uppercase ${sentinelPaused ? 'text-red-200' : isPulsing ? 'text-brand-primary' : isFocused ? 'text-brand-primary' : 'text-zinc-200'}`}>
-              {agentName}
-            </span>
+            {containerWidth >= 340 && (
+              <span className={`text-[11px] font-bold tracking-widest uppercase ${sentinelPaused ? 'text-red-200' : isPulsing ? 'text-brand-primary' : isFocused ? 'text-brand-primary' : 'text-zinc-200'}`}>
+                {agentName}
+              </span>
+            )}
             {(isPulsing || sentinelPaused) && <Zap size={12} className="text-brand-warn" />}
           </div>
 
@@ -761,12 +796,13 @@ export function TerminalInstance({ agentId, agentName, cwd, onRemove, onDetach, 
             onEditLaneLabelChange={setEditLaneLabel}
             onCommitRenameLane={handleCommitRenameLane}
             onCancelRenameLane={handleCancelRenameLane}
+            containerWidth={containerWidth}
           />
 
 
           <div className="h-full flex items-center gap-2 px-3 shrink-0">
             {/* Shell Profile Selector Dropdown */}
-            {availableShells.length > 0 && (
+            {availableShells.length > 0 && containerWidth >= 280 && (
               <div className="relative flex items-center" onClick={(e) => e.stopPropagation()}>
                 <select
                   value={activeLane.shell || ""}
@@ -774,10 +810,12 @@ export function TerminalInstance({ agentId, agentName, cwd, onRemove, onDetach, 
                   onPointerDown={(e) => e.stopPropagation()}
                   onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => e.stopPropagation()}
-                  className="bg-zinc-950/80 border border-zinc-800/80 hover:border-zinc-700/80 rounded px-1.5 py-0.5 text-zinc-300 font-mono text-[9px] font-bold outline-none cursor-pointer tracking-tight max-w-[110px] truncate"
+                  className={`bg-zinc-950/80 border border-zinc-800/80 hover:border-zinc-700/80 rounded px-1.5 py-0.5 text-zinc-300 font-mono text-[9px] font-bold outline-none cursor-pointer tracking-tight truncate ${
+                    containerWidth < 360 ? "max-w-[55px] text-[8px]" : "max-w-[110px]"
+                  }`}
                   title="Choose Terminal Shell Profile"
                 >
-                  <option value="" className="bg-zinc-950 text-zinc-400 font-mono text-[9px]">Default Shell</option>
+                  <option value="" className="bg-zinc-950 text-zinc-400 font-mono text-[9px]">Default</option>
                   {availableShells.map((profile) => (
                     <option key={profile.command} value={profile.command} className="bg-zinc-950 text-zinc-300 font-mono text-[9px]">
                       {profile.name}
@@ -788,16 +826,18 @@ export function TerminalInstance({ agentId, agentName, cwd, onRemove, onDetach, 
             )}
 
             {/* CPU & Memory pill widgets */}
-            <div className="hidden md:flex items-center gap-1.5">
-              <div className="flex items-center bg-zinc-950/80 border border-zinc-800/80 px-2 py-0.5 rounded text-zinc-400 font-mono text-[9px] font-bold shadow-inner" title="CPU Usage">
-                <span className="text-[8px] text-zinc-600 mr-0.5 uppercase tracking-tighter">CPU</span>
-                <span className="text-zinc-300">{stats.cpu.toFixed(1)}%</span>
+            {containerWidth >= 460 && (
+              <div className="hidden md:flex items-center gap-1.5">
+                <div className="flex items-center bg-zinc-950/80 border border-zinc-800/80 px-2 py-0.5 rounded text-zinc-400 font-mono text-[9px] font-bold shadow-inner" title="CPU Usage">
+                  <span className="text-[8px] text-zinc-600 mr-0.5 uppercase tracking-tighter">CPU</span>
+                  <span className="text-zinc-300">{stats.cpu.toFixed(1)}%</span>
+                </div>
+                <div className="flex items-center bg-zinc-950/80 border border-zinc-800/80 px-2 py-0.5 rounded text-zinc-400 font-mono text-[9px] font-bold shadow-inner" title="Memory Usage">
+                  <span className="text-[8px] text-zinc-600 mr-0.5 uppercase tracking-tighter">MEM</span>
+                  <span className="text-zinc-300">{(stats.mem / 1024 / 1024).toFixed(0)}MB</span>
+                </div>
               </div>
-              <div className="flex items-center bg-zinc-950/80 border border-zinc-800/80 px-2 py-0.5 rounded text-zinc-400 font-mono text-[9px] font-bold shadow-inner" title="Memory Usage">
-                <span className="text-[8px] text-zinc-600 mr-0.5 uppercase tracking-tighter">MEM</span>
-                <span className="text-zinc-300">{(stats.mem / 1024 / 1024).toFixed(0)}MB</span>
-              </div>
-            </div>
+            )}
 
             {/* State capsule */}
             <div className={`flex items-center gap-1.5 bg-zinc-950/80 border px-2 py-0.5 rounded-md font-mono text-[9px] font-bold ${
@@ -816,9 +856,11 @@ export function TerminalInstance({ agentId, agentName, cwd, onRemove, onDetach, 
                   <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-brand-warn shadow-[0_0_8px_rgba(245,158,11,0.6)]"></span>
                 )}
               </span>
-              <span className="tracking-tight uppercase text-[9px]">
-                {sentinelPaused ? 'PAUSED' : isReady ? 'IDLE' : 'INIT'}
-              </span>
+              {containerWidth >= 380 && (
+                <span className="tracking-tight uppercase text-[9px]">
+                  {sentinelPaused ? 'PAUSED' : isReady ? 'IDLE' : 'INIT'}
+                </span>
+              )}
             </div>
 
             {/* Button clusters */}
