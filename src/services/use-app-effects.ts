@@ -109,7 +109,8 @@ export function useCodeReviewStats(currentProject: string | null) {
 
 export function usePortCount(isDbLoaded: boolean) {
   const appMode = useUIStore(s => s.appMode);
-  const showPortManager = useUIStore(s => s.showPortManager);
+  const openPanel = useUIStore(s => s.openPanel);
+  const showPortManager = openPanel === "ports";
   const setPortCount = useAgentStore(s => s.setPortCount);
 
   useEffect(() => {
@@ -255,17 +256,17 @@ export function useHandoffListeners(opts: HandoffListenersOptions) {
 }
 
 export function useOmnibarShortcut() {
-  const setShowOmnibar = useUIStore(s => s.setShowOmnibar);
+  const togglePanel = useUIStore(s => s.togglePanel);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (matchesKeys(e, "quick-palette")) {
         e.preventDefault();
         e.stopPropagation();
-        setShowOmnibar(prev => !prev);
+        togglePanel("omnibar");
       }
     };
     window.addEventListener("keydown", handleKeyDown, true);
     return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, [setShowOmnibar]);
+  }, [togglePanel]);
 }

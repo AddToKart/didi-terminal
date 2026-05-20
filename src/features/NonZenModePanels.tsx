@@ -2,7 +2,7 @@ import { lazy, Suspense, useState, useEffect, type ReactNode } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { StatusBar } from "../components/layout/StatusBar";
-import { useUIStore } from "../services/stores/ui-store";
+import { useUIController } from "../services/useUIController";
 import { useGitStore } from "../services/stores/git-store";
 import { useAgentStore } from "../services/stores/agent-store";
 import { useWorkspaceStore } from "../services/stores/workspace-store";
@@ -47,54 +47,58 @@ interface NonZenModePanelsProps {
 export function NonZenModePanels({
   currentProject,
 }: NonZenModePanelsProps) {
-  const showCodeReview = useUIStore(s => s.showCodeReview);
-  const setShowCodeReview = useUIStore(s => s.setShowCodeReview);
-  const showGitPanel = useUIStore(s => s.showGitPanel);
-  const setShowGitPanel = useUIStore(s => s.setShowGitPanel);
-  const showGitFullscreen = useUIStore(s => s.showGitFullscreen);
-  const setShowGitFullscreen = useUIStore(s => s.setShowGitFullscreen);
-  const showPersonalKanban = useUIStore(s => s.showPersonalKanban);
-  const setShowPersonalKanban = useUIStore(s => s.setShowPersonalKanban);
-  const showCalendar = useUIStore(s => s.showCalendar);
-  const setShowCalendar = useUIStore(s => s.setShowCalendar);
-  const showFileExplorer = useUIStore(s => s.showFileExplorer);
-  const setShowFileExplorer = useUIStore(s => s.setShowFileExplorer);
-  const showPortManager = useUIStore(s => s.showPortManager);
-  const setShowPortManager = useUIStore(s => s.setShowPortManager);
-  const showPortForwarding = useUIStore(s => s.showPortForwarding);
-  const setShowPortForwarding = useUIStore(s => s.setShowPortForwarding);
-  const showDockerManager = useUIStore(s => s.showDockerManager);
-  const setShowDockerManager = useUIStore(s => s.setShowDockerManager);
-  const showEnvManager = useUIStore(s => s.showEnvManager);
-  const setShowEnvManager = useUIStore(s => s.setShowEnvManager);
-  const showPackageManager = useUIStore(s => s.showPackageManager);
-  const setShowPackageManager = useUIStore(s => s.setShowPackageManager);
-  const showApiLab = useUIStore(s => s.showApiLab);
-  const setShowApiLab = useUIStore(s => s.setShowApiLab);
-  const showDbViewer = useUIStore(s => s.showDbViewer);
-  const setShowDbViewer = useUIStore(s => s.setShowDbViewer);
-  const showMdViewer = useUIStore(s => s.showMdViewer);
-  const setShowMdViewer = useUIStore(s => s.setShowMdViewer);
-  const showConfigEditor = useUIStore(s => s.showConfigEditor);
-  const setShowConfigEditor = useUIStore(s => s.setShowConfigEditor);
-  const showIconBrowser = useUIStore(s => s.showIconBrowser);
-  const setShowIconBrowser = useUIStore(s => s.setShowIconBrowser);
-  const showTailwindLabs = useUIStore(s => s.showTailwindLabs);
-  const setShowTailwindLabs = useUIStore(s => s.setShowTailwindLabs);
-  const showNpmLookup = useUIStore(s => s.showNpmLookup);
-  const setShowNpmLookup = useUIStore(s => s.setShowNpmLookup);
-  const showHtmlToJsx = useUIStore(s => s.showHtmlToJsx);
-  const setShowHtmlToJsx = useUIStore(s => s.setShowHtmlToJsx);
-  const showSvgOptimizer = useUIStore(s => s.showSvgOptimizer);
-  const setShowSvgOptimizer = useUIStore(s => s.setShowSvgOptimizer);
-  const showStorageInspector = useUIStore(s => s.showStorageInspector);
-  const setShowStorageInspector = useUIStore(s => s.setShowStorageInspector);
-  const showMockDataGenerator = useUIStore(s => s.showMockDataGenerator);
-  const setShowMockDataGenerator = useUIStore(s => s.setShowMockDataGenerator);
-  const showSecurityPanel = useUIStore(s => s.showSecurityPanel);
-  const setShowSecurityPanel = useUIStore(s => s.setShowSecurityPanel);
-  const pendingWorkspaceId = useUIStore(s => s.pendingWorkspaceId);
-  const setPendingWorkspaceId = useUIStore(s => s.setPendingWorkspaceId);
+  const {
+    openPanel,
+    setOpenPanel,
+    showCodeReview,
+    setShowCodeReview,
+    showGitPanel,
+    setShowGitPanel,
+    showGitFullscreen,
+    setShowGitFullscreen,
+    showPersonalKanban,
+    setShowPersonalKanban,
+    showCalendar,
+    setShowCalendar,
+    showFileExplorer,
+    setShowFileExplorer,
+    showPortManager,
+    setShowPortManager,
+    showPortForwarding,
+    setShowPortForwarding,
+    showDockerManager,
+    setShowDockerManager,
+    showEnvManager,
+    setShowEnvManager,
+    showPackageManager,
+    setShowPackageManager,
+    showApiLab,
+    setShowApiLab,
+    showDbViewer,
+    setShowDbViewer,
+    showMdViewer,
+    setShowMdViewer,
+    showConfigEditor,
+    setShowConfigEditor,
+    showIconBrowser,
+    setShowIconBrowser,
+    showTailwindLabs,
+    setShowTailwindLabs,
+    showNpmLookup,
+    setShowNpmLookup,
+    showHtmlToJsx,
+    setShowHtmlToJsx,
+    showSvgOptimizer,
+    setShowSvgOptimizer,
+    showStorageInspector,
+    setShowStorageInspector,
+    showMockDataGenerator,
+    setShowMockDataGenerator,
+    showSecurityPanel,
+    setShowSecurityPanel,
+    pendingWorkspaceId,
+    setPendingWorkspaceId,
+  } = useUIController();
 
   const setCodeReviewStats = useGitStore(s => s.setCodeReviewStats);
   const portCount = useAgentStore(s => s.portCount);
@@ -121,20 +125,14 @@ export function NonZenModePanels({
     return () => { active = false; clearInterval(interval); };
   }, []);
 
-  const backdropVisible = showCodeReview || showGitPanel || showPersonalKanban || showCalendar || showFileExplorer;
+  const backdropVisible = !!openPanel && ["codereview", "git", "kanban", "calendar", "fileexplorer"].includes(openPanel);
 
   return (
     <>
       {backdropVisible && (
         <div
           className="fixed inset-0 bg-black/85 z-[45] animate-in fade-in duration-300"
-          onClick={() => {
-            setShowCodeReview(false);
-            setShowGitPanel(false);
-            setShowPersonalKanban(false);
-            setShowCalendar(false);
-            setShowFileExplorer(false);
-          }}
+          onClick={() => setOpenPanel(null)}
         />
       )}
 

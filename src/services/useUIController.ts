@@ -5,66 +5,16 @@ export function useUIController() {
   const setAppMode = useUIStore((s) => s.setAppMode);
   const isSidebarOpen = useUIStore((s) => s.isSidebarOpen);
   const setIsSidebarOpen = useUIStore((s) => s.setIsSidebarOpen);
-  const showNetworkGraph = useUIStore((s) => s.showNetworkGraph);
-  const setShowNetworkGraph = useUIStore((s) => s.setShowNetworkGraph);
-  const showSettings = useUIStore((s) => s.showSettings);
-  const setShowSettings = useUIStore((s) => s.setShowSettings);
-  const showBrainstorm = useUIStore((s) => s.showBrainstorm);
-  const setShowBrainstorm = useUIStore((s) => s.setShowBrainstorm);
-  const showMasterPlan = useUIStore((s) => s.showMasterPlan);
-  const setShowMasterPlan = useUIStore((s) => s.setShowMasterPlan);
+  
+  const openPanel = useUIStore((s) => s.openPanel);
+  const setOpenPanel = useUIStore((s) => s.setOpenPanel);
+  const togglePanel = useUIStore((s) => s.togglePanel);
+
   const isTasksCollapsed = useUIStore((s) => s.isTasksCollapsed);
   const setIsTasksCollapsed = useUIStore((s) => s.setIsTasksCollapsed);
   const isActivityCollapsed = useUIStore((s) => s.isActivityCollapsed);
   const setIsActivityCollapsed = useUIStore((s) => s.setIsActivityCollapsed);
-  const showCodeReview = useUIStore((s) => s.showCodeReview);
-  const setShowCodeReview = useUIStore((s) => s.setShowCodeReview);
-  const showGitPanel = useUIStore((s) => s.showGitPanel);
-  const setShowGitPanel = useUIStore((s) => s.setShowGitPanel);
-  const showGitFullscreen = useUIStore((s) => s.showGitFullscreen);
-  const setShowGitFullscreen = useUIStore((s) => s.setShowGitFullscreen);
-  const showPersonalKanban = useUIStore((s) => s.showPersonalKanban);
-  const setShowPersonalKanban = useUIStore((s) => s.setShowPersonalKanban);
-  const showCalendar = useUIStore((s) => s.showCalendar);
-  const setShowCalendar = useUIStore((s) => s.setShowCalendar);
-  const showFileExplorer = useUIStore((s) => s.showFileExplorer);
-  const setShowFileExplorer = useUIStore((s) => s.setShowFileExplorer);
-  const showPortManager = useUIStore((s) => s.showPortManager);
-  const setShowPortManager = useUIStore((s) => s.setShowPortManager);
-  const showPortForwarding = useUIStore((s) => s.showPortForwarding);
-  const setShowPortForwarding = useUIStore((s) => s.setShowPortForwarding);
-  const showDockerManager = useUIStore((s) => s.showDockerManager);
-  const setShowDockerManager = useUIStore((s) => s.setShowDockerManager);
-  const showEnvManager = useUIStore((s) => s.showEnvManager);
-  const setShowEnvManager = useUIStore((s) => s.setShowEnvManager);
-  const showPackageManager = useUIStore((s) => s.showPackageManager);
-  const setShowPackageManager = useUIStore((s) => s.setShowPackageManager);
-  const showApiLab = useUIStore((s) => s.showApiLab);
-  const setShowApiLab = useUIStore((s) => s.setShowApiLab);
-  const showMonorepoGraph = useUIStore((s) => s.showMonorepoGraph);
-  const setShowMonorepoGraph = useUIStore((s) => s.setShowMonorepoGraph);
-  const showDbViewer = useUIStore((s) => s.showDbViewer);
-  const setShowDbViewer = useUIStore((s) => s.setShowDbViewer);
-  const showMdViewer = useUIStore((s) => s.showMdViewer);
-  const setShowMdViewer = useUIStore((s) => s.setShowMdViewer);
-  const showConfigEditor = useUIStore((s) => s.showConfigEditor);
-  const setShowConfigEditor = useUIStore((s) => s.setShowConfigEditor);
-  const showIconBrowser = useUIStore((s) => s.showIconBrowser);
-  const setShowIconBrowser = useUIStore((s) => s.setShowIconBrowser);
-  const showTailwindLabs = useUIStore((s) => s.showTailwindLabs);
-  const setShowTailwindLabs = useUIStore((s) => s.setShowTailwindLabs);
-  const showNpmLookup = useUIStore((s) => s.showNpmLookup);
-  const setShowNpmLookup = useUIStore((s) => s.setShowNpmLookup);
-  const showHtmlToJsx = useUIStore((s) => s.showHtmlToJsx);
-  const setShowHtmlToJsx = useUIStore((s) => s.setShowHtmlToJsx);
-  const showSvgOptimizer = useUIStore((s) => s.showSvgOptimizer);
-  const setShowSvgOptimizer = useUIStore((s) => s.setShowSvgOptimizer);
-  const showStorageInspector = useUIStore((s) => s.showStorageInspector);
-  const setShowStorageInspector = useUIStore((s) => s.setShowStorageInspector);
-  const showMockDataGenerator = useUIStore((s) => s.showMockDataGenerator);
-  const setShowMockDataGenerator = useUIStore((s) => s.setShowMockDataGenerator);
-  const showOmnibar = useUIStore((s) => s.showOmnibar);
-  const setShowOmnibar = useUIStore((s) => s.setShowOmnibar);
+
   const showSecurityPanel = useUIStore((s) => s.showSecurityPanel);
   const setShowSecurityPanel = useUIStore((s) => s.setShowSecurityPanel);
   const pendingWorkspaceId = useUIStore((s) => s.pendingWorkspaceId);
@@ -72,71 +22,114 @@ export function useUIController() {
   const isGlass = useUIStore((s) => s.isGlass);
   const sidecarStatus = useUIStore((s) => s.sidecarStatus);
 
+  // Helper generator to construct backward compatible setters that handle functional updates
+  const makeSetter = (panelKey: string) => (val: boolean | ((prev: boolean) => boolean)) => {
+    const isCurrent = openPanel === panelKey;
+    const next = typeof val === 'function' ? val(isCurrent) : val;
+    setOpenPanel(next ? panelKey : null);
+  };
+
   return {
     appMode,
     setAppMode,
     isSidebarOpen,
     setIsSidebarOpen,
-    showNetworkGraph,
-    setShowNetworkGraph,
-    showSettings,
-    setShowSettings,
-    showBrainstorm,
-    setShowBrainstorm,
-    showMasterPlan,
-    setShowMasterPlan,
+    
+    // Unified panel hook accessors
+    openPanel,
+    setOpenPanel,
+    togglePanel,
+
+    // Dynamic boolean mappings
+    showNetworkGraph: openPanel === 'networkgraph',
+    setShowNetworkGraph: makeSetter('networkgraph'),
+    
+    showSettings: openPanel === 'settings',
+    setShowSettings: makeSetter('settings'),
+    
+    showBrainstorm: openPanel === 'brainstorm',
+    setShowBrainstorm: makeSetter('brainstorm'),
+    
+    showMasterPlan: openPanel === 'masterplan',
+    setShowMasterPlan: makeSetter('masterplan'),
+    
     isTasksCollapsed,
     setIsTasksCollapsed,
     isActivityCollapsed,
     setIsActivityCollapsed,
-    showCodeReview,
-    setShowCodeReview,
-    showGitPanel,
-    setShowGitPanel,
-    showGitFullscreen,
-    setShowGitFullscreen,
-    showPersonalKanban,
-    setShowPersonalKanban,
-    showCalendar,
-    setShowCalendar,
-    showFileExplorer,
-    setShowFileExplorer,
-    showPortManager,
-    setShowPortManager,
-    showPortForwarding,
-    setShowPortForwarding,
-    showDockerManager,
-    setShowDockerManager,
-    showEnvManager,
-    setShowEnvManager,
-    showPackageManager,
-    setShowPackageManager,
-    showApiLab,
-    setShowApiLab,
-    showMonorepoGraph,
-    setShowMonorepoGraph,
-    showDbViewer,
-    setShowDbViewer,
-    showMdViewer,
-    setShowMdViewer,
-    showConfigEditor,
-    setShowConfigEditor,
-    showIconBrowser,
-    setShowIconBrowser,
-    showTailwindLabs,
-    setShowTailwindLabs,
-    showNpmLookup,
-    setShowNpmLookup,
-    showHtmlToJsx,
-    setShowHtmlToJsx,
-    showSvgOptimizer,
-    setShowSvgOptimizer,
-    showStorageInspector,
-    setShowStorageInspector,
-    showMockDataGenerator,
-    setShowMockDataGenerator,
-    showOmnibar,
-    setShowOmnibar,
+    
+    showCodeReview: openPanel === 'codereview',
+    setShowCodeReview: makeSetter('codereview'),
+    
+    showGitPanel: openPanel === 'git',
+    setShowGitPanel: makeSetter('git'),
+    
+    showGitFullscreen: openPanel === 'gitfullscreen',
+    setShowGitFullscreen: makeSetter('gitfullscreen'),
+    
+    showPersonalKanban: openPanel === 'kanban',
+    setShowPersonalKanban: makeSetter('kanban'),
+    
+    showCalendar: openPanel === 'calendar',
+    setShowCalendar: makeSetter('calendar'),
+    
+    showFileExplorer: openPanel === 'fileexplorer',
+    setShowFileExplorer: makeSetter('fileexplorer'),
+    
+    showPortManager: openPanel === 'ports',
+    setShowPortManager: makeSetter('ports'),
+    
+    showPortForwarding: openPanel === 'portforwarding',
+    setShowPortForwarding: makeSetter('portforwarding'),
+    
+    showDockerManager: openPanel === 'docker',
+    setShowDockerManager: makeSetter('docker'),
+    
+    showEnvManager: openPanel === 'env',
+    setShowEnvManager: makeSetter('env'),
+    
+    showPackageManager: openPanel === 'packages',
+    setShowPackageManager: makeSetter('packages'),
+    
+    showApiLab: openPanel === 'api',
+    setShowApiLab: makeSetter('api'),
+    
+    showMonorepoGraph: openPanel === 'monorepograph',
+    setShowMonorepoGraph: makeSetter('monorepograph'),
+    
+    showDbViewer: openPanel === 'db',
+    setShowDbViewer: makeSetter('db'),
+    
+    showMdViewer: openPanel === 'md',
+    setShowMdViewer: makeSetter('md'),
+    
+    showConfigEditor: openPanel === 'config',
+    setShowConfigEditor: makeSetter('config'),
+    
+    showIconBrowser: openPanel === 'icons',
+    setShowIconBrowser: makeSetter('icons'),
+    
+    showTailwindLabs: openPanel === 'tailwind',
+    setShowTailwindLabs: makeSetter('tailwind'),
+    
+    showNpmLookup: openPanel === 'npm',
+    setShowNpmLookup: makeSetter('npm'),
+    
+    showHtmlToJsx: openPanel === 'html2jsx',
+    setShowHtmlToJsx: makeSetter('html2jsx'),
+    
+    showSvgOptimizer: openPanel === 'svg',
+    setShowSvgOptimizer: makeSetter('svg'),
+    
+    showStorageInspector: openPanel === 'storage',
+    setShowStorageInspector: makeSetter('storage'),
+    
+    showMockDataGenerator: openPanel === 'mock',
+    setShowMockDataGenerator: makeSetter('mock'),
+    
+    showOmnibar: openPanel === 'omnibar',
+    setShowOmnibar: makeSetter('omnibar'),
+    
     showSecurityPanel,
     setShowSecurityPanel,
     pendingWorkspaceId,

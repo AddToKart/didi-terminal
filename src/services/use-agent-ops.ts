@@ -32,7 +32,7 @@ export function useAgentOps(
   const newAgentName = useAgentStore(s => s.newAgentName);
   const setNewAgentName = useAgentStore(s => s.setNewAgentName);
   const setAgentQueueCounts = useAgentStore(s => s.setAgentQueueCounts);
-  const setShowMonorepoGraph = useUIStore(s => s.setShowMonorepoGraph);
+  const setOpenPanel = useUIStore(s => s.setOpenPanel);
   const approvalRequest = useOrchestrationStore(s => s.approvalRequest);
   const setApprovalRequest = useOrchestrationStore(s => s.setApprovalRequest);
   const setTasks = useOrchestrationStore(s => s.setTasks);
@@ -107,7 +107,7 @@ export function useAgentOps(
     const newAgent = { id: crypto.randomUUID(), name: agentName };
     setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, agents: [...t.agents, newAgent] } : t));
     addLog(`Opening ${name} in terminal...`, "system");
-    setShowMonorepoGraph(false);
+    setOpenPanel(null);
   };
 
   const removeAgent = (agentToRemoveId: string) => {
