@@ -1,6 +1,22 @@
 pub mod bus;
 pub mod config;
+pub mod events;
 pub mod git;
 pub mod llm;
 pub mod master_plan;
 pub mod pty;
+pub mod dashboard;
+pub mod fs;
+pub mod ports;
+pub mod http;
+pub mod packages;
+pub mod graph;
+pub mod security;
+pub mod db_client;
+pub mod job;
+pub mod profile;
+pub mod docker;
+pub mod vault;
+pub mod sqlite;
+
+

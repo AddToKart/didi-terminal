@@ -1,7 +1,7 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import { emit, listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
-import type { SentinelIncident } from "../components/SentinelPanel";
+import type { SentinelIncident } from "../components/panels/SentinelPanel";
 import {
   getPtyKey,
   isFailureOutput,
@@ -39,9 +39,29 @@ export const registerSentinelMonitoring = ({
       lastSignature: "",
       signatureCount: 0,
       lastInterventionAt: 0,
+      recentOutputBuffer: "",
+      isCheckingLlm: false,
     };
     sentinelStates.current.set(key, next);
     return next;
+  };
+
+  const checkSemanticLoop = async (state: SentinelAgentState) => {
+    if (state.isCheckingLlm || !state.recentOutputBuffer) return false;
+    state.isCheckingLlm = true;
+    try {
+      const system = `You are a loop detection sentinel. Analyze the following terminal output from an autonomous agent. Is the agent stuck in a logical loop (e.g. trying the same failed approach repeatedly without making progress)? Reply strictly with exactly "YES" or "NO".`;
+      const response = await invoke<string>("ask_llm", { prompt: state.recentOutputBuffer, system });
+      if (response.trim().toUpperCase().includes("YES")) {
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.warn("Sentinel LLM check failed:", e);
+      return false;
+    } finally {
+      state.isCheckingLlm = false;
+    }
   };
 
   const intervene = (agent: string, reason: string, command?: string) => {
@@ -53,6 +73,7 @@ export const registerSentinelMonitoring = ({
     state.lastInterventionAt = now;
     state.failureCount = 0;
     state.signatureCount = 0;
+    state.recentOutputBuffer = "";
 
     const prompt = "You are stuck in a loop. Sentinel paused you because "
       + `${reason}. Try a different approach, inspect the actual error, or ask another agent for help. `
@@ -72,7 +93,7 @@ export const registerSentinelMonitoring = ({
       command,
       at: new Date().toLocaleTimeString(),
     };
-    setSentinelIncidents(prev => [incident, ...prev].slice(0, 20));
+    setSentinelIncidents((prev: any) => [incident, ...prev].slice(0, 20));
     addLog(`Sentinel paused ${agent}: ${reason}`, "system");
     emit("sentinel-intervention", incident).catch(console.error);
   };
@@ -107,6 +128,9 @@ export const registerSentinelMonitoring = ({
     const key = getPtyKey(event.payload.agent);
     const state = getState(key);
     const text = stripTerminalControls(event.payload.data);
+    
+    state.recentOutputBuffer = `${state.recentOutputBuffer}${text}`.slice(-3000);
+
     const signature = normalizeLoopSignature(text);
     if (signature.length > 40 && signature === state.lastSignature) {
       state.signatureCount += 1;
@@ -115,8 +139,10 @@ export const registerSentinelMonitoring = ({
       state.signatureCount = 1;
     }
 
-    if (state.signatureCount >= 4) {
-      intervene(key, "the same terminal output repeated several times", state.lastCommand);
+    if (state.signatureCount >= 3 && !state.isCheckingLlm) {
+      checkSemanticLoop(state).then(isStuck => {
+        if (isStuck) intervene(key, "Semantic Sentinel detected a logical loop in output", state.lastCommand);
+      });
       return;
     }
 
@@ -128,8 +154,10 @@ export const registerSentinelMonitoring = ({
     state.lastFailureCommand = state.lastCommand;
     state.lastFailureAt = now;
 
-    if (state.failureCount >= 3) {
-      intervene(key, "the same command appears to have failed 3 times", state.lastCommand);
+    if (state.failureCount >= 2 && !state.isCheckingLlm) {
+       checkSemanticLoop(state).then(isStuck => {
+        if (isStuck) intervene(key, "Semantic Sentinel detected repeated logical failures", state.lastCommand);
+      });
     }
   });
 

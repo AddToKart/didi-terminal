@@ -1,7 +1,7 @@
-import type { Dispatch, MutableRefObject, SetStateAction } from "react";
+import type { MutableRefObject } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
-import type { GitSnapshotRecord } from "../components/SnapshotPanel";
+import type { GitSnapshotRecord } from "../components/panels/SnapshotPanel";
 import {
   getAgentId,
   findMatchingAgent,
@@ -19,16 +19,18 @@ import {
   type TaskRecord,
 } from "./app-core";
 
-interface RegisterHandoffListenersOptions {
+import type { AgentInstance } from "../types/workspace";
+
+export interface RegisterHandoffListenersOptions {
   currentProjectRef: MutableRefObject<string | null>;
-  agentsRef: MutableRefObject<string[]>;
+  agentsRef: MutableRefObject<AgentInstance[]>;
   pendingHandoffs: MutableRefObject<Map<string, string[]>>;
   readyAgents: MutableRefObject<Set<string>>;
   hitlEnabledRef: MutableRefObject<boolean>;
   activeMasterPlanTask: MutableRefObject<ActiveMasterPlanTask | null>;
-  setTasks: Dispatch<SetStateAction<TaskRecord[]>>;
-  setSnapshots: Dispatch<SetStateAction<GitSnapshotRecord[]>>;
-  setApprovalRequest: Dispatch<SetStateAction<HitlApprovalRequest | null>>;
+  setTasks: (val: TaskRecord[] | ((prev: TaskRecord[]) => TaskRecord[])) => void;
+  setSnapshots: (val: GitSnapshotRecord[] | ((prev: GitSnapshotRecord[]) => GitSnapshotRecord[])) => void;
+  setApprovalRequest: (request: HitlApprovalRequest | null) => void;
   addLog: (message: string, type?: "system" | "handoff") => void;
   trackAgentPlanTask: (agentName: string, text: string) => void;
   popAgentPlanTask: (agentName: string) => string | null;
@@ -195,7 +197,7 @@ export const registerHandoffListeners = ({
       addLog(`Blocked handoff to inactive agent: ${targetName}`, "system");
 
       if (senderAgent) {
-        const senderKey = getPtyKey(senderAgent);
+        const senderKey = getPtyKey(senderAgent.name);
         if (readyAgents.current.has(senderKey)) {
           writeHandoff(senderKey, notice);
         } else {
@@ -205,12 +207,12 @@ export const registerHandoffListeners = ({
       return;
     }
 
-    const resolvedAgentName = matchingAgent;
+    const resolvedAgentName = matchingAgent.name;
     const agentKey = getPtyKey(resolvedAgentName);
 
     addLog(
-      matchingAgent && matchingAgent !== targetName
-        ? `${kind} to ${matchingAgent} (${targetName})`
+      matchingAgent && matchingAgent.name !== targetName
+        ? `${kind} to ${matchingAgent.name} (${targetName})`
         : `${kind} to ${targetName}`,
       "handoff"
     );
@@ -260,7 +262,24 @@ export const registerHandoffListeners = ({
     }
   });
 
+  const taskTimeoutInterval = setInterval(() => {
+    setTasks((prev: TaskRecord[]) => {
+      let changed = false;
+      const now = Date.now();
+      const next = prev.map(task => {
+        if (task.status === "in_progress" && task.dispatchedAt && now - task.dispatchedAt > 5 * 60 * 1000) {
+          changed = true;
+          addLog(`Task ${task.id.slice(0, 4)} from ${task.sender} to ${task.target} timed out`, "system");
+          return { ...task, status: "timeout" as any, updatedAt: new Date().toLocaleTimeString() };
+        }
+        return task;
+      });
+      return changed ? next : prev;
+    });
+  }, 60000);
+
   return () => {
+    clearInterval(taskTimeoutInterval);
     unlistenHandoff.then(f => f());
     unlistenReady.then(f => f());
   };

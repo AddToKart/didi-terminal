@@ -13,6 +13,8 @@ pub struct HandoffMessage {
     pub task_id: String,
     #[serde(default)]
     pub parent_task_id: String,
+    #[serde(default)]
+    pub auth_token: String,
 }
 
 fn default_handoff_kind() -> String {
@@ -24,12 +26,64 @@ pub fn start_agent_bus(app_handle: AppHandle) {
     tauri::async_runtime::spawn(async move {
         use tokio::net::windows::named_pipe::ServerOptions;
         use tokio::io::AsyncReadExt;
-        
+
         let pipe_name = r"\\.\pipe\agentbus";
+
+        // Restrictive SDDL security descriptor for the named pipe.
+        // Default Windows named pipe ACL grants "Everyone" read/write, which allows
+        // any local process to connect. This SDDL removes that and restricts access to:
+        //   CO (Creator Owner)  — the process that creates the pipe (full control)
+        //   SY (SYSTEM)         — Windows SYSTEM account (full control)
+        //   BA (Administrators) — Built-in Administrators group (full control)
+        // This prevents other local user accounts and unelevated processes from
+        // connecting to the pipe, while still allowing the app itself and admin tools.
+        let sddl = "D:(A;;GA;;;CO)(A;;GA;;;SY)(A;;GA;;;BA)";
+
         loop {
-            let mut server = match ServerOptions::new().first_pipe_instance(true).create(pipe_name) {
+            // Build a SECURITY_ATTRIBUTES from the SDDL string using Windows API.
+            let server = match (|| -> Result<_, Box<dyn std::error::Error + Send + Sync>> {
+                use windows::Win32::{
+                    Security::{
+                        Authorization::ConvertStringSecurityDescriptorToSecurityDescriptorW,
+                        PSECURITY_DESCRIPTOR,
+                        SECURITY_ATTRIBUTES,
+                    },
+                    System::SystemServices::SECURITY_DESCRIPTOR_REVISION,
+                };
+
+                let sddl_wide: Vec<u16> = sddl.encode_utf16().chain(std::iter::once(0)).collect();
+
+                let mut sec_desc = PSECURITY_DESCRIPTOR::default();
+                unsafe {
+                    ConvertStringSecurityDescriptorToSecurityDescriptorW(
+                        windows::core::PCWSTR::from_raw(sddl_wide.as_ptr()),
+                        SECURITY_DESCRIPTOR_REVISION,
+                        &mut sec_desc,
+                        None,
+                    )?;
+                }
+
+                let mut attrs = SECURITY_ATTRIBUTES {
+                    nLength: std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32,
+                    lpSecurityDescriptor: sec_desc.0,
+                    bInheritHandle: false.into(),
+                };
+
+                let server = unsafe {
+                    ServerOptions::new()
+                        .first_pipe_instance(true)
+                        .access_inbound(true)
+                        .create_with_security_attributes_raw(pipe_name, &mut attrs as *mut _ as *mut core::ffi::c_void)?
+                };
+
+                // The security descriptor is leaked intentionally; it lives for the
+                // lifetime of the pipe which is owned by the server handle.
+                Ok(server)
+            })() {
                 Ok(s) => s,
                 Err(_) => {
+                    // Pipe may already exist from a previous instance or another process.
+                    // Fall back to default creation (less secure but still has session token check).
                     match ServerOptions::new().create(pipe_name) {
                         Ok(s) => s,
                         Err(e) => {
@@ -43,12 +97,32 @@ pub fn start_agent_bus(app_handle: AppHandle) {
 
             if server.connect().await.is_ok() {
                 let mut buf = Vec::new();
-                if server.read_to_end(&mut buf).await.is_ok() {
+                // Security check: limit payload size to 2 MB to prevent OOM.
+                if server.take(2 * 1024 * 1024).read_to_end(&mut buf).await.is_ok() {
                     if !buf.is_empty() {
                         let msg = String::from_utf8_lossy(&buf).to_string();
                         match serde_json::from_str::<serde_json::Value>(&msg) {
                             Ok(json) => {
-                                if let Ok(message) = serde_json::from_value::<HandoffMessage>(json) {
+                                if let Ok(mut message) = serde_json::from_value::<HandoffMessage>(json) {
+                                    // Security check: validate session token.
+                                    let is_valid = if let Some(state) = app_handle.try_state::<crate::AppState>() {
+                                        message.auth_token == state.session_token
+                                    } else {
+                                        false
+                                    };
+
+                                    if !is_valid {
+                                        eprintln!("Unauthorized handoff attempt from sender: {}", message.sender);
+                                        continue;
+                                    }
+
+                                    // Auto-scope targets to the sender's workspace if not fully qualified.
+                                    if message.sender.contains("::") && !message.target.contains("::") {
+                                        if let Some(ws_id) = message.sender.split("::").next() {
+                                            message.target = format!("{}::{}", ws_id, message.target);
+                                        }
+                                    }
+
                                     if let Ok(app_data_dir) = app_handle.path().app_data_dir() {
                                         let context_dir = app_data_dir.join("context");
                                         let _ = std::fs::create_dir_all(&context_dir);
