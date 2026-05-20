@@ -767,12 +767,13 @@ export function TerminalInstance({ agentId, agentName, cwd, onRemove, onDetach, 
           <div className="h-full flex items-center gap-2 px-3 shrink-0">
             {/* Shell Profile Selector Dropdown */}
             {availableShells.length > 0 && (
-              <div className="relative flex items-center">
+              <div className="relative flex items-center" onClick={(e) => e.stopPropagation()}>
                 <select
                   value={activeLane.shell || ""}
                   onChange={(e) => handleSelectShell(e.target.value)}
                   onPointerDown={(e) => e.stopPropagation()}
                   onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
                   className="bg-zinc-950/80 border border-zinc-800/80 hover:border-zinc-700/80 rounded px-1.5 py-0.5 text-zinc-300 font-mono text-[9px] font-bold outline-none cursor-pointer tracking-tight max-w-[110px] truncate"
                   title="Choose Terminal Shell Profile"
                 >
@@ -845,7 +846,7 @@ export function TerminalInstance({ agentId, agentName, cwd, onRemove, onDetach, 
 
       {/* Terminal Find */}
       {showTerminalFind && (
-        <div className="flex items-center gap-2 px-3 py-1.5 border-b border-app-border bg-zinc-900/60 shrink-0">
+        <div className="flex items-center gap-2 px-3 py-1.5 border-b border-app-border bg-zinc-900/60 shrink-0" onClick={(e) => e.stopPropagation()}>
           <Search size={12} className="text-zinc-500 shrink-0" />
           <input
             type="text"
