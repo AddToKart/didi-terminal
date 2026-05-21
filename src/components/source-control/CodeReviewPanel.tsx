@@ -38,6 +38,258 @@ import {
 import { cn } from "@/lib/cn";
 import { eventBus } from "../../services/event-bus";
 
+// ── CODE HIGHLIGHTING UTILITIES ──
+
+function highlightJSONLine(line: string): React.ReactNode {
+  if (!line.trim()) return line;
+  const tokenRegex = /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?|[{}[\],:])/g;
+
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match;
+  let key = 0;
+
+  while ((match = tokenRegex.exec(line)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(<span key={`txt-${key++}`} className="text-zinc-400 font-mono">{line.substring(lastIndex, match.index)}</span>);
+    }
+
+    const token = match[0];
+    if (token.startsWith('"')) {
+      if (token.endsWith(':')) {
+        parts.push(
+          <span key={`key-${key++}`} className="text-cyan-400 font-semibold font-mono">
+            {token.slice(0, -1)}
+          </span>
+        );
+        parts.push(<span key={`colon-${key++}`} className="text-zinc-650 font-mono">:</span>);
+      } else {
+        parts.push(
+          <span key={`str-${key++}`} className="text-emerald-400 font-mono">
+            {token}
+          </span>
+        );
+      }
+    } else if (/^(true|false)$/.test(token)) {
+      parts.push(<span key={`bool-${key++}`} className="text-amber-400 font-bold font-mono">{token}</span>);
+    } else if (token === "null") {
+      parts.push(<span key={`null-${key++}`} className="text-red-400 italic font-mono">{token}</span>);
+    } else if (/^-?\d+(?:\.\d*)?/.test(token)) {
+      parts.push(<span key={`num-${key++}`} className="text-violet-400 font-bold font-mono">{token}</span>);
+    } else {
+      parts.push(<span key={`punc-${key++}`} className="text-zinc-500 font-mono">{token}</span>);
+    }
+
+    lastIndex = tokenRegex.lastIndex;
+  }
+
+  if (lastIndex < line.length) {
+    parts.push(<span key={`rest-${key++}`} className="text-zinc-400 font-mono">{line.substring(lastIndex)}</span>);
+  }
+
+  return <>{parts}</>;
+}
+
+function highlightHtmlLine(line: string): React.ReactNode {
+  if (!line.trim()) return line;
+  if (line.trim().startsWith('<!--')) {
+    return <span className="text-zinc-500/80 italic font-mono">{line}</span>;
+  }
+
+  const tokenRegex = /(<!--.*?-->|<\/?[a-zA-Z0-9:-]+>?|"[^"]*"|'[^']*')/g;
+
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match;
+  let key = 0;
+
+  while ((match = tokenRegex.exec(line)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(<span key={`txt-${key++}`} className="text-zinc-300 font-mono">{line.substring(lastIndex, match.index)}</span>);
+    }
+
+    const token = match[0];
+    if (token.startsWith('<!--')) {
+      parts.push(<span key={`comment-${key++}`} className="text-zinc-500/80 italic font-mono">{token}</span>);
+    } else if (token.startsWith('<')) {
+      const tagNameMatch = token.match(/^<\/?[a-zA-Z0-9:-]+/);
+      if (tagNameMatch) {
+        const tagName = tagNameMatch[0];
+        const rest = token.substring(tagName.length);
+        parts.push(
+          <span key={`bracket-open-${key++}`} className="text-zinc-500 font-mono">
+            {tagName.startsWith('</') ? '</' : '<'}
+          </span>
+        );
+        parts.push(
+          <span key={`tag-${key++}`} className="text-cyan-400 font-semibold font-mono">
+            {tagName.replace(/^<\/?[a-zA-Z0-9:-]+/, (m) => m.startsWith('</') ? m.substring(2) : m.substring(1))}
+          </span>
+        );
+        if (rest) {
+          parts.push(<span key={`bracket-close-${key++}`} className="text-zinc-500 font-mono">{rest}</span>);
+        }
+      } else {
+        parts.push(<span key={`tag-other-${key++}`} className="text-zinc-500 font-mono">{token}</span>);
+      }
+    } else if (token.startsWith('"') || token.startsWith("'")) {
+      parts.push(<span key={`val-${key++}`} className="text-emerald-400 font-mono">{token}</span>);
+    } else {
+      parts.push(<span key={`other-${key++}`} className="text-zinc-300 font-mono">{token}</span>);
+    }
+
+    lastIndex = tokenRegex.lastIndex;
+  }
+
+  if (lastIndex < line.length) {
+    parts.push(<span key={`rest-${key++}`} className="text-zinc-300 font-mono">{line.substring(lastIndex)}</span>);
+  }
+
+  return <>{parts}</>;
+}
+
+function highlightCssLine(line: string): React.ReactNode {
+  if (!line.trim()) return line;
+  if (line.trim().startsWith('/*')) {
+    return <span className="text-zinc-500/80 italic font-mono">{line}</span>;
+  }
+
+  const tokenRegex = /(\/\*.*?\*\/|[a-zA-Z-]+(?=\s*:)|"[^"]*"|'[^']*'|#[a-fA-F0-9]{3,6}|\b\d+(?:px|rem|em|%)?\b)/g;
+
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match;
+  let key = 0;
+
+  while ((match = tokenRegex.exec(line)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(<span key={`txt-${key++}`} className="text-zinc-400 font-mono">{line.substring(lastIndex, match.index)}</span>);
+    }
+
+    const token = match[0];
+    if (token.startsWith('/*')) {
+      parts.push(<span key={`comment-${key++}`} className="text-zinc-500/80 italic font-mono">{token}</span>);
+    } else if (line.substring(tokenRegex.lastIndex).trim().startsWith(':')) {
+      parts.push(<span key={`prop-${key++}`} className="text-cyan-400 font-mono">{token}</span>);
+    } else if (token.startsWith('#')) {
+      parts.push(<span key={`color-${key++}`} className="text-violet-400 font-semibold font-mono">{token}</span>);
+    } else if (/^\b\d+/.test(token)) {
+      parts.push(<span key={`num-${key++}`} className="text-amber-300 font-mono">{token}</span>);
+    } else {
+      parts.push(<span key={`other-${key++}`} className="text-zinc-300 font-mono">{token}</span>);
+    }
+
+    lastIndex = tokenRegex.lastIndex;
+  }
+
+  if (lastIndex < line.length) {
+    parts.push(<span key={`rest-${key++}`} className="text-zinc-400 font-mono">{line.substring(lastIndex)}</span>);
+  }
+
+  return <>{parts}</>;
+}
+
+function highlightGeneralLine(line: string): React.ReactNode {
+  if (!line.trim()) return line;
+
+  if (line.trim().startsWith('//') || line.trim().startsWith('#')) {
+    return <span className="text-zinc-500/80 italic font-mono">{line}</span>;
+  }
+
+  const tokenRegex = /(\/\/.*|"(?:\\.|[^\\"])*"|'(?:\\.|[^\\'])*'|`(?:\\.|[^\\`])*`|\b\d+(?:\.\d*)?\b|\b(?:const|let|var|function|return|if|else|for|while|do|switch|case|break|continue|default|import|export|from|class|extends|new|this|typeof|instanceof|in|of|as|type|interface|enum|public|private|protected|readonly|static|async|await|fn|pub|use|impl|trait|struct|mut|match|ref|where|mod|crate|extern|unsafe|move|dyn)\b|\b[A-Z][a-zA-Z0-9_]*\b|\b[a-z_][a-zA-Z0-9_]*(?=\s*\()|[{}()[\].,:;+\-*/%&|^!=<>?~])/g;
+
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match;
+  let key = 0;
+
+  while ((match = tokenRegex.exec(line)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(<span key={`txt-${key++}`} className="text-zinc-300 font-mono">{line.substring(lastIndex, match.index)}</span>);
+    }
+
+    const token = match[0];
+
+    if (token.startsWith('//')) {
+      parts.push(
+        <span key={`comment-${key++}`} className="text-zinc-500/80 italic font-mono">
+          {token}
+        </span>
+      );
+    } else if (token.startsWith('"') || token.startsWith("'") || token.startsWith('`')) {
+      parts.push(
+        <span key={`str-${key++}`} className="text-emerald-400 font-mono">
+          {token}
+        </span>
+      );
+    } else if (/^\b(?:const|let|var|function|return|if|else|for|while|do|switch|case|break|continue|default|import|export|from|class|extends|new|this|typeof|instanceof|in|of|as|type|interface|enum|public|private|protected|readonly|static|async|await|fn|pub|use|impl|trait|struct|mut|match|ref|where|mod|crate|extern|unsafe|move|dyn)\b$/.test(token)) {
+      const isControl = /^(return|if|else|for|while|do|switch|case|break|continue|default|match|async|await)$/.test(token);
+      parts.push(
+        <span 
+          key={`kw-${key++}`} 
+          className={
+            isControl ? "text-[#ff4081] font-semibold font-mono" : "text-cyan-400 font-semibold font-mono"
+          }
+        >
+          {token}
+        </span>
+      );
+    } else if (/^[A-Z][a-zA-Z0-9_]*$/.test(token)) {
+      parts.push(
+        <span key={`type-${key++}`} className="text-amber-300 font-mono">
+          {token}
+        </span>
+      );
+    } else if (line.substring(tokenRegex.lastIndex).trim().startsWith('(')) {
+      parts.push(
+        <span key={`fn-${key++}`} className="text-sky-300 font-mono">
+          {token}
+        </span>
+      );
+    } else if (/^\b\d+(?:\.\d*)?\b$/.test(token)) {
+      parts.push(
+        <span key={`num-${key++}`} className="text-violet-400 font-bold font-mono">
+          {token}
+        </span>
+      );
+    } else if (/[{}()[\]]/.test(token)) {
+      parts.push(
+        <span key={`bracket-${key++}`} className="text-zinc-500 font-medium font-mono">
+          {token}
+        </span>
+      );
+    } else {
+      parts.push(
+        <span key={`op-${key++}`} className="text-zinc-400 font-mono">
+          {token}
+        </span>
+      );
+    }
+
+    lastIndex = tokenRegex.lastIndex;
+  }
+
+  if (lastIndex < line.length) {
+    parts.push(<span key={`rest-${key++}`} className="text-zinc-300 font-mono">{line.substring(lastIndex)}</span>);
+  }
+
+  return <>{parts}</>;
+}
+
+function highlightLine(line: string, filePath: string): React.ReactNode {
+  if (!line.trim()) return line;
+  const ext = filePath.split('.').pop()?.toLowerCase() || '';
+  if (ext === 'json') {
+    return highlightJSONLine(line);
+  } else if (ext === 'html') {
+    return highlightHtmlLine(line);
+  } else if (ext === 'css') {
+    return highlightCssLine(line);
+  } else {
+    return highlightGeneralLine(line);
+  }
+}
+
 export interface GitFileDiff {
   path: string;
   status: string;
@@ -528,7 +780,7 @@ export function CodeReviewPanel({ currentProject, isOpen, onClose, onStatsUpdate
                                           </button>
                                         )}
                                       </td>
-                                      <td className={contentClass}>{content || ' '}</td>
+                                      <td className={contentClass}>{highlightLine(content, file.path) || ' '}</td>
                                     </tr>
 
                                     {lineComments.length > 0 && (
