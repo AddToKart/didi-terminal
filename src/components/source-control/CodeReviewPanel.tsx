@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { 
   X, 
@@ -10,7 +10,11 @@ import {
   Circle,
   Eye,
   GitPullRequest,
-  Loader2
+  Loader2,
+  MessageSquare,
+  Plus,
+  Trash2,
+  Edit2
 } from "lucide-react";
 import { FileIcon } from "./FileIcon";
 import { Button } from "@/components/ui/button";
@@ -49,6 +53,17 @@ export interface GitStatusResponse {
   files: GitFileDiff[];
 }
 
+export interface CodeReviewComment {
+  id: string;
+  projectPath: string;
+  filePath: string;
+  oldLine: number | null;
+  newLine: number | null;
+  commentText: string;
+  author: string;
+  createdAt: number;
+}
+
 interface CodeReviewPanelProps {
   currentProject: string | null;
   isOpen: boolean;
@@ -64,6 +79,71 @@ export function CodeReviewPanel({ currentProject, isOpen, onClose, onStatsUpdate
   const [commitMsg, setCommitMsg] = useState("");
   const [isCommitting, setIsCommitting] = useState(false);
   const [popoverOpen, setPopoverOpen] = useState(false);
+
+  const [comments, setComments] = useState<CodeReviewComment[]>([]);
+  const [commentingLine, setCommentingLine] = useState<{
+    filePath: string;
+    oldLine: number | null;
+    newLine: number | null;
+  } | null>(null);
+  const [activeCommentText, setActiveCommentText] = useState("");
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+
+  const fetchComments = async () => {
+    if (!currentProject) return;
+    try {
+      const res: CodeReviewComment[] = await invoke("load_all_project_comments", { projectPath: currentProject });
+      setComments(res);
+    } catch (e) {
+      console.error("Failed to fetch comments:", e);
+    }
+  };
+
+  const saveComment = async (oldLine: number | null, newLine: number | null, filePath: string) => {
+    if (!currentProject || !activeCommentText.trim()) return;
+
+    const isEdit = !!editingCommentId;
+    const commentPayload: CodeReviewComment = {
+      id: editingCommentId || crypto.randomUUID(),
+      projectPath: currentProject,
+      filePath,
+      oldLine,
+      newLine,
+      commentText: activeCommentText.trim(),
+      author: "You",
+      createdAt: isEdit ? (comments.find(c => c.id === editingCommentId)?.createdAt || Date.now()) : Date.now(),
+    };
+
+    try {
+      await invoke("save_code_review_comment", { comment: commentPayload });
+      setActiveCommentText("");
+      setCommentingLine(null);
+      setEditingCommentId(null);
+      await fetchComments();
+    } catch (e) {
+      console.error("Failed to save comment:", e);
+    }
+  };
+
+  const deleteComment = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this comment?")) return;
+    try {
+      await invoke("delete_code_review_comment", { id });
+      await fetchComments();
+    } catch (e) {
+      console.error("Failed to delete comment:", e);
+    }
+  };
+
+  const startEditComment = (comment: CodeReviewComment) => {
+    setEditingCommentId(comment.id);
+    setActiveCommentText(comment.commentText);
+    setCommentingLine({
+      filePath: comment.filePath,
+      oldLine: comment.oldLine,
+      newLine: comment.newLine,
+    });
+  };
 
   const fetchStatus = async () => {
     if (!currentProject) return;
@@ -108,7 +188,11 @@ export function CodeReviewPanel({ currentProject, isOpen, onClose, onStatsUpdate
     if (!isOpen || !currentProject) return;
 
     fetchStatus();
-    const unsub = eventBus.subscribe("git-status-changed", () => fetchStatus());
+    fetchComments();
+    const unsub = eventBus.subscribe("git-status-changed", () => {
+      fetchStatus();
+      fetchComments();
+    });
     return () => unsub();
   }, [isOpen, currentProject]);
 
@@ -322,6 +406,16 @@ export function CodeReviewPanel({ currentProject, isOpen, onClose, onStatsUpdate
                               New
                             </Badge>
                           )}
+
+                          {(() => {
+                            const count = comments.filter(c => c.filePath === file.path).length;
+                            return count > 0 ? (
+                              <Badge variant="outline" className="text-[9px] font-bold px-1.5 py-0 h-4 gap-1 border-brand-accent/30 text-brand-accent bg-brand-accent/5 rounded-md font-mono select-none">
+                                <MessageSquare size={10} className="stroke-[2.5]" />
+                                {count}
+                              </Badge>
+                            ) : null;
+                          })()}
                         </div>
 
                         <div className="flex items-center gap-3 text-[11px] font-mono font-bold shrink-0 pl-4">
@@ -394,13 +488,149 @@ export function CodeReviewPanel({ currentProject, isOpen, onClose, onStatsUpdate
                                   currentNewLine = newLine++;
                                 }
 
+                                const oldLineVal = typeof currentOldLine === 'number' ? currentOldLine : null;
+                                const newLineVal = typeof currentNewLine === 'number' ? currentNewLine : null;
+
+                                const lineComments = comments.filter(c => 
+                                  c.filePath === file.path &&
+                                  c.oldLine === oldLineVal &&
+                                  c.newLine === newLineVal
+                                );
+
+                                const isCommentingThisLine = commentingLine && 
+                                  commentingLine.filePath === file.path &&
+                                  commentingLine.oldLine === oldLineVal &&
+                                  commentingLine.newLine === newLineVal;
+
                                 return (
-                                  <tr key={i} className={rowClass}>
-                                    <td className="text-zinc-600/60 text-[10px] px-2 py-0.5 text-right w-12 select-none border-r border-zinc-800/50 bg-[#070709]">{currentOldLine}</td>
-                                    <td className="text-zinc-600/60 text-[10px] px-2 py-0.5 text-right w-12 select-none border-r border-zinc-800/50 bg-[#070709]">{currentNewLine}</td>
-                                    <td className={prefixClass}>{prefix}</td>
-                                    <td className={contentClass}>{content || ' '}</td>
-                                  </tr>
+                                  <Fragment key={i}>
+                                    <tr className={cn("group relative", rowClass)}>
+                                      <td className="text-zinc-600/60 text-[10px] px-2 py-0.5 text-right w-12 select-none border-r border-zinc-800/50 bg-[#070709]">{currentOldLine}</td>
+                                      <td className="text-zinc-600/60 text-[10px] px-2 py-0.5 text-right w-12 select-none border-r border-zinc-800/50 bg-[#070709]">{currentNewLine}</td>
+                                      <td className={cn(prefixClass, "relative group/prefix")}>
+                                        <span className="group-hover/prefix:opacity-0">{prefix}</span>
+                                        {(oldLineVal !== null || newLineVal !== null) && (
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setCommentingLine({
+                                                filePath: file.path,
+                                                oldLine: oldLineVal,
+                                                newLine: newLineVal
+                                              });
+                                              setActiveCommentText("");
+                                              setEditingCommentId(null);
+                                            }}
+                                            className="opacity-0 group-hover:opacity-100 transition-opacity bg-brand-accent/20 hover:bg-brand-accent text-brand-accent hover:text-black rounded size-4 flex items-center justify-center absolute left-1 top-0.5 z-10"
+                                            title="Add comment"
+                                          >
+                                            <Plus size={10} className="stroke-[3]" />
+                                          </button>
+                                        )}
+                                      </td>
+                                      <td className={contentClass}>{content || ' '}</td>
+                                    </tr>
+
+                                    {lineComments.length > 0 && (
+                                      <tr className="bg-[#09090b]/80 border-y border-zinc-900/50">
+                                        <td colSpan={4} className="py-2 px-12">
+                                          <div className="max-w-3xl space-y-2 py-1 font-sans">
+                                            {lineComments.map(comment => (
+                                              <div 
+                                                key={comment.id} 
+                                                className="group/comment bg-[#050507] border border-zinc-800/80 rounded-xl p-3 shadow-inner hover:border-zinc-700/60 transition-all"
+                                              >
+                                                <div className="flex items-center justify-between">
+                                                  <div className="flex items-center gap-2">
+                                                    <span className={cn(
+                                                      "text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded tracking-widest leading-none font-mono",
+                                                      comment.author === "You" 
+                                                        ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20" 
+                                                        : "bg-pink-500/10 text-pink-400 border border-pink-500/20"
+                                                    )}>
+                                                      {comment.author}
+                                                    </span>
+                                                    <span className="text-[10px] text-zinc-500 font-mono">
+                                                      {new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    </span>
+                                                  </div>
+                                                  
+                                                  <div className="flex items-center gap-1 opacity-0 group-hover/comment:opacity-100 transition-opacity">
+                                                    <button
+                                                      onClick={() => startEditComment(comment)}
+                                                      className="size-5 rounded hover:bg-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
+                                                      title="Edit Comment"
+                                                    >
+                                                      <Edit2 size={10} />
+                                                    </button>
+                                                    <button
+                                                      onClick={() => deleteComment(comment.id)}
+                                                      className="size-5 rounded hover:bg-red-500/10 flex items-center justify-center text-zinc-400 hover:text-red-400 transition-colors"
+                                                      title="Delete Comment"
+                                                    >
+                                                      <Trash2 size={10} />
+                                                    </button>
+                                                  </div>
+                                                </div>
+
+                                                <p className="mt-2 text-xs text-zinc-300 whitespace-pre-wrap leading-relaxed font-sans">
+                                                  {comment.commentText}
+                                                </p>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    )}
+
+                                    {isCommentingThisLine && (
+                                      <tr className="bg-[#0b0b0e] border-y border-zinc-900/60">
+                                        <td colSpan={4} className="py-3 px-12">
+                                          <div className="max-w-3xl flex flex-col gap-2 font-sans">
+                                            <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 font-mono uppercase tracking-wider font-bold">
+                                              <MessageSquare size={10} className="text-brand-accent" />
+                                              {editingCommentId ? "Edit Comment" : "Add Comment"}
+                                            </div>
+                                            <textarea
+                                              value={activeCommentText}
+                                              onChange={(e) => setActiveCommentText(e.target.value)}
+                                              placeholder="Write your review comment here... (press Ctrl+Enter to save)"
+                                              onKeyDown={(e) => {
+                                                if (e.key === "Enter" && e.ctrlKey) {
+                                                  e.preventDefault();
+                                                  saveComment(oldLineVal, newLineVal, file.path);
+                                                }
+                                              }}
+                                              className="w-full min-h-[75px] bg-[#070709] border border-zinc-800 rounded-lg p-2 text-xs text-zinc-200 outline-none focus:border-brand-accent/50 focus:ring-1 focus:ring-brand-accent/20 transition-all font-mono leading-relaxed"
+                                              autoFocus
+                                            />
+                                            <div className="flex justify-end gap-2">
+                                              <Button 
+                                                variant="ghost" 
+                                                size="sm" 
+                                                onClick={() => {
+                                                  setCommentingLine(null);
+                                                  setActiveCommentText("");
+                                                  setEditingCommentId(null);
+                                                }}
+                                                className="h-7 text-xs text-zinc-400 hover:text-white"
+                                              >
+                                                Cancel
+                                              </Button>
+                                              <Button 
+                                                size="sm" 
+                                                onClick={() => saveComment(oldLineVal, newLineVal, file.path)}
+                                                disabled={!activeCommentText.trim()}
+                                                className="h-7 text-xs bg-brand-accent hover:bg-brand-accent/90 text-white font-bold"
+                                              >
+                                                {editingCommentId ? "Save Change" : "Submit"}
+                                              </Button>
+                                            </div>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    )}
+                                  </Fragment>
                                 );
                               });
                             })()}

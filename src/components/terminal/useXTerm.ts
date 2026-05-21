@@ -169,9 +169,28 @@ export function useXTerm(
   const isMountedRef = useRef(false);
   const webglAddonRef = useRef<WebglAddon | null>(null);
 
+  /**
+   * StrictMode double-mount guard (generation counter).
+   *
+   * React 19 StrictMode fires effects twice in dev (mount → cleanup → remount)
+   * to stress-test lifecycle correctness. Without a guard, two concurrent
+   * `mountTerminal()` async calls race to call `term.open()` on the same DOM
+   * container, corrupting canvas bindings for the terminal that wins the race.
+   *
+   * The generation counter approach works correctly for BOTH scenarios:
+   *  - StrictMode remount (same agentName): second effect increments the counter;
+   *    the first effect's async continuation sees a stale gen and aborts.
+   *  - Legitimate agentName change: new effect increments the counter the same
+   *    way, aborting any in-flight work from the previous agentName's cycle.
+   */
+  const mountGenRef = useRef(0);
+
   useEffect(() => {
     isMountedRef.current = true;
     let isMounted = true;
+    // Stamp this effect run. Any async work capturing this value will abort if
+    // a newer generation (StrictMode re-run or agentName change) starts first.
+    const mountGen = ++mountGenRef.current;
     let resizeObserver: ResizeObserver | null = null;
     let resizeFrame: number | null = null;
     let resizeSettleTimer: ReturnType<typeof setTimeout> | null = null;
@@ -232,7 +251,10 @@ export function useXTerm(
     async function mountTerminal() {
       if (!isMounted || !containerRef.current) return;
       await document.fonts.ready;
-      if (!isMounted || !containerRef.current) return;
+      // After the async checkpoint, verify this is still the active mount
+      // generation. StrictMode cleanup + remount increments mountGenRef before
+      // this continuation runs, so stale cycles self-abort here.
+      if (!isMounted || !containerRef.current || mountGen !== mountGenRef.current) return;
 
       term = createTerminal(options);
       fitAddon = new FitAddon();

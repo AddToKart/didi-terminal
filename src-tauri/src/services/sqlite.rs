@@ -150,6 +150,19 @@ pub fn run_migrations(conn: &mut Connection) -> Result<(), String> {
             CREATE INDEX IF NOT EXISTS idx_personal_tasks_ws ON personal_tasks(workspace_id);
         "),
         (7, "add_section_merged_tab_pair", "ALTER TABLE sections ADD COLUMN mergedTabPair TEXT;"),
+        (8, "add_code_review_comments", "
+            CREATE TABLE IF NOT EXISTS code_review_comments (
+                id TEXT PRIMARY KEY,
+                project_path TEXT NOT NULL,
+                file_path TEXT NOT NULL,
+                old_line INTEGER,
+                new_line INTEGER,
+                comment_text TEXT NOT NULL,
+                author TEXT NOT NULL,
+                created_at INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_cr_comments_file ON code_review_comments(project_path, file_path);
+        "),
     ];
 
     for (version, desc, sql) in migrations {
@@ -511,6 +524,79 @@ pub async fn update_personal_tasks_order(app: AppHandle, tasks: Vec<PersonalTask
 pub async fn delete_personal_task(app: AppHandle, id: String) -> Result<(), String> {
     let conn = get_db_conn(&app)?;
     conn.execute("DELETE FROM personal_tasks WHERE id = ?1", [id]).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct CodeReviewComment {
+    pub id: String,
+    pub project_path: String,
+    pub file_path: String,
+    pub old_line: Option<i32>,
+    pub new_line: Option<i32>,
+    pub comment_text: String,
+    pub author: String,
+    pub created_at: i64,
+}
+
+// ── CODE REVIEW COMMENTS COMMANDS ──────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn load_all_project_comments(app: AppHandle, project_path: String) -> Result<Vec<CodeReviewComment>, String> {
+    let conn = get_db_conn(&app)?;
+    let mut stmt = conn.prepare(
+        "SELECT id, project_path, file_path, old_line, new_line, comment_text, author, created_at \
+         FROM code_review_comments WHERE project_path = ?1 ORDER BY created_at ASC"
+    ).map_err(|e| e.to_string())?;
+
+    let rows = stmt.query_map([project_path], |row| {
+        Ok(CodeReviewComment {
+            id: row.get(0)?,
+            project_path: row.get(1)?,
+            file_path: row.get(2)?,
+            old_line: row.get(3)?,
+            new_line: row.get(4)?,
+            comment_text: row.get(5)?,
+            author: row.get(6)?,
+            created_at: row.get(7)?,
+        })
+    }).map_err(|e| e.to_string())?;
+
+    let mut comments = Vec::new();
+    for r in rows {
+        comments.push(r.map_err(|e| e.to_string())?);
+    }
+    Ok(comments)
+}
+
+#[tauri::command]
+pub async fn save_code_review_comment(app: AppHandle, comment: CodeReviewComment) -> Result<(), String> {
+    let conn = get_db_conn(&app)?;
+    conn.execute(
+        "INSERT INTO code_review_comments (id, project_path, file_path, old_line, new_line, comment_text, author, created_at) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8) \
+         ON CONFLICT(id) DO UPDATE SET \
+          comment_text = excluded.comment_text, \
+          author = excluded.author",
+        rusqlite::params![
+            comment.id,
+            comment.project_path,
+            comment.file_path,
+            comment.old_line,
+            comment.new_line,
+            comment.comment_text,
+            comment.author,
+            comment.created_at
+        ],
+    ).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn delete_code_review_comment(app: AppHandle, id: String) -> Result<(), String> {
+    let conn = get_db_conn(&app)?;
+    conn.execute("DELETE FROM code_review_comments WHERE id = ?1", [id]).map_err(|e| e.to_string())?;
     Ok(())
 }
 
