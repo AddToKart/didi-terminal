@@ -126,6 +126,7 @@ export function NonZenModeShell({ rightSidebar }: NonZenModeShellProps) {
     setShowSvgOptimizer,
     showStorageInspector,
     setShowStorageInspector,
+    showMockDataGenerator,
     setShowMockDataGenerator,
     showOmnibar,
     setShowOmnibar,
@@ -496,6 +497,7 @@ export function NonZenModeShell({ rightSidebar }: NonZenModeShellProps) {
             onToggleHtmlToJsx={() => setShowHtmlToJsx(!showHtmlToJsx)}
             onToggleSvgOptimizer={() => setShowSvgOptimizer(!showSvgOptimizer)}
             onToggleStorageInspector={() => setShowStorageInspector(!showStorageInspector)}
+            onToggleMockDataGenerator={() => setShowMockDataGenerator(!showMockDataGenerator)}
             currentProject={currentProject}
           />
           <div className="flex flex-1 min-h-0 relative">
