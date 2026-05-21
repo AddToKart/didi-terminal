@@ -250,7 +250,7 @@ export function DockerManager({ isOpen, onClose }: DockerManagerProps) {
               <input 
                 type="text"
                 placeholder="Search container names, images, status or ID..."
-                className="w-full bg-zinc-950 border border-zinc-850 rounded-lg py-2.5 pl-9 pr-4 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-sky-500/40 transition-all shadow-inner"
+                className="w-full bg-zinc-950 border border-zinc-850 rounded-lg py-2.5 pl-9 pr-4 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:outline-none focus:border-sky-500/30 transition-all shadow-inner"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 autoFocus
