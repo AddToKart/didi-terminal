@@ -267,6 +267,39 @@ pub fn run() {
             services::sqlite::db_sqlite_query,
             services::sqlite::db_sqlite_execute,
         ])
+        .on_window_event(|window, event| {
+            if window.label() == "main" {
+                if let tauri::WindowEvent::Destroyed = event {
+                    if let Some(state) = window.try_state::<AppState>() {
+                        // 1. Terminate all browser_views
+                        {
+                            let mut views = state.browser_views.lock().unwrap();
+                            for (_, view) in views.drain() {
+                                let _ = view.close();
+                            }
+                        }
+
+                        // 2. Terminate and clean up all PTY processes
+                        {
+                            let mut processes = state.pty_processes.lock().unwrap();
+                            for (_agent_key, mut process) in processes.drain() {
+                                #[cfg(unix)]
+                                if let Some(pid) = process.pid {
+                                    services::job::kill_unix_process_group(pid);
+                                }
+                                let _ = process.child.kill();
+                            }
+                        }
+
+                        // 3. Clear other PTY state
+                        state.pty_writers.lock().unwrap().clear();
+                        state.pty_resizers.lock().unwrap().clear();
+                        state.pty_scrollbacks.lock().unwrap().clear();
+                        state.pty_workspaces.lock().unwrap().clear();
+                    }
+                }
+            }
+        })
         .setup(|app| {
             services::job::init_job_object();
             let _ = services::vault::init_vault_db(app.handle());

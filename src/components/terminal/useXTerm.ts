@@ -3,7 +3,11 @@ import { Terminal, ITerminalOptions } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { SearchAddon } from "@xterm/addon-search";
+import { Unicode11Addon } from "@xterm/addon-unicode11";
 import "@xterm/xterm/css/xterm.css";
+
+const MIN_FIT_WIDTH_PX = 280;
+const MIN_FIT_HEIGHT_PX = 120;
 
 // Hard cap on scrollback lines — prevents unbounded RAM growth from log-storm terminals.
 const SCROLLBACK_LINE_CAP = 10_000;
@@ -55,9 +59,9 @@ function createTerminal(options: UseXTermOptions): Terminal {
 
   return new Terminal({
     allowProposedApi: true,
-    allowTransparency: false,
+    allowTransparency: true,
     altClickMovesCursor: true,
-    convertEol: false,
+    convertEol: true,
     cursorBlink: true,
     cursorInactiveStyle: "outline",
     cursorStyle: "block",
@@ -78,6 +82,7 @@ function createTerminal(options: UseXTermOptions): Terminal {
     ...terminalOptions,
     theme: {
       ...nativeDarkTheme,
+      background: "transparent",
       ...terminalOptions.theme,
     },
   });
@@ -184,7 +189,7 @@ export function useXTerm(
       if (!term || !fitAddon || !containerRef.current) return false;
 
       const rect = containerRef.current.getBoundingClientRect();
-      if (rect.width < 2 || rect.height < 2) return false;
+      if (rect.width < MIN_FIT_WIDTH_PX || rect.height < MIN_FIT_HEIGHT_PX) return false;
 
       try {
         fitAddon.fit();
@@ -193,9 +198,11 @@ export function useXTerm(
       }
 
       emitResize(term);
+      setTermLoaded(true);
       return true;
     };
 
+    let retryCount = 0;
     const scheduleFit = () => {
       if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
       if (fitRetryTimer) {
@@ -209,21 +216,19 @@ export function useXTerm(
           if (!isMounted) return;
 
           if (fitVisibleTerminal()) {
-            setTermLoaded(true);
             return;
           }
 
-          fitRetryTimer = setTimeout(() => {
-            if (!isMounted) return;
-            if (fitVisibleTerminal()) setTermLoaded(true);
-            else scheduleFit();
-          }, FIT_RETRY_MS);
+          if (retryCount < 3) {
+            retryCount++;
+            fitRetryTimer = setTimeout(() => {
+              if (isMounted) scheduleFit();
+            }, FIT_RETRY_MS);
+          }
         });
       });
     };
-
     let handleResizeEnd: (() => void) | null = null;
-
     async function mountTerminal() {
       if (!isMounted || !containerRef.current) return;
       await document.fonts.ready;
@@ -235,6 +240,11 @@ export function useXTerm(
       searchAddon = new SearchAddon();
       term.loadAddon(searchAddon);
 
+      // Load Unicode 11 Addon for accurate wide-character sizing (Nerd Font icon support)
+      const unicodeAddon = new Unicode11Addon();
+      term.loadAddon(unicodeAddon);
+      term.unicode.activeVersion = "11";
+
       term.onData((data) => onDataRef.current?.(data));
       term.onBinary((data) => onBinaryRef.current?.(data));
 
@@ -242,6 +252,15 @@ export function useXTerm(
         const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
         const isMac = /Mac|iPhone|iPad/.test(ua);
         const mod = isMac ? event.metaKey : event.ctrlKey;
+
+        // Smart Copy on Selection interceptor
+        if (event.type === "keydown" && mod && event.key.toLowerCase() === "c") {
+          if (term && term.hasSelection()) {
+            navigator.clipboard.writeText(term.getSelection());
+            term.clearSelection();
+            return false; // Handled, do not send to PTY
+          }
+        }
 
         if (mod && (event.key === "Backspace" || event.code === "Backspace")) {
           event.preventDefault();
